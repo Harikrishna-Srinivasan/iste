@@ -225,32 +225,42 @@
         function generateCaptcha() {
             const canvas = document.getElementById('captchaCanvas');
             const ctx = canvas.getContext('2d');
-            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789@%";
             correctCaptcha = "";
 
-            ctx.fillStyle = "#fff";
+            ctx.fillStyle = "#f0f0f0";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            for (let i = 0; i < 6; i++) {
-                ctx.strokeStyle = "rgba(0,0,0,0.1)";
+            for (let i = 0; i < 10; i++) {
+                ctx.strokeStyle = `rgba(${Math.random()*255}, ${Math.random()*255}, ${Math.random()*255}, 0.3)`;
                 ctx.beginPath();
                 ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
                 ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
                 ctx.stroke();
             }
 
-            ctx.font = "bold 35px 'Courier New'";
-            ctx.textBaseline = 'middle';
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 50; i++) {
+                ctx.fillStyle = `rgba(${Math.random()*255}, ${Math.random()*255}, ${Math.random()*255}, 0.5)`;
+                ctx.beginPath();
+                ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, Math.random()*2+1, 0, 2*Math.PI);
+                ctx.fill();
+            }
+
+            const charCount = 6;
+            for (let i = 0; i < charCount; i++) {
                 const char = chars.charAt(Math.floor(Math.random() * chars.length));
                 correctCaptcha += char;
+
                 ctx.save();
-                ctx.translate(30 + (i * 35), 35);
-                ctx.rotate((Math.random() - 0.5) * 0.3);
-                ctx.fillStyle = "#1976D2";
+                ctx.translate(25 + i * 30 + Math.random()*10, 35 + Math.random()*10 - 5);
+                ctx.rotate((Math.random() - 0.5) * 0.5); // rotate slightly
+                ctx.font = `${20 + Math.floor(Math.random()*10)}px Arial`;
+                ctx.fillStyle = `rgb(${Math.floor(Math.random()*150)}, ${Math.floor(Math.random()*150)}, ${Math.floor(Math.random()*150)})`;
                 ctx.fillText(char, 0, 0);
                 ctx.restore();
             }
+
+            console.log(correctCaptcha)
         }
 
         async function validateAndLogin() {

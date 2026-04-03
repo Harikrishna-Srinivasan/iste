@@ -1,1 +1,8 @@
-.env
+.*
+
+android/
+node_modules/
+
+flask_session/
+
+a.py
