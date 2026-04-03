@@ -1,0 +1,10 @@
+pandas
+flask
+flask-cors
+flask-session
+pymysql
+dbutils
+pyjwt
+argon2-cffi
+apscheduler
+pytz

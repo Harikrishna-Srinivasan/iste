@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ISTE Online Test Environment</title>
+    <style>
+        :root {
+            --primary-blue: #1976D2;
+            --thick-orange: #EF6C00;
+            --thick-yellow: #FDD835;
+            --bg-body: #F4F6F8;
+            --bg-card: #FFFFFF;
+            --text-main: #202124;
+            --border: #DADCE0;
+            --iste-gray: #E0E0E0;
+            --iste-red: #D32F2F;
+            --iste-green: #2E7D32;
+            --iste-purple: #5E35B1;
+        }
+
+        [data-theme="dark"] {
+            --bg-body: #1A1C1E; 
+            --bg-card: #2D3135;
+            --text-main: #E8EAED;
+            --border: #3C4043;
+            --iste-gray: #45494E;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+        body { background-color: var(--bg-body); color: var(--text-main); transition: background-color 0.3s, color 0.3s; line-height: 1.6; min-height: 100vh; overflow: hidden; }
+
+        .app-bar { 
+            background: var(--primary-blue); color: white; padding: 12px 16px; 
+            display: flex; justify-content: space-between; align-items: center; 
+            position: sticky; top: 0; z-index: 100; border-bottom: 5px solid var(--thick-yellow); 
+        }
+
+        .main-layout { display: grid; grid-template-columns: 1fr 300px; height: calc(100vh - 60px); }
+        
+        .question-scroll { padding: 30px; overflow-y: auto; background: var(--bg-body); }
+        .sidebar { background: var(--bg-card); border-left: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; }
+
+        .q-card { background: var(--bg-card); padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid var(--border); margin-bottom: 80px; }
+        
+        .timer-row { display: flex; gap: 10px; margin-bottom: 20px; }
+        .timer-chip { flex: 1; padding: 10px; border: 2px solid var(--primary-blue); border-radius: 5px; text-align: center; font-weight: bold; background: var(--bg-card); }
+        .timer-chip.red { border-color: var(--iste-red); color: var(--iste-red); }
+
+        .palette-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 15px; }
+        .p-item { 
+            width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; 
+            font-size: 12px; font-weight: bold; border-radius: 4px; background: var(--iste-gray); color: #555;
+            cursor: pointer; transition: 0.2s;
+        }
+        .p-item.active { border: 2px solid var(--primary-blue); transform: scale(1.1); box-shadow: 0 0 5px var(--primary-blue); }
+        .p-item.answered { background: var(--iste-green); color: white; border-radius: 0 0 15px 15px; }
+        .p-item.not-answered { background: var(--iste-red); color: white; border-radius: 15px 15px 0 0; }
+        .p-item.review { background: var(--iste-purple); color: white; border-radius: 50%; }
+        .p-item.no-time { opacity: 0.4; cursor: not-allowed; border: 2px dashed #999; }
+
+        .option-label { display: block; padding: 15px; margin-bottom: 10px; border: 2px solid var(--border); border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .option-label:hover { border-color: var(--primary-blue); background: rgba(25, 118, 210, 0.05); }
+        .option-label input { margin-right: 12px; transform: scale(1.3); }
+
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-card); padding: 15px 30px; border-top: 5px solid var(--primary-blue); display: flex; gap: 15px; z-index: 101; }
+        .btn { padding: 12px 25px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; flex: 1; }
+        .btn-save { background: var(--iste-green); color: white; }
+        .btn-review { background: var(--thick-orange); color: white; }
+        .btn-clear { background: var(--iste-gray); color: var(--text-main); }
+
+        @media (max-width: 850px) {
+            .main-layout { grid-template-columns: 1fr; }
+            .sidebar { order: -1; height: auto; }
+        }
+    </style>
+</head>
+<body id="body-main">
+
+    <header class="app-bar">
+        <h2>ISTE Performance Portal | Online Test</h2>
+        <div id="status-info" style="font-size: 13px;">Auto-Saving...</div>
+    </header>
+
+    <div class="main-layout">
+        <div class="question-scroll" id="q-scroll-box">
+            <div class="timer-row">
+                <div class="timer-chip">Total Time: <span id="total-clock">00:00</span></div>
+                <div class="timer-chip red">Q-Timer: <span id="q-clock">0</span>s</div>
+            </div>
+
+            <div class="q-card" id="q-display">
+                <h2 style="text-align: center; color: #999; margin-top: 50px;">Initialising Exam Environment...</h2>
+            </div>
+        </div>
+
+        <aside class="sidebar">
+            <h4 style="border-bottom: 2px solid var(--border); padding-bottom: 8px;">Question Palette</h4>
+            <div class="palette-grid" id="palette-grid"></div>
+            
+            <div style="flex: 1;"></div>
+            <p style="font-size: 11px; color: #777; margin-top: 15px; text-align: center;">Click "Final Submit" in the bottom bar to end the exam.</p>
+        </aside>
+    </div>
+
+    <footer class="footer">
+        <button class="btn btn-clear" onclick="clearSelection()">Clear Response</button>
+        <button class="btn btn-review" onclick="saveAndNext('review')">Mark for Review</button>
+        <button class="btn btn-save" onclick="saveAndNext('save')">Save & Next</button>
+        <button class="btn btn-submit" style="background: var(--iste-red); color: white;" onclick="finishTest()">Final Submit</button>
+    </footer>
+
+    <script>
+        let assessmentId = null;
+        let testData = [];
+        let state = {
+            timeLeft: 0,
+            qTimeRemaining: [],
+            responses: {},
+            visited: [] // Use array for JSON compatibility
+        };
+        let timers = { global: null, q: null };
+
+        async function initTest() {
+            try {
+                // 1. Determine what test were joining
+                const targetId = sessionStorage.getItem('joining_assessment_id');
+                
+                // 2. Fetch assessments list to verify/get details
+                const activeRes = await fetch("/student/active");
+                if (!activeRes.ok) throw new Error("No active assessments");
+                const activeList = await activeRes.json();
+                
+                // Find our target or default to the most recent one
+                let active = null;
+                if (targetId) active = activeList.find(a => a.id == targetId);
+                if (!active && activeList.length > 0) active = activeList[0];
+                
+                if (!active) throw new Error("No available test found");
+                
+                assessmentId = active.id;
+
+                // 2. Fetch Questions
+                const qRes = await fetch(`/student/questions/${assessmentId}`);
+                if (!qRes.ok) throw new Error("Could not fetch questions");
+                const rawData = await qRes.json();
+
+                // 3. Map to UI format
+                testData = rawData.map(q => ({
+                    id: q.id,
+                    type: q.type,
+                    q: q.question,
+                    opts: q.answer.options || [],
+                    marks: q.mark,
+                    negative: q.negative_mark || 0,
+                    duration: q.answer.duration_sec || 60
+                }));
+
+                // 4. Restore from LocalStorage or Init
+                const saved = localStorage.getItem('iste_test_state_' + assessmentId);
+                if (saved) {
+                    state = JSON.parse(saved);
+                    if (!state.visited) state.visited = []; 
+                } else {
+                    state.qTimeRemaining = testData.map(q => q.duration);
+                    state.timeLeft = (active.total_duration || 60) * 60; 
+                }
+
+                initPalette();
+                renderQuestion();
+                startGlobalTimer();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('q-display').innerHTML = `<h2 style="color:var(--iste-red); text-align:center;">Error Loading Assessment: ${err.message}</h2>`;
+            }
+        }
+
+        function saveLocal() {
+            localStorage.setItem('iste_test_state_' + assessmentId, JSON.stringify(state));
+        }
+
+        function initPalette() {
+            const grid = document.getElementById('palette-grid');
+            grid.innerHTML = testData.map((_, i) => `<div class="p-item" id="pal-${i}" onclick="jumpTo(${i})">${i+1}</div>`).join('');
+            updatePaletteUI();
+        }
+
+        function updatePaletteUI() {
+            testData.forEach((q, i) => {
+                const el = document.getElementById(`pal-${i}`);
+                el.className = 'p-item';
+                if (i === state.idx) el.classList.add('active');
+                if (state.qTimeRemaining[i] <= 0) el.classList.add('no-time');
+                
+                const resp = state.responses[q.id];
+                if (resp) {
+                    if (resp.status === 'review') el.classList.add('review');
+                    else el.classList.add('answered');
+                } else if (state.visited.includes(i)) {
+                    // Visited but not answered
+                    el.classList.add('not-answered');
+                }
+            });
+        }
+
+        function renderQuestion() {
+            if (!testData.length) {
+                document.getElementById('q-display').innerHTML = '<h2 style="text-align:center; color:#999; margin-top:50px;">No Questions Assigned</h2>';
+                return;
+            }
+            const q = testData[state.idx];
+            const isExhausted = state.qTimeRemaining[state.idx] <= 0;
+            const savedResp = state.responses[q.id] || {};
+
+            let optionsHtml = '';
+            if (q.type === 'MCQ' || q.type === 'MSQ') {
+                optionsHtml = q.opts.map((o, i) => {
+                    const type = q.type === 'MCQ' ? 'radio' : 'checkbox';
+                    let checked = "";
+                    if (q.type === 'MCQ' && savedResp.selected_id === i) checked = 'checked';
+                    if (q.type === 'MSQ' && savedResp.selected_ids?.includes(i)) checked = 'checked';
+                    
+                    return `
+                        <label class="option-label" style="${isExhausted ? 'opacity: 0.6; cursor: not-allowed;' : ''}">
+                            <input type="${type}" name="q-opt" value="${i}" ${checked} ${isExhausted ? 'disabled' : ''}> ${o}
+                        </label>
+                    `;
+                }).join('');
+            } else {
+                optionsHtml = `<input type="text" id="ans-text" class="option-label" style="width:100%;" value="${savedResp.value || ''}" ${isExhausted ? 'disabled' : ''} placeholder="Type Answer Here...">`;
+            }
+
+            document.getElementById('q-display').innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:8px;">
+                    <span style="font-weight:bold; color:var(--primary-blue)">Question ${state.idx + 1} (${q.type})</span>
+                    <span style="font-size:12px; font-weight:bold; background:var(--iste-gray); padding:3px 8px; border-radius:4px;">
+                        +${q.marks} / -${q.negative}
+                    </span>
+                </div>
+                <h3 style="margin-bottom:20px;">${q.q}</h3>
+                <div id="options-box">${optionsHtml}</div>
+                ${isExhausted ? '<p style="color:var(--iste-red); font-weight:bold; margin-top:20px; text-align:center;">TIME EXHAUSTED FOR THIS QUESTION</p>' : ''}
+            `;
+
+            if (!state.visited.includes(state.idx)) state.visited.push(state.idx); 
+            document.getElementById('q-clock').innerText = state.qTimeRemaining[state.idx];
+            updatePaletteUI();
+            startQuestionTimer();
+        }
+
+        function startQuestionTimer() {
+            clearInterval(timers.q);
+            timers.q = setInterval(() => {
+                if (state.qTimeRemaining[state.idx] > 0) {
+                    state.qTimeRemaining[state.idx]--;
+                    document.getElementById('q-clock').innerText = state.qTimeRemaining[state.idx];
+                    if (state.qTimeRemaining[state.idx] % 5 === 0) saveLocal();
+                } else {
+                    clearInterval(timers.q);
+                    renderQuestion(); // Re-render to disable inputs
+                    moveToNext();     // Auto-next on exhaust
+                }
+            }, 1000);
+        }
+
+        function startGlobalTimer() {
+            if (!state.timeLeft || state.timeLeft <= 0) return;
+
+            timers.global = setInterval(() => {
+                if (state.timeLeft > 0) {
+                    state.timeLeft--;
+                    const m = Math.floor(state.timeLeft / 60).toString().padStart(2, '0');
+                    const s = (state.timeLeft % 60).toString().padStart(2, '0');
+                    document.getElementById('total-clock').innerText = `${m}:${s}`;
+                } else {
+                    finishTest(true);
+                }
+            }, 1000);
+        }
+
+        function jumpTo(i) {
+            if (state.qTimeRemaining[i] <= 0 && !state.responses[testData[i].id]) {
+                alert("Time exhausted for this question.");
+                return;
+            }
+            state.idx = i;
+            renderQuestion();
+        }
+
+        function saveAndNext(status) {
+            if (state.qTimeRemaining[state.idx] <= 0) {
+                // Just move to next if available
+                moveToNext();
+                return;
+            }
+
+            const q = testData[state.idx];
+            let respObj = { status: status };
+
+            if (q.type === 'MCQ' || q.type === 'MSQ') {
+                const checked = Array.from(document.querySelectorAll('input[name="q-opt"]:checked')).map(el => parseInt(el.value));
+                if (checked.length === 0 && status === 'save') return alert("Select an option first.");
+                if (q.type === 'MCQ') respObj.selected_id = checked[0];
+                else respObj.selected_ids = checked;
+            } else {
+                const val = document.getElementById('ans-text').value.trim();
+                if (val === "" && status === 'save') return alert("Enter an answer first.");
+                respObj.value = val;
+            }
+
+            state.responses[q.id] = respObj;
+            saveLocal();
+            moveToNext();
+        }
+
+        function moveToNext() {
+            saveLocal();
+            // Find next question that is NOT exhausted
+            let found = false;
+            for (let i = 1; i < testData.length; i++) {
+                let nextIdx = (state.idx + i) % testData.length;
+                if (state.qTimeRemaining[nextIdx] > 0) {
+                    state.idx = nextIdx;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                alert("All questions have either been answered or their time has exhausted. Please submit your test.");
+            }
+            renderQuestion();
+        }
+
+        function clearSelection() {
+            if (state.qTimeRemaining[state.idx] <= 0) return;
+            delete state.responses[testData[state.idx].id];
+            renderQuestion();
+            saveLocal();
+        }
+
+        async function finishTest(auto = false) {
+            if (!auto && !confirm("Finalize and submit your test?")) return;
+            
+            clearInterval(timers.global);
+            clearInterval(timers.q);
+
+            // Map qTimeRemaining back to question IDs for the server
+            const timeMap = {};
+            testData.forEach((q, i) => {
+                timeMap[q.id] = q.duration - state.qTimeRemaining[i];
+            });
+
+            const res = await fetch("/student/submit", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    assessment_id: assessmentId,
+                    responses: state.responses,
+                    times: timeMap
+                })
+            });
+
+            if (res.ok) {
+                localStorage.removeItem('iste_test_state_' + assessmentId);
+                window.location.href = "/dashboard";
+            } else {
+                alert("Submission failed. Please check connection.");
+            }
+        }
+
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const target = e.target;
+                if (target.id === 'ans-text' || target.name === 'q-opt') {
+                    saveAndNext('save');
+                }
+            }
+        });
+
+        window.onload = initTest;
+    </script>
+</body>
+</html>

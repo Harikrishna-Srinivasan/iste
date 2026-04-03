@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISTE Administration Dashboard</title>
+    <style>
+        :root {
+            --admin: #5E35B1;
+            --bg: #f5f7fa;
+            --card: #fff;
+            --text: #333;
+            --border: #ddd;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding-bottom: 50px;
+        }
+
+        .nav {
+            background: var(--admin);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav h2 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .nav button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: var(--admin);
+        }
+
+        h3 {
+            color: var(--admin);
+            border-bottom: 2px solid #eee;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 15px;
+            background: var(--admin);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 15px;
+        }
+
+        .btn-action:hover {
+            filter: brightness(1.1);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(94, 53, 177, 0.3);
+        }
+
+        .excel-guide {
+            background: #f0f4f8;
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .excel-guide th {
+            text-align: left;
+            background: #e2e8f0;
+            padding: 5px 10px;
+        }
+
+        .excel-guide td {
+            padding: 5px 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .card.full {
+            grid-column: span 2;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="nav">
+        <h2>ISTE Administration Dashboard</h2>
+        <button onclick="logout()">Logout</button>
+    </nav>
+
+    <div class="container">
+        <!-- 1. Question Importer -->
+        <div class="card">
+            <h3>📤 Question Importer (Excel)</h3>
+            <label>Select Template File (.xlsx)</label>
+            <input type="file" id="excel-file" accept=".xlsx,.xls">
+            <button class="btn-action" onclick="uploadData()">Import Question Set</button>
+            <div id="upload-status" style="margin-top: 15px; font-weight: 500;"></div>
+
+            <div class="excel-guide" style="margin-top: 25px;">
+                <strong>Dynamic Template Columns:</strong>
+                <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+                    <tr>
+                        <th>Column</th>
+                        <th>Required</th>
+                        <th>Description / Format</th>
+                    </tr>
+                    <tr>
+                        <td>type</td>
+                        <td>Optional</td>
+                        <td>MCQ (default), MSQ, INT, NUM</td>
+                    </tr>
+                    <tr>
+                        <td>question</td>
+                        <td>Yes</td>
+                        <td>The question text</td>
+                    </tr>
+                    <tr>
+                        <td>A, B, C, D</td>
+                        <td>MCQ/MSQ</td>
+                        <td>Dynamic options (as many as you need)</td>
+                    </tr>
+                    <tr>
+                        <td>correct</td>
+                        <td>Yes</td>
+                        <td>MCQ: A or 0 | MSQ: A B or 0 1 | INT/NUM: 25 or 24, 26 (range)</td>
+                    </tr>
+                    <tr>
+                        <td>marks</td>
+                        <td>Optional</td>
+                        <td>Value of question (default 1)</td>
+                    </tr>
+                    <tr>
+                        <td>negative_marks</td>
+                        <td>Optional</td>
+                        <td>Penalty (default 0)</td>
+                    </tr>
+                </table>
+                <p style="font-size: 11px; margin-top: 10px; color: #d32f2f;">• Admin and Student sessions expire after
+                    2 hours of inactivity.</p>
+            </div>
+        </div>
+
+        <!-- 2. Scheduler -->
+        <div class="card">
+            <h3>📅 Live Event Scheduler</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label>Series Sequence ID</label>
+                    <input type="number" id="seq_num" placeholder="Integer ID">
+                </div>
+                <div>
+                    <label>Total Duration (Minutes)</label>
+                    <input type="number" id="total_duration" value="30">
+                </div>
+            </div>
+
+            <label>Public Title</label>
+            <input type="text" id="test-title" placeholder="e.g. Week 4: Logical Reasoning">
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label>Entry Opens (Start)</label>
+                    <input type="datetime-local" id="start_at">
+                </div>
+                <div>
+                    <label>Entry Closes (Deadline to Join)</label>
+                    <input type="datetime-local" id="start_until">
+                </div>
+            </div>
+
+            <label>Reminder Intervals (Advanced Alerts)</label>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                <label style="font-weight: normal;"><input type="checkbox" name="rem" value="1d"> 1 Day</label>
+                <label style="font-weight: normal;"><input type="checkbox" name="rem" value="2h"> 2 Hrs</label>
+                <label style="font-weight: normal;"><input type="checkbox" name="rem" value="1h"> 1 Hr</label>
+                <label style="font-weight: normal;"><input type="checkbox" name="rem" value="15m"> 15 Min</label>
+                <label style="font-weight: normal;"><input type="checkbox" name="rem" value="5m"> 5 Min</label>
+            </div>
+
+            <button class="btn-action" onclick="scheduleEvent()">Publish Assessment & Notify Students</button>
+            <div id="schedule-status" style="margin-top: 15px; font-weight: 500;"></div>
+
+            <p style="font-size: 11px; color: #777; margin-top: 15px;">Note: Students can join the exam any time between Open and Close. Once they join, their specific question timers begin.</p>
+        </div>
+
+        <!-- 3. Question Bank Preview -->
+        <div class="card full">
+            <h3>📋 Active Question Bank Overview</h3>
+            <div id="preview-grid"
+                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
+                <p>Fetching active questions...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function uploadData() {
+            const statusEl = document.getElementById('upload-status');
+            const file = document.getElementById('excel-file').files[0];
+            if (!file) return alert("Select file first.");
+
+            let formData = new FormData();
+            formData.append("file", file);
+
+            statusEl.innerText = "Processing File...";
+            const res = await fetch("/admin/upload_excel", { method: "POST", body: formData });
+
+            if (res.ok) {
+                const data = await res.json();
+                statusEl.innerText = `Successfully Imported ${data.count} Questions!`;
+                statusEl.style.color = "green";
+                fetchQuestions();
+            } else {
+                statusEl.innerText = "Error: Invalid File Format.";
+                statusEl.style.color = "red";
+            }
+        }
+
+        async function scheduleEvent() {
+            const statusEl = document.getElementById('schedule-status');
+            const seq = document.getElementById('seq_num').value;
+            const duration = document.getElementById('total_duration').value;
+            const title = document.getElementById('test-title').value;
+            const startAt = document.getElementById('start_at').value.replace('T', ' ') + ':00';
+            const startUntil = document.getElementById('start_until').value.replace('T', ' ') + ':00';
+            
+            const reminders = Array.from(document.querySelectorAll('input[name="rem"]:checked')).map(el => el.value);
+
+            if (!seq || !title || !startAt || !startUntil) return alert("Fill all timing fields.");
+
+            const res = await fetch("/admin/create_assessment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    seq_num: seq, 
+                    title: title, 
+                    start_at: startAt, 
+                    start_until: startUntil, 
+                    total_duration: duration,
+                    reminders: reminders 
+                })
+            });
+
+            if (res.ok) {
+                statusEl.innerText = "Assessment Scheduled Successfully!";
+                statusEl.style.color = "green";
+            } else {
+                const err = await res.json();
+                statusEl.innerText = `Error: ${err.error}`;
+                statusEl.style.color = "red";
+            }
+        }
+
+        async function fetchQuestions() {
+            const res = await fetch("/admin/questions");
+            if (res.ok) {
+                const data = await res.json();
+                const grid = document.getElementById('preview-grid');
+                grid.innerHTML = data.map(q => `
+                    <div style="padding: 15px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee;">
+                        <span style="font-size: 11px; padding: 2px 5px; background: #5E35B1; color: white; border-radius: 3px;">${q.type}</span>
+                        <div style="font-weight: 600; margin-top: 5px; height: 40px; overflow: hidden;">${q.question}</div>
+                        <div style="font-size: 12px; color: #666; border-top: 1px solid #ccc; padding-top: 5px;">Marks: +${q.mark} | -${q.negative_mark}</div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function logout() {
+            await fetch("/logout");
+            window.location.href = "/admin";
+        }
+
+        window.onload = () => {
+            fetchQuestions();
+            // Set default start_at to today @ 8 PM
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            document.getElementById('start_at').value = `${year}-${month}-${day}T20:00`;
+
+            // Enter key listeners
+            const fields = ['seq_num', 'total_duration', 'test-title', 'start_at', 'start_until'];
+            fields.forEach(fid => {
+                const el = document.getElementById(fid);
+                if (el) el.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') scheduleEvent();
+                });
+            });
+        };
+    </script>
+</body>
+
+</html>

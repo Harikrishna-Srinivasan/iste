@@ -1,0 +1,6 @@
+{
+  "appId": "com.iste.app",
+  "appName": "ISTE Portal",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Candidate Login | ISTE Performance Portal</title>
+    <style>
+        :root {
+            --primary-blue: #1976D2;
+            --thick-orange: #EF6C00;
+            --thick-yellow: #FDD835;
+            --bg-body: #F4F6F8;
+            --bg-card: #FFFFFF;
+            --text-main: #202124;
+            --border: #DADCE0;
+            --overlay: rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .app-bar {
+            background: var(--primary-blue);
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+            border-bottom: 5px solid var(--thick-yellow);
+        }
+
+        .login-card {
+            background: var(--bg-card);
+            padding: 40px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-top: 8px solid var(--primary-blue);
+            border: 1px solid var(--border);
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--text-main);
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary-blue);
+            outline: none;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            filter: brightness(1.1);
+            transform: scale(1.01);
+        }
+
+        /* Captcha Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--overlay);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 340px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        #captchaCanvas {
+            background: #f0f0f0;
+            border-radius: 6px;
+            margin: 15px 0;
+            cursor: pointer;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .captcha-input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            text-align: center;
+            font-size: 20px;
+            letter-spacing: 4px;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #d32f2f;
+            font-size: 13px;
+            text-align: center;
+            margin-top: 15px;
+            display: none;
+            padding: 10px;
+            background: #ffebee;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="app-bar">
+        <h2>ISTE Performance Portal</h2>
+        <div style="font-size: 13px; opacity: 0.8;">Admin Access Ready</div>
+    </header>
+
+    <div class="login-card">
+        <h3 style="text-align: center; margin-bottom: 30px; font-size: 24px; color: var(--primary-blue);">Student Login
+        </h3>
+        <div class="form-group">
+            <label>Registration ID</label>
+            <input type="text" id="user_id" placeholder="Enter Registration ID">
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="password">
+        </div>
+        <button class="btn" onclick="startLoginFlow()">Authenticate & Login</button>
+        <div id="error" class="error">Invalid Credentials. Access Denied.</div>
+    </div>
+
+    <!-- Captcha Modal -->
+    <div id="captchaModal" class="modal">
+        <div class="modal-content">
+            <h4>Security Verification</h4>
+            <p style="font-size: 12px; color: #666; margin-top: 5px;">Type the characters from the image below</p>
+            <canvas id="captchaCanvas" width="200" height="70" onclick="generateCaptcha()"></canvas>
+            <input type="text" id="captchaInput" class="captcha-input" autocomplete="off">
+            <button class="btn" onclick="validateAndLogin()">Verify & Proceed</button>
+            <p style="font-size: 11px; margin-top: 15px; color: var(--primary-blue); cursor: pointer;"
+                onclick="generateCaptcha()">Refresh Image</p>
+        </div>
+    </div>
+
+    <script>
+        let correctCaptcha = "";
+
+        function startLoginFlow() {
+            const user_id = document.getElementById('user_id').value;
+            const password = document.getElementById('password').value;
+            if (!user_id || !password) return alert("Fill all fields.");
+
+            document.getElementById('captchaModal').style.display = 'flex';
+            generateCaptcha();
+        }
+
+        function generateCaptcha() {
+            const canvas = document.getElementById('captchaCanvas');
+            const ctx = canvas.getContext('2d');
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            correctCaptcha = "";
+
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < 6; i++) {
+                ctx.strokeStyle = "rgba(0,0,0,0.1)";
+                ctx.beginPath();
+                ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+                ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
+                ctx.stroke();
+            }
+
+            ctx.font = "bold 35px 'Courier New'";
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i < 5; i++) {
+                const char = chars.charAt(Math.floor(Math.random() * chars.length));
+                correctCaptcha += char;
+                ctx.save();
+                ctx.translate(30 + (i * 35), 35);
+                ctx.rotate((Math.random() - 0.5) * 0.3);
+                ctx.fillStyle = "#1976D2";
+                ctx.fillText(char, 0, 0);
+                ctx.restore();
+            }
+        }
+
+        async function validateAndLogin() {
+            const input = document.getElementById('captchaInput').value.toUpperCase();
+            if (input !== correctCaptcha) {
+                alert("Security Code Mismatch.");
+                generateCaptcha();
+                document.getElementById('captchaInput').value = "";
+                return;
+            }
+
+            document.getElementById('captchaModal').style.display = 'none';
+            await login();
+        }
+
+        async function login() {
+            const user_id = document.getElementById('user_id').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('error');
+
+            errorDiv.style.display = 'none';
+            const res = await fetch("/student/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id, password })
+            });
+
+            if (res.ok) window.location.href = "/dashboard";
+            else errorDiv.style.display = 'block';
+        }
+
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                if (document.getElementById('captchaModal').style.display === 'flex') validateAndLogin();
+                else startLoginFlow();
+            }
+        });
+    </script>
+</body>
+
+</html>
