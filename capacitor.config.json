@@ -1,6 +1,9 @@
 {
   "appId": "com.iste.app",
-  "appName": "IsteApp",
+  "appName": "ISTE",
   "webDir": "www",
-  "bundledWebRuntime": false
+  "server": {
+    "cleartext": true,
+    "url": "http://172.24.18.58:5000"
+  }
 }

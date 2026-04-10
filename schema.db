@@ -2,7 +2,19 @@
 CREATE TABLE users (
     user_id INT UNSIGNED PRIMARY KEY,
     name VARCHAR(80) NOT NULL,
-    password VARCHAR(255) NOT NULL        -- Bcrypt Hash
+    details JSON NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    CHECK (
+        JSON_SCHEMA_VALID('{
+            "type": "object",
+            "properties": {
+                "year": {"type": "integer"},
+                "degree": {"type": "string"},
+                "stream": {"type": "string"}
+            },
+            "required": ["year", "degree"]
+        }', details)
+    )
 );
 
 -- 2. Question Bank (Stored with strict JSON constraints)
@@ -20,30 +32,26 @@ CREATE TABLE questions (
                     "type": "object",
                     "properties": {
                         "correct_id": {"type": "integer"},
-                        "options": {"type": "array", "items": {"type": "string"}},
-                        "duration_sec": {"type": "integer"}
+                        "options": {"type": "array", "items": {"type": "string"}}
                     },
-                    "required": ["correct_id", "options", "duration_sec"]
+                    "required": ["correct_id", "options"]
                 }', answer)
             WHEN type = 'MSQ' THEN
                 JSON_SCHEMA_VALID('{
                     "type": "object",
                     "properties": {
                         "correct_ids": {"type": "array", "items": {"type": "integer"}},
-                        "options": {"type": "array", "items": {"type": "string"}},
-                        "duration_sec": {"type": "integer"}
+                        "options": {"type": "array", "items": {"type": "string"}}
                     },
-                    "required": ["correct_ids", "options", "duration_sec"]
+                    "required": ["correct_ids", "options"]
                 }', answer)
             WHEN type = 'INT' THEN
                 JSON_SCHEMA_VALID('{
                     "type": "object",
                     "properties": {
                         "value": {"type": "integer"},
-                        "range": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2},
-                        "duration_sec": {"type": "integer"}
-                    },
-                    "required": ["duration_sec"]
+                        "range": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}
+                    }
                 }', answer)
             WHEN type = 'NUM' THEN
                 JSON_SCHEMA_VALID('{
@@ -51,10 +59,8 @@ CREATE TABLE questions (
                     "properties": {
                         "value": {"type": "number"},
                         "tolerance": {"type": "number"},
-                        "range": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2},
-                        "duration_sec": {"type": "integer"}
-                    },
-                    "required": ["duration_sec"]
+                        "range": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}
+                    }
                 }', answer)
             ELSE 1
         END) = 1
@@ -85,84 +91,12 @@ CREATE TABLE assessment_questions (
     ON UPDATE CASCADE ON DELETE RESTRICT
 );
 
--- 5. The Source of Truth: Granular Responses
-CREATE TABLE attempts (
+CREATE TABLE student_submissions (
     user_id INT UNSIGNED,
     assessment_id INT UNSIGNED,
-    question_id INT UNSIGNED,
-    student_response JSON,
-    time_taken_sec INT UNSIGNED,
-    PRIMARY KEY (user_id, assessment_id, question_id),
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
-    ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY (assessment_id, question_id)
-    REFERENCES assessment_questions(assessment_id, question_id)
-    ON UPDATE RESTRICT ON DELETE RESTRICT
+    total_score DECIMAL(10,2) NOT NULL DEFAULT 0,
+    total_time_sec INT UNSIGNED NOT NULL DEFAULT 0,
+    detailed_log JSON NOT NULL,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, assessment_id)
 );
-
--- 6. Attempt Lifecycle Tracking
-CREATE TABLE attempt_meta (
-    user_id INT UNSIGNED,
-    assessment_id INT UNSIGNED,
-    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    finished_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id, assessment_id),
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY (assessment_id) REFERENCES assessments(id) ON UPDATE CASCADE ON DELETE CASCADE
-);
-
-CREATE VIEW attempt_details AS
-SELECT
-    att.user_id,
-    att.assessment_id,
-    a.seq_num,
-    att.question_id,
-    q.type,
-    att.student_response,
-    q.answer,
-    q.mark,
-    q.negative_mark,
-    (
-        CASE
-            WHEN q.type = 'MCQ' THEN
-                IF (CAST(JSON_UNQUOTE(JSON_EXTRACT(att.student_response, '$.selected_id')) AS UNSIGNED)
-                    = CAST(JSON_UNQUOTE(JSON_EXTRACT(q.answer, '$.correct_id')) AS UNSIGNED),
-                    q.mark, -q.negative_mark)
-            WHEN q.type = 'MSQ' THEN
-                IF (JSON_CONTAINS(q.answer->'$.correct_ids', att.student_response->'$.selected_ids'),
-                    -- AND JSON_CONTAINS(att.student_response->'$.selected_ids', q.answer->'$.correct_ids'), q.mark,
-                    (JSON_LENGTH(att.student_response->'$.selected_ids') / JSON_LENGTH(q.answer->'$.correct_ids')) * q.mark,
-                    -q.negative_mark)
-            WHEN q.type = 'INT' OR q.type = 'NUM' THEN
-                IF (
-                    (JSON_EXTRACT(q.answer, '$.range') IS NOT NULL AND 
-                     CAST(JSON_UNQUOTE(JSON_EXTRACT(att.student_response, '$.value')) AS DECIMAL(10,4)) BETWEEN 
-                     CAST(JSON_UNQUOTE(JSON_EXTRACT(q.answer, '$.range[0]')) AS DECIMAL(10,4)) AND 
-                     CAST(JSON_UNQUOTE(JSON_EXTRACT(q.answer, '$.range[1]')) AS DECIMAL(10,4)))
-                    OR
-                    (q.type = 'INT' AND CAST(JSON_UNQUOTE(JSON_EXTRACT(att.student_response, '$.value')) AS SIGNED) = CAST(JSON_UNQUOTE(JSON_EXTRACT(q.answer, '$.value')) AS SIGNED))
-                    OR
-                    (q.type = 'NUM' AND ABS(CAST(JSON_UNQUOTE(JSON_EXTRACT(att.student_response, '$.value')) AS DECIMAL(10,4)) - CAST(JSON_UNQUOTE(JSON_EXTRACT(q.answer, '$.value')) AS DECIMAL(10,4))) <= CAST(JSON_UNQUOTE(JSON_EXTRACT(q.answer, '$.tolerance')) AS DECIMAL(10,4))),
-                    q.mark, -q.negative_mark
-                )
-            ELSE 0
-        END
-    ) AS score,
-    att.time_taken_sec
-FROM attempts att
-JOIN assessments a ON att.assessment_id = a.id
-JOIN questions q ON att.question_id = q.id;
-
-CREATE VIEW attempt_summary AS
-SELECT
-    ad.user_id,
-    ad.assessment_id,
-    SUM(ad.score) AS total_score,
-    SUM(ad.time_taken_sec) AS total_time_taken_sec,
-    (SELECT COUNT(*) FROM assessment_questions aq WHERE aq.assessment_id = ad.assessment_id) AS total_questions,
-    SUM(IF(ad.type = 'MCQ' AND ad.score > 0, 1, 0)) AS mcq_right,
-    SUM(IF(ad.type = 'MSQ' AND ad.score > 0, 1, 0)) AS msq_right,
-    SUM(IF(ad.type = 'INT' AND ad.score > 0, 1, 0)) AS int_right,
-    SUM(IF(ad.type = 'NUM' AND ad.score > 0, 1, 0)) AS num_right
-FROM attempt_details ad
-GROUP BY ad.user_id, ad.assessment_id;

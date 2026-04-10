@@ -50,48 +50,82 @@
             const user = document.getElementById('user').value;
             const pass = document.getElementById('pass').value;
             if (!user || !pass) return alert("All fields required");
-            
+
             document.getElementById('captchaModal').style.display = 'flex';
             generateCaptcha();
         }
 
-        function generateCaptcha() {
-            const canvas = document.getElementById('captchaCanvas');
-            const ctx = canvas.getContext('2d');
-            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789@%";
-            correctCaptcha = "";
+        function generateCaptcha() { correctCaptcha = drawAdvancedCaptcha("captchaCanvas"); }
 
-            ctx.fillStyle = "#f0f0f0";
+        function drawAdvancedCaptcha(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return "";
+            const ctx = canvas.getContext('2d');
+
+            const chars = "ABCDEFGHJKLMNPRSTUVWXYZ23456789";
+            const fonts = ["'Courier New'", "Arial", "Georgia", "Impact", "Tahoma"];
+            let code = "";
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#F8F9FA";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            for (let i = 0; i < 10; i++) {
-                ctx.strokeStyle = `rgba(${Math.random()*255}, ${Math.random()*255}, ${Math.random()*255}, 0.3)`;
-                ctx.beginPath();
-                ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
-                ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
-                ctx.stroke();
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 15) {
+                ctx.beginPath(); ctx.moveTo(x + (Math.random() * 4 - 2), 0); ctx.lineTo(x + (Math.random() * 4 - 2), canvas.height);
+                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.05 + 0.02})`; ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 15) {
+                ctx.beginPath(); ctx.moveTo(0, y + (Math.random() * 4 - 2)); ctx.lineTo(canvas.width, y + (Math.random() * 4 - 2));
+                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.05 + 0.02})`; ctx.stroke();
             }
 
-            for (let i = 0; i < 50; i++) {
-                ctx.fillStyle = `rgba(${Math.random()*255}, ${Math.random()*255}, ${Math.random()*255}, 0.5)`;
+            for (let i = 0; i < 20; i++) {
                 ctx.beginPath();
-                ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, Math.random()*2+1, 0, 2*Math.PI);
-                ctx.fill();
+                let x = Math.random() * canvas.width, y = Math.random() * canvas.height;
+                ctx.moveTo(x, y); ctx.lineTo(x + Math.random() * 15 - 7, y + Math.random() * 15 - 7);
+                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.3})`; ctx.lineWidth = Math.random() * 1.5 + 0.5; ctx.stroke();
             }
 
-            const charCount = 6;
+            ctx.textBaseline = 'middle';
+            const charCount = 5;
+            const stepX = canvas.width / (charCount + 1);
+
             for (let i = 0; i < charCount; i++) {
                 const char = chars.charAt(Math.floor(Math.random() * chars.length));
-                correctCaptcha += char;
-
+                code += char;
                 ctx.save();
-                ctx.translate(25 + i * 30 + Math.random()*10, 35 + Math.random()*10 - 5);
-                ctx.rotate((Math.random() - 0.5) * 0.5); // rotate slightly
-                ctx.font = `${20 + Math.floor(Math.random()*10)}px Arial`;
-                ctx.fillStyle = `rgb(${Math.floor(Math.random()*150)}, ${Math.floor(Math.random()*150)}, ${Math.floor(Math.random()*150)})`;
-                ctx.fillText(char, 0, 0);
+
+                ctx.translate((i + 1) * stepX + (Math.random() * 10 - 5), canvas.height / 2 + (Math.random() * 8 - 4));
+                ctx.rotate((Math.random() - 0.5) * 0.8);
+                ctx.transform(1, 0, Math.random() * 0.4 - 0.2, 1, 0, 0);
+
+                ctx.font = `${Math.floor(canvas.height * 0.5 + Math.random() * (canvas.height * 0.25))}px ${fonts[Math.floor(Math.random() * fonts.length)]}`;
+                const r = Math.floor(Math.random() * 120), g = Math.floor(Math.random() * 120), b = Math.floor(Math.random() * 150 + 50);
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+
+                ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowOffsetX = 1.5; ctx.shadowOffsetY = 1.5; ctx.shadowBlur = 2;
+                ctx.fillText(char, -ctx.measureText(char).width / 2, 0);
+                ctx.shadowColor = 'transparent';
+
+                if (Math.random() > 0.2) {
+                    ctx.beginPath(); ctx.moveTo(-15, (Math.random() - 0.5) * 15); ctx.lineTo(15, (Math.random() - 0.5) * 15);
+                    ctx.strokeStyle = `rgba(${r},${g},${b},${Math.random() * 0.6 + 0.3})`; ctx.lineWidth = Math.random() * 2 + 1; ctx.stroke();
+                }
                 ctx.restore();
             }
+
+            for (let i = 0; i < 90; i++) {
+                const x = Math.random() * canvas.width, y = Math.random() * canvas.height;
+                ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.35})`;
+                ctx.beginPath(); ctx.arc(x, y, Math.random() * 2.2, 0, 2 * Math.PI); ctx.fill();
+                if (Math.random() > 0.75) {
+                    for (let j = 0; j < 3; j++) {
+                        ctx.beginPath(); ctx.arc(x + Math.random() * 6 - 3, y + Math.random() * 6 - 3, Math.random() * 1.2, 0, 2 * Math.PI); ctx.fill();
+                    }
+                }
+            }
+            return code;
         }
 
         async function validateAndLogin() {
@@ -102,7 +136,7 @@
                 document.getElementById('captchaInput').value = "";
                 return;
             }
-            
+
             document.getElementById('captchaModal').style.display = 'none';
             await login();
         }

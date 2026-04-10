@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ISTE Administration Dashboard</title>
+    <meta name="description" content="Administration Dashboard for managing assessments, question banks, and candidate performances.">
+    <title>Administration Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
             --admin: #5E35B1;
@@ -12,16 +13,26 @@
             --card: #fff;
             --text: #333;
             --border: #ddd;
+            --iste-green: #2E7D32;
         }
-
-        body {
-            font-family: 'Segoe UI', sans-serif;
+        html, body {
+            max-width: 100vw;
+            overflow-x: hidden;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: var(--bg);
             color: var(--text);
             margin: 0;
             padding-bottom: 50px;
         }
-
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         .nav {
             background: var(--admin);
             color: white;
@@ -31,13 +42,11 @@
             align-items: center;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
-
         .nav h2 {
             margin: 0;
             font-size: 22px;
             font-weight: 600;
         }
-
         .nav button {
             background: rgba(255, 255, 255, 0.2);
             border: 2px solid white;
@@ -47,8 +56,7 @@
             cursor: pointer;
             transition: 0.3s;
         }
-
-        .container {
+        main.container {
             max-width: 1200px;
             margin: 40px auto;
             padding: 0 20px;
@@ -56,8 +64,7 @@
             grid-template-columns: 1fr 1fr;
             gap: 30px;
         }
-
-        .card {
+        section.card {
             background: var(--card);
             padding: 30px;
             border-radius: 12px;
@@ -65,9 +72,9 @@
             border: 1px solid var(--border);
             position: relative;
             overflow: hidden;
+            width: 100%;
         }
-
-        .card::before {
+        section.card::before {
             content: "";
             position: absolute;
             top: 0;
@@ -76,7 +83,6 @@
             height: 5px;
             background: var(--admin);
         }
-
         h3 {
             color: var(--admin);
             border-bottom: 2px solid #eee;
@@ -85,27 +91,23 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            font-size: 18px;
         }
-
         label {
             display: block;
             margin-bottom: 10px;
             font-weight: 600;
             font-size: 14px;
         }
-
-        input,
-        select,
-        textarea {
+        input, select, textarea {
             width: 100%;
             padding: 12px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--border);
             border-radius: 8px;
             box-sizing: border-box;
             font-size: 14px;
             margin-bottom: 20px;
         }
-
         .btn-action {
             width: 100%;
             padding: 15px;
@@ -118,13 +120,21 @@
             transition: 0.3s;
             font-size: 15px;
         }
-
         .btn-action:hover {
             filter: brightness(1.1);
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(94, 53, 177, 0.3);
         }
-
+        .btn-like {
+            display: inline-block;
+            padding: 4px 10px;
+            margin: 2px;
+            background-color: #ddeeff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: default;
+        }
         .excel-guide {
             background: #f0f4f8;
             padding: 20px;
@@ -133,107 +143,137 @@
             color: #555;
             line-height: 1.6;
         }
-
         .excel-guide th {
             text-align: left;
             background: #e2e8f0;
             padding: 5px 10px;
         }
-
         .excel-guide td {
             padding: 5px 10px;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid var(--border);
+        }
+        .full {
+            grid-column: span 2;
+        }
+        .responsive-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 15px;
+        }
+        .responsive-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .status-msg {
+            margin-top: 15px;
+            font-weight: 500;
+            padding: 12px;
+            border-radius: 6px;
+            display: none;
+            text-align: center;
         }
 
-        .card.full {
-            grid-column: span 2;
+        .status-error { background: #ffebee; color: #c62828; display: block; border: 1px solid #ffcdd2; }
+        .status-success { background: #e8f5e9; color: #2e7d32; display: block; border: 1px solid #c8e6c9; }
+        .status-info { background: #e3f2fd; color: #1565c0; display: block; border: 1px solid #bbdefb; }
+
+        @media screen and (max-width: 768px) {
+            main.container {
+                grid-template-columns: 1fr;
+                padding: 10px;
+            }
+            section.card {
+                margin: 0 0 20px 0;
+                border-radius: 8px;
+                padding: 15px;
+            }
+            .full { grid-column: 1 / -1; }
+            .nav {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
         }
     </style>
 </head>
 
 <body>
     <nav class="nav">
-        <h2>ISTE Administration Dashboard</h2>
-        <button onclick="logout()">Logout</button>
+        <h2>Administration Dashboard</h2>
+        <button onclick="logout()" aria-label="Logout from Administration">Logout</button>
     </nav>
 
-    <div class="container">
-        <!-- 1. Question Importer -->
-        <div class="card">
-            <h3>📤 Question Importer (Excel)</h3>
-            <label>Select Template File (.xlsx)</label>
+    <main class="container">
+        <section class="card">
+            <h3>Question Importer (Excel)</h3>
+            <label for="excel-file">Select Template File (.xlsx)</label>
             <input type="file" id="excel-file" accept=".xlsx,.xls">
             <button class="btn-action" onclick="uploadData()">Import Question Set</button>
-            <div id="upload-status" style="margin-top: 15px; font-weight: 500;"></div>
+            <div id="upload-status" class="status-msg" aria-live="polite"></div>
 
             <div class="excel-guide" style="margin-top: 25px;">
                 <strong>Dynamic Template Columns:</strong>
                 <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
                     <tr>
-                        <th>Column</th>
-                        <th>Required</th>
-                        <th>Description / Format</th>
+                        <th scope="col">Column</th>
+                        <th scope="col">Required</th>
+                        <th scope="col">Description / Format</th>
                     </tr>
+                    <tr><td>Type</td><td>Yes</td><td>MCQ, MSQ, INT, NUM</td></tr>
+                    <tr><td>Question</td><td>Yes</td><td>The full text of your question</td></tr>
+                    <tr><td>A, B, C, D...</td><td>MCQ/MSQ</td><td>Dynamic options (Any single letter column)</td></tr>
                     <tr>
-                        <td>type</td>
-                        <td>Optional</td>
-                        <td>MCQ (default), MSQ, INT, NUM</td>
-                    </tr>
-                    <tr>
-                        <td>question</td>
+                        <td>Correct</td>
                         <td>Yes</td>
-                        <td>The question text</td>
-                    </tr>
-                    <tr>
-                        <td>A, B, C, D</td>
-                        <td>MCQ/MSQ</td>
-                        <td>Dynamic options (as many as you need)</td>
-                    </tr>
-                    <tr>
-                        <td>correct</td>
-                        <td>Yes</td>
-                        <td>MCQ: A or 0 | MSQ: A B or 0 1 | INT/NUM: 25 or 24, 26 (range)</td>
-                    </tr>
-                    <tr>
-                        <td>marks</td>
-                        <td>Optional</td>
-                        <td>Value of question (default 1)</td>
-                    </tr>
-                    <tr>
-                        <td>negative_marks</td>
-                        <td>Optional</td>
-                        <td>Penalty (default 0)</td>
-                    </tr>
+                        <td>
+                            <span class="btn-like">MCQ: A</span>
+                            <span class="btn-like">MSQ: A, B, D</span>
+                            <span class="btn-like">INT: 25</span>
+                            <span class="btn-like">NUM: 3.14 or 24.5</span>
+                        </td>
+                        </tr>
+                    <tr><td>Tolerance</td><td>Optional</td><td>For NUM types without a range (Default 0.1)</td></tr>
+                    <tr><td>Duration</td><td>Optional</td><td>Timer in seconds (Default 60)</td></tr>
+                    <tr><td>Marks</td><td>Optional</td><td>Value of question (Default 1)</td></tr>
+                    <tr><td>Negative_Marks</td><td>Optional</td><td>Penalty (Default 0)</td></tr>
                 </table>
-                <p style="font-size: 11px; margin-top: 10px; color: #d32f2f;">• Admin and Student sessions expire after
-                    2 hours of inactivity.</p>
+                <p style="font-size: 11px; margin-top: 10px; color: #d32f2f;">Admin and Student sessions expire after 2 hours of inactivity.</p>
+                <p style="font-size: 11px; margin-top: 5px; color: #555;">The system automatically skips duplicate questions to avoid cluttering.</p>
             </div>
-        </div>
+        </section>
 
-        <!-- 2. Scheduler -->
-        <div class="card">
-            <h3>📅 Live Event Scheduler</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <section class="card">
+            <h3>Live Event Scheduler</h3>
+            <div class="responsive-grid-3">
                 <div>
-                    <label>Series Sequence ID</label>
-                    <input type="number" id="seq_num" placeholder="Integer ID">
+                    <label for="ass_type">Assessment Type</label>
+                    <select id="ass_type">
+                        <option value="WEEK" selected>Weekly Test</option>
+                        <option value="DAY">Daily Practice</option>
+                        <option value="MOCK">Mock Exam</option>
+                    </select>
                 </div>
                 <div>
-                    <label>Total Duration (Minutes)</label>
-                    <input type="number" id="total_duration" value="30">
+                    <label for="seq_num">Sequence ID (No.)</label>
+                    <input type="number" id="seq_num">
+                </div>
+                <div>
+                    <label for="total_duration">Total Duration (Mins)</label>
+                    <input type="number" id="total_duration" placeholder="# of question mins">
                 </div>
             </div>
 
-            <label>Public Title</label>
-            <input type="text" id="test-title" placeholder="e.g. Week 4: Logical Reasoning">
+            <label for="test-title">Public Title</label>
+            <input type="text" id="test-title" placeholder="e.g. Logical Reasoning">
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div class="responsive-grid-2">
                 <div>
-                    <label>Entry Opens (Start)</label>
+                    <label for="start_at">Entry Opens (Start)</label>
                     <input type="datetime-local" id="start_at">
                 </div>
                 <div>
-                    <label>Entry Closes (Deadline to Join)</label>
+                    <label for="start_until">Entry Closes (Deadline to Join)</label>
                     <input type="datetime-local" id="start_until">
                 </div>
             </div>
@@ -248,92 +288,731 @@
             </div>
 
             <button class="btn-action" onclick="scheduleEvent()">Publish Assessment & Notify Students</button>
-            <div id="schedule-status" style="margin-top: 15px; font-weight: 500;"></div>
+            <div id="publish-status" class="status-msg" aria-live="polite"></div>
 
             <p style="font-size: 11px; color: #777; margin-top: 15px;">Note: Students can join the exam any time between Open and Close. Once they join, their specific question timers begin.</p>
-        </div>
+        </section>
 
-        <!-- 3. Question Bank Preview -->
-        <div class="card full">
-            <h3>📋 Active Question Bank Overview</h3>
-            <div id="preview-grid"
-                style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
-                <p>Fetching active questions...</p>
+        <section class="card">
+            <h3>📝 Draft Assessment Preview</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Review the questions currently staged for this assessment. Remove any you do not want before publishing.</p>
+            <div id="draft-container">
+                <div style="text-align:center; padding: 20px; color: #666;">Draft is empty. Upload an Excel file or add from the bank below.</div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h3>✍️ Manual Question Builder</h3>
+            <label for="man-q-type">Question Type</label>
+            <select id="man-q-type" onchange="toggleManualQFields()">
+                <option value="MCQ" selected>Single Choice (MCQ)</option>
+                <option value="MSQ">Multiple Select (MSQ)</option>
+                <option value="INT">Exact Integer (INT)</option>
+                <option value="NUM">Numeric/Decimal (NUM)</option>
+            </select>
+
+            <label for="man-q-text">Question Text</label>
+            <textarea id="man-q-text" rows="3" placeholder="Enter the full question..."></textarea>
+
+            <div id="man-options-container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <label style="margin: 0;">Options</label>
+                    <span style="color: var(--admin); font-size: 12px; font-weight: bold; cursor: pointer;" onclick="addOption()" aria-label="Add a new option to the question">+ Add Option</span>
+                </div>
+                <div id="options-list">
+                    <input type="text" id="man-opt-0" placeholder="Option A" aria-label="Option A">
+                    <input type="text" id="man-opt-1" placeholder="Option B" aria-label="Option B">
+                    <input type="text" id="man-opt-2" placeholder="Option C" aria-label="Option C">
+                    <input type="text" id="man-opt-3" placeholder="Option D" aria-label="Option D">
+                </div>
+            </div>
+
+            <div id="man-answer-container">
+                <label for="man-correct-mcq">Correct Answer(s)</label>
+                <select id="man-correct-mcq">
+                    <option value="0">Option A</option>
+                    <option value="1">Option B</option>
+                    <option value="2">Option C</option>
+                    <option value="3">Option D</option>
+                </select>
+                <input type="text" id="man-correct-msq" placeholder="E.g. A, C (or 0, 2)" style="display:none;" aria-label="Correct MSQ Answers">
+                <input type="text" id="man-correct-num" placeholder="Exact value or Range (E.g. 24.5 OR 24, 26)" style="display:none;" aria-label="Correct Numerical Answers">
+            </div>
+
+            <div id="man-tolerance-container" style="display:none;">
+                <label for="man-tolerance">Tolerance (Optional for NUM)</label>
+                <input type="number" step="0.01" id="man-tolerance" placeholder="Default: 0.1">
+            </div>
+
+            <div class="responsive-grid-3">
+                <div><label for="man-marks">Marks</label><input type="number" id="man-marks" value="1"></div>
+                <div><label for="man-neg">Negative</label><input type="number" id="man-neg" value="0"></div>
+                <div><label for="man-dur">Time (s)</label><input type="number" id="man-dur" value="60"></div>
+            </div>
+
+            <button class="btn-action" onclick="submitManualQuestion()">Add to Question Bank</button>
+            <div id="man-status" class="status-msg" aria-live="polite"></div>
+        </section>
+
+        <section class="card full">
+            <h3>📊 Student Performance Logs</h3>
+            <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 8px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 150px;">
+                    <label for="search-uid" style="margin-bottom: 5px; font-size: 12px;">Student ID (Optional)</label>
+                    <input type="text" id="search-uid" placeholder="Leave empty for all" style="margin-bottom: 0;">
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; border: 1px solid var(--border); padding: 5px; border-radius: 6px; background: white;">
+                    <canvas id="adminCaptcha" width="140" height="40" style="cursor:pointer;" onclick="drawAdminCaptcha('adminCaptcha')" role="img" aria-label="Security Captcha"></canvas>
+                    <span style="font-size:10px; color:var(--admin); cursor:pointer;" onclick="drawAdminCaptcha('adminCaptcha')" aria-label="Refresh Captcha">↺ Refresh Image</span>
+                </div>
+                <div style="flex: 1; min-width: 120px;">
+                    <label for="admin-captcha-in" style="margin-bottom: 5px; font-size: 12px;">Security Captcha</label>
+                    <input type="text" id="admin-captcha-in" style="margin-bottom: 0; text-align:center; font-weight: bold; letter-spacing: 2px;">
+                </div>
+                <div style="flex: 1; min-width: 150px; align-self: flex-end;">
+                    <button class="btn-action" style="padding: 12px 25px; margin-bottom: 0;" onclick="fetchPerformances()">Secure Fetch</button>
+                </div>
+            </div>
+
+            <div id="perf-status" class="status-msg" aria-live="polite"></div>
+
+            <div style="overflow-x: auto; background: white; border: 1px solid var(--border); border-radius: 8px; margin-top: 15px;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+                    <thead>
+                        <tr style="background: #f0f4f8; border-bottom: 2px solid var(--border);">
+                            <th scope="col" style="padding: 12px 15px;">Student</th>
+                            <th scope="col" style="padding: 12px 15px;">Assessment</th>
+                            <th scope="col" style="padding: 12px 15px;">Score</th>
+                            <th scope="col" style="padding: 12px 15px;">Time Taken</th>
+                            <th scope="col" style="padding: 12px 15px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="perf-table-body">
+                        <tr><td colspan="5" style="padding:20px; text-align:center; color:#777;">Click 'Secure Fetch' to load student data.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card full" style="margin-top: 30px; border-top: 5px solid var(--iste-green);">
+            <h3>📥 Export Published Assessments</h3>
+            <div id="assessments-status" class="status-msg" aria-live="polite"></div>
+            <div id="assessments-container" style="margin-top: 15px;">
+                <div style="text-align:center; padding: 20px; color: #666;">Loading assessments...</div>
+            </div>
+        </section>
+
+        <section class="card full">
+            <h3>📚 Global Question Bank</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Manually add older questions to your draft.</p>
+            <div id="qb-container">
+                <div style="text-align:center; padding: 20px; color: #666;">Fetching active questions...</div>
+            </div>
+        </section>
+    </main>
+
+    <div id="perfModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;" aria-modal="true" role="dialog">
+        <div style="background:#fff; width:90%; max-width:800px; max-height:90vh; border-radius:10px; overflow:hidden; display:flex; flex-direction:column; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+            <div style="padding:15px 20px; background:var(--admin); color:white; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; color:white; border:none; padding:0; font-size:18px;">Detailed Question Analysis</h3>
+                <button onclick="document.getElementById('perfModal').style.display='none'" style="background:transparent; border:none; color:white; font-size:24px; cursor:pointer;" aria-label="Close Modal">&times;</button>
+            </div>
+            <div id="perfModalBody" style="padding:20px; overflow-y:auto; flex:1; background: #f9f9f9;">
+                Loading...
             </div>
         </div>
     </div>
 
     <script>
-        async function uploadData() {
-            const statusEl = document.getElementById('upload-status');
-            const file = document.getElementById('excel-file').files[0];
-            if (!file) return alert("Select file first.");
+        let adminCaptchaCode = "";
+        let allQuestions = [];
+        let draftIds = [];
+        let optCount = 4;
 
-            let formData = new FormData();
-            formData.append("file", file);
+        function showStatus(element, message, type) {
+            if (!element) return;
+            element.innerText = message;
+            element.className = 'status-msg status-' + type;
+            setTimeout(() => { element.className = 'status-msg'; }, 6000);
+        }
 
-            statusEl.innerText = "Processing File...";
-            const res = await fetch("/admin/upload_excel", { method: "POST", body: formData });
+        function drawAdminCaptcha(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
 
-            if (res.ok) {
-                const data = await res.json();
-                statusEl.innerText = `Successfully Imported ${data.count} Questions!`;
-                statusEl.style.color = "green";
-                fetchQuestions();
-            } else {
-                statusEl.innerText = "Error: Invalid File Format.";
-                statusEl.style.color = "red";
+            const chars = "ABCDEFGHJKLMNPRSTUVWXYZ23456789";
+            const fonts = ["'Courier New'", "Arial", "Georgia", "Impact", "Tahoma"];
+            let code = "";
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#F8F9FA";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 15) {
+                ctx.beginPath(); ctx.moveTo(x + (Math.random() * 4 - 2), 0); ctx.lineTo(x + (Math.random() * 4 - 2), canvas.height);
+                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.05 + 0.02})`; ctx.stroke();
             }
+            for (let y = 0; y < canvas.height; y += 15) {
+                ctx.beginPath(); ctx.moveTo(0, y + (Math.random() * 4 - 2)); ctx.lineTo(canvas.width, y + (Math.random() * 4 - 2));
+                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.05 + 0.02})`; ctx.stroke();
+            }
+
+            for (let i = 0; i < 20; i++) {
+                ctx.beginPath();
+                let x = Math.random() * canvas.width, y = Math.random() * canvas.height;
+                ctx.moveTo(x, y); ctx.lineTo(x + Math.random() * 15 - 7, y + Math.random() * 15 - 7);
+                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.3})`; ctx.lineWidth = Math.random() * 1.5 + 0.5; ctx.stroke();
+            }
+
+            ctx.textBaseline = 'middle';
+            const charCount = 5;
+            const stepX = canvas.width / (charCount + 1);
+
+            for (let i = 0; i < charCount; i++) {
+                const char = chars.charAt(Math.floor(Math.random() * chars.length));
+                code += char;
+                ctx.save();
+
+                ctx.translate((i + 1) * stepX + (Math.random() * 10 - 5), canvas.height / 2 + (Math.random() * 8 - 4));
+                ctx.rotate((Math.random() - 0.5) * 0.8);
+                ctx.transform(1, 0, Math.random() * 0.4 - 0.2, 1, 0, 0);
+
+                ctx.font = `${Math.floor(canvas.height * 0.5 + Math.random() * (canvas.height * 0.25))}px ${fonts[Math.floor(Math.random() * fonts.length)]}`;
+                const r = Math.floor(Math.random() * 120), g = Math.floor(Math.random() * 120), b = Math.floor(Math.random() * 150 + 50);
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+
+                ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowOffsetX = 1.5; ctx.shadowOffsetY = 1.5; ctx.shadowBlur = 2;
+                ctx.fillText(char, -ctx.measureText(char).width / 2, 0);
+                ctx.shadowColor = 'transparent';
+
+                if (Math.random() > 0.2) {
+                    ctx.beginPath(); ctx.moveTo(-15, (Math.random() - 0.5) * 15); ctx.lineTo(15, (Math.random() - 0.5) * 15);
+                    ctx.strokeStyle = `rgba(${r},${g},${b},${Math.random() * 0.6 + 0.3})`; ctx.lineWidth = Math.random() * 2 + 1; ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            for (let i = 0; i < 90; i++) {
+                const x = Math.random() * canvas.width, y = Math.random() * canvas.height;
+                ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.35})`;
+                ctx.beginPath(); ctx.arc(x, y, Math.random() * 2.2, 0, 2 * Math.PI); ctx.fill();
+                if (Math.random() > 0.75) {
+                    for (let j = 0; j < 3; j++) {
+                        ctx.beginPath(); ctx.arc(x + Math.random() * 6 - 3, y + Math.random() * 6 - 3, Math.random() * 1.2, 0, 2 * Math.PI); ctx.fill();
+                    }
+                }
+            }
+            adminCaptchaCode = code;
         }
 
         async function scheduleEvent() {
-            const statusEl = document.getElementById('schedule-status');
-            const seq = document.getElementById('seq_num').value;
-            const duration = document.getElementById('total_duration').value;
-            const title = document.getElementById('test-title').value;
-            const startAt = document.getElementById('start_at').value.replace('T', ' ') + ':00';
-            const startUntil = document.getElementById('start_until').value.replace('T', ' ') + ':00';
-            
-            const reminders = Array.from(document.querySelectorAll('input[name="rem"]:checked')).map(el => el.value);
+            const statusEl = document.getElementById('publish-status');
 
-            if (!seq || !title || !startAt || !startUntil) return alert("Fill all timing fields.");
+            if (draftIds.length === 0) {
+                showStatus(statusEl, "Add at least one question to the Draft Preview to publish.", "error");
+                return;
+            }
 
-            const res = await fetch("/admin/create_assessment", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ 
-                    seq_num: seq, 
-                    title: title, 
-                    start_at: startAt, 
-                    start_until: startUntil, 
-                    total_duration: duration,
-                    reminders: reminders 
-                })
-            });
+            const titleVal = document.getElementById('test-title').value.trim();
+            if (!titleVal) {
+                showStatus(statusEl, "Please enter a Public Title for the Assessment.", "error");
+                return;
+            }
 
-            if (res.ok) {
-                statusEl.innerText = "Assessment Scheduled Successfully!";
-                statusEl.style.color = "green";
-            } else {
-                const err = await res.json();
-                statusEl.innerText = `Error: ${err.error}`;
-                statusEl.style.color = "red";
+            let startAtVal = document.getElementById('start_at').value;
+            let startUntilVal = document.getElementById('start_until').value;
+
+            if (startAtVal && !startUntilVal) {
+                let stDate = new Date(startAtVal);
+                stDate.setMinutes(stDate.getMinutes() + 1);
+
+                const yyyy = stDate.getFullYear();
+                const mm = String(stDate.getMonth() + 1).padStart(2, '0');
+                const dd = String(stDate.getDate()).padStart(2, '0');
+                const hh = String(stDate.getHours()).padStart(2, '0');
+                const mins = String(stDate.getMinutes()).padStart(2, '0');
+
+                startUntilVal = `${yyyy}-${mm}-${dd}T${hh}:${mins}`;
+                document.getElementById('start_until').value = startUntilVal;
+            }
+
+            const seqVal = document.getElementById('seq_num').value.trim();
+            const durVal = document.getElementById('total_duration').value.trim();
+            const reminders = Array.from(document.querySelectorAll('input[name="rem"]:checked')).map(cb => cb.value);
+            const payload = {
+                seq_num: seqVal === "" ? null : parseInt(seqVal),
+                title: titleVal,
+                type: document.getElementById('ass_type').value,
+                duration: durVal === "" ? 30 : parseInt(durVal),
+                start_at: startAtVal|| null,
+                start_until: startUntilVal || null,
+                question_ids: draftIds,
+                reminders: reminders
+            };
+
+            showStatus(statusEl, "Publishing Assessment...", "info");
+
+            try {
+                const res = await fetch("/admin/create_assessment", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    showStatus(statusEl, "Assessment Published Successfully!", "success");
+                    draftIds = [];
+                    renderQuestionTables();
+                    fetchAssessmentsList();
+
+                    document.getElementById('seq_num').value = "";
+                    document.getElementById('test-title').value = "";
+                    document.getElementById('total_duration').value = "";
+                } else {
+                    showStatus(statusEl, `Error: ${data.error}`, "error");
+                }
+            } catch (err) {
+                showStatus(statusEl, "Network Error.", "error");
             }
         }
 
         async function fetchQuestions() {
-            const res = await fetch("/admin/questions");
+            try {
+                const res = await fetch("/admin/questions");
+                if (!res.ok) throw new Error("Backend returned an error.");
+
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+
+                allQuestions = data;
+                renderQuestionTables();
+            } catch (err) {
+                document.getElementById('qb-container').innerHTML = `<div style="color:#c62828; text-align:center; padding: 20px;">Failed to load questions: ${err.message}</div>`;
+            }
+        }
+
+        function renderQuestionTables() {
+            const bankQs = allQuestions.filter(q => !draftIds.includes(q.id));
+            const draftQs = allQuestions.filter(q => draftIds.includes(q.id));
+
+            document.getElementById('qb-container').innerHTML = buildTableHtml(bankQs, false) || "<div style='text-align:center; padding: 20px;'>No questions in bank.</div>";
+            document.getElementById('draft-container').innerHTML = buildTableHtml(draftQs, true) || "<div style='text-align:center; padding: 20px; color:#666;'>Draft is empty.</div>";
+        }
+
+        function buildTableHtml(qs, isDraft) {
+            if (!qs.length) return "";
+            let html = `
+            <div class="table-responsive">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 500px;">
+                    <thead>
+                        <tr style="background: var(--admin); color: white;">
+                            <th scope="col" style="padding: 10px; width: 80px;">Type</th>
+                            <th scope="col" style="padding: 10px;">Preview</th>
+                            <th scope="col" style="padding: 10px; width: 80px;">Marks</th>
+                            <th scope="col" style="padding: 10px; width: 100px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            qs.forEach(q => {
+                const btn = isDraft
+                    ? `<button onclick="removeFromDraft(${q.id})" style="background:#D32F2F; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; width:100%;" aria-label="Remove question from draft">Remove</button>`
+                    : `<button onclick="addToDraft(${q.id})" style="background:var(--iste-green); color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; width:100%;" aria-label="Add question to draft">Add</button>`;
+
+                html += `
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 10px; font-weight: bold;">${q.type}</td>
+                        <td style="padding: 10px;">${q.question.substring(0, 60)}...</td>
+                        <td style="padding: 10px; color: green; font-weight: bold;">+${q.mark}</td>
+                        <td style="padding: 10px;">${btn}</td>
+                    </tr>
+                `;
+            });
+            return html + `</tbody></table></div>`;
+        }
+
+        function addToDraft(id) { draftIds.push(id); renderQuestionTables(); }
+        function removeFromDraft(id) { draftIds = draftIds.filter(x => x !== id); renderQuestionTables(); }
+
+        const cleanNum = (num) => Number(parseFloat(num).toFixed(2));
+
+        function toggleManualQFields() {
+            const type = document.getElementById('man-q-type').value;
+            const optCont = document.getElementById('man-options-container');
+            const mcqAns = document.getElementById('man-correct-mcq');
+            const msqAns = document.getElementById('man-correct-msq');
+            const numAns = document.getElementById('man-correct-num');
+            const tolCont = document.getElementById('man-tolerance-container');
+
+            optCont.style.display = (type === 'MCQ' || type === 'MSQ') ? 'block' : 'none';
+            mcqAns.style.display = type === 'MCQ' ? 'block' : 'none';
+            msqAns.style.display = type === 'MSQ' ? 'block' : 'none';
+            numAns.style.display = (type === 'INT' || type === 'NUM') ? 'block' : 'none';
+            tolCont.style.display = type === 'NUM' ? 'block' : 'none';
+        }
+
+        function addOption() {
+            const letter = String.fromCharCode(65 + optCount);
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.id = `man-opt-${optCount}`;
+            input.placeholder = `Option ${letter}`;
+            input.setAttribute('aria-label', `Option ${letter}`);
+            document.getElementById('options-list').appendChild(input);
+
+            const select = document.getElementById('man-correct-mcq');
+            const option = document.createElement('option');
+            option.value = optCount;
+            option.text = `Option ${letter}`;
+            select.appendChild(option);
+
+            optCount++;
+        }
+
+        async function uploadData() {
+            const statusEl = document.getElementById('upload-status');
+            const file = document.getElementById('excel-file').files[0];
+
+            if (!file) {
+                showStatus(statusEl, "Select a file first.", "error");
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append("file", file);
+
+            showStatus(statusEl, "Processing File...", "info");
+
+            try {
+                const res = await fetch("/admin/upload_excel", { method: "POST", body: formData });
+                const data = await res.json();
+
+                if (res.ok) {
+                    let addedCount = 0;
+                    let dupCount = 0;
+
+                    if (data.ids && data.ids.length > 0) {
+                        data.ids.forEach(id => {
+                            if (!draftIds.includes(id)) {
+                                draftIds.push(id);
+                                addedCount++;
+                            } else {
+                                dupCount++;
+                            }
+                        });
+                    }
+
+                    let msg = `Saved ${data.count} new questions to Bank. Added ${addedCount} to Draft.`;
+                    if (dupCount > 0) {
+                        msg += ` (⚠️ ${dupCount} exact duplicates already in draft were skipped)`;
+                        showStatus(statusEl, msg, "info");
+                    } else {
+                        showStatus(statusEl, msg, "success");
+                    }
+
+                    fetchQuestions();
+                } else {
+                    showStatus(statusEl, `Error: ${data.error}`, "error");
+                }
+            } catch (err) {
+                showStatus(statusEl, "Network Error.", "error");
+            }
+        }
+
+        async function submitManualQuestion() {
+            const statusEl = document.getElementById('man-status');
+            const type = document.getElementById('man-q-type').value;
+            const text = document.getElementById('man-q-text').value.trim();
+            const rawMarks = document.getElementById('man-marks').value;
+            const rawNeg = document.getElementById('man-neg').value;
+            const rawDur = document.getElementById('man-dur').value;
+
+            if (!text) {
+                showStatus(statusEl, "Question text is required.", "error");
+                return;
+            }
+
+            let payload = {
+                type: type,
+                question: text,
+                marks: Math.max(1, parseInt(rawMarks) || 1),
+                negative_marks: Math.max(0, parseInt(rawNeg) || 0),
+                duration: Math.max(10, parseInt(rawDur) || 60)
+            };
+
+            if (type === 'MCQ' || type === 'MSQ') {
+                let options = [];
+                for(let i=0; i < optCount; i++) {
+                    const val = document.getElementById(`man-opt-${i}`).value.trim();
+                    if(val) options.push(val);
+                }
+                if (options.length < 2) {
+                    showStatus(statusEl, "Enter at least 2 options.", "error");
+                    return;
+                }
+                payload.options = options;
+
+                if (type === 'MCQ') {
+                    payload.correct_id = parseInt(document.getElementById('man-correct-mcq').value);
+                } else {
+                    const rawMsq = document.getElementById('man-correct-msq').value.trim();
+                    if(!rawMsq) {
+                        showStatus(statusEl, "Enter correct MSQ options.", "error");
+                        return;
+                    }
+
+                    let ids = rawMsq.split(/[ ,]+/).map(v => {
+                        let val = v.trim().toLowerCase();
+                        if (val.length === 1 && val >= 'a' && val <= 'z') return val.charCodeAt(0) - 97;
+                        return parseInt(val);
+                    }).filter(n => !isNaN(n));
+
+                    if(ids.length === 0) {
+                        showStatus(statusEl, "Invalid MSQ answer format.", "error");
+                        return;
+                    }
+                    payload.correct_ids = ids;
+                }
+            } else {
+                const rawNum = document.getElementById('man-correct-num').value.trim();
+                if(!rawNum) {
+                    showStatus(statusEl, "Enter correct numerical answer.", "error");
+                    return;
+                }
+
+                if (rawNum.includes(',')) {
+                    payload.range = rawNum.split(',').map(n => parseFloat(n.trim()));
+                } else {
+                    payload.value = parseFloat(rawNum);
+                    if (type === 'NUM') {
+                        const tol = document.getElementById('man-tolerance').value;
+                        if(tol) payload.tolerance = parseFloat(tol);
+                    }
+                }
+            }
+
+            showStatus(statusEl, "Adding question...", "info");
+
+            try {
+                const res = await fetch("/admin/add_question", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    if(data.status === 'duplicate') {
+                        // Throw error if it's already in draft, otherwise just draft it from Bank
+                        if (draftIds.includes(data.id)) {
+                            showStatus(statusEl, "Error: This exact question is already staged in your Draft Preview!", "error");
+                            return;
+                        } else {
+                            showStatus(statusEl, "Question exists in Bank. Staged to Draft Preview!", "info");
+                            draftIds.push(data.id);
+                        }
+                    } else {
+                        showStatus(statusEl, "Question Successfully Added & Staged!", "success");
+                        if (data.id && !draftIds.includes(data.id)) draftIds.push(data.id);
+                    }
+
+                    document.getElementById('man-q-text').value = '';
+                    fetchQuestions();
+                } else {
+                    showStatus(statusEl, `Error: ${data.error}`, "error");
+                }
+            } catch (err) {
+                showStatus(statusEl, "Network Error.", "error");
+            }
+        }
+
+        async function fetchPerformances() {
+            const statusEl = document.getElementById('perf-status');
+            const capIn = document.getElementById('admin-captcha-in').value.toUpperCase();
+
+            if (capIn !== adminCaptchaCode) {
+                showStatus(statusEl, "Incorrect Security Code.", "error");
+                drawAdminCaptcha('adminCaptcha');
+                document.getElementById('admin-captcha-in').value = "";
+                return;
+            }
+
+            const uid = document.getElementById('search-uid').value.trim();
+            document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='5' style='text-align:center; padding: 20px;'>Loading Logs...</td></tr>";
+
+            try {
+                const res = await fetch(`/admin/attempts${uid ? '?user_id=' + uid : ''}`);
+                const data = await res.json();
+
+                if (data.error) {
+                    showStatus(statusEl, data.error, "error");
+                    document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='5'></td></tr>";
+                    return;
+                }
+
+                if (data.length === 0) {
+                    document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='5' style='text-align:center; padding: 20px; color: #666;'>No attempts found.</td></tr>";
+                    return;
+                }
+
+                let html = "";
+                data.forEach(r => {
+                    const avgTimeSec = r.total_questions ? Math.round(r.total_time_taken_sec / r.total_questions) : 0;
+                    const mTotal = Math.floor(r.total_time_taken_sec / 60);
+                    const sTotal = r.total_time_taken_sec % 60;
+                    const mAvg = Math.floor(avgTimeSec / 60);
+                    const sAvg = avgTimeSec % 60;
+
+                    html += `
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 12px;"><b>${r.name}</b><br><span style="font-size: 11px; color: #666;">ID: ${r.user_id}</span></td>
+                            <td style="padding: 12px; font-weight: 500;">${r.type}: ${r.title}</td>
+                            <td style="padding: 12px; font-weight: bold; color: ${r.total_score >= 0 ? 'var(--iste-green)' : '#c62828'};">${r.total_score} / ${r.max_marks || 0}</td>
+                            <td style="padding: 12px;">${mTotal}m ${sTotal}s</td>
+                            <td style="padding: 12px;">
+                                <button class="btn-action" style="padding: 6px 12px; font-size: 12px;" onclick="viewAttemptDetails(${r.user_id}, ${r.assessment_id})" aria-label="View Analysis for ${r.name}">View Analysis</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('perf-table-body').innerHTML = html;
+                document.getElementById('admin-captcha-in').value = "";
+                drawAdminCaptcha('adminCaptcha');
+                showStatus(statusEl, "Data fetched successfully.", "success");
+            } catch (err) {
+                showStatus(statusEl, "Network Error.", "error");
+                document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='5'></td></tr>";
+            }
+        }
+
+        async function viewAttemptDetails(uid, aid) {
+            const modal = document.getElementById('perfModal');
+            const body = document.getElementById('perfModalBody');
+
+            modal.style.display = 'flex';
+            body.innerHTML = '<div style="text-align:center; padding: 40px; color:#666;">Loading detailed question breakdown...</div>';
+
+            const res = await fetch(`/admin/attempt_details/${uid}/${aid}`);
             if (res.ok) {
                 const data = await res.json();
-                const grid = document.getElementById('preview-grid');
-                grid.innerHTML = data.map(q => `
-                    <div style="padding: 15px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee;">
-                        <span style="font-size: 11px; padding: 2px 5px; background: #5E35B1; color: white; border-radius: 3px;">${q.type}</span>
-                        <div style="font-weight: 600; margin-top: 5px; height: 40px; overflow: hidden;">${q.question}</div>
-                        <div style="font-size: 12px; color: #666; border-top: 1px solid #ccc; padding-top: 5px;">Marks: +${q.mark} | -${q.negative_mark}</div>
+
+                body.innerHTML = data.map((q, i) => {
+                    const score = cleanNum(q.score || 0);
+                    const time = parseInt(q.time_taken_sec) || 0;
+                    const isCorrect = score > 0;
+                    const isNegative = score < 0;
+
+                    let markColor = '#666';
+                    if (isCorrect) markColor = '#2e7d32';
+                    else if (isNegative) markColor = '#c62828';
+
+                    let studentAns = "Skipped / Unattempted";
+                    let correctAns = "---";
+
+                    let sResp = q.student_response;
+                    if (typeof sResp === 'string') {
+                        try { sResp = JSON.parse(sResp); } catch(e) { sResp = {}; }
+                    }
+                    sResp = sResp || {};
+
+                    if (q.type === 'MCQ' || q.type === 'MSQ') {
+                        const sIds = sResp.selected_ids || (sResp.selected_id !== undefined ? [sResp.selected_id] : []);
+                        const cIds = q.correct_answer.correct_ids || [q.correct_answer.correct_id];
+
+                        if (sIds.length > 0) studentAns = sIds.map(id => q.correct_answer.options[id]).join(', ');
+                        correctAns = cIds.map(id => q.correct_answer.options[id]).join(', ');
+                    } else {
+                        if (sResp.value !== undefined && sResp.value !== "") studentAns = sResp.value;
+                        correctAns = q.correct_answer.value !== undefined ? q.correct_answer.value : (q.correct_answer.range ? `${q.correct_answer.range[0]} to ${q.correct_answer.range[1]}` : "N/A");
+                    }
+
+                    return `
+                    <div style="background: white; border: 1px solid var(--border); padding: 15px; border-radius: 8px; margin-bottom: 12px; font-size: 13px;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <strong style="color:var(--admin);">Q${i+1} (${q.type})</strong>
+                            <div style="font-weight:bold; color:${markColor};">${score > 0 ? '+' : ''}${score} Points &nbsp;|&nbsp; 🕒 ${time}s</div>
+                        </div>
+                        <div style="margin-bottom: 10px; color:#333;">${q.question}</div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; background:#f0f4f8; padding:10px; border-radius:5px;">
+                            <div><strong style="font-size:11px; color:#666;">STUDENT RESPONSE</strong><br><span style="color:${isCorrect ? '#2e7d32' : (isNegative ? '#c62828' : '#666')}; font-weight:500;">${studentAns}</span></div>
+                            <div><strong style="font-size:11px; color:#666;">CORRECT ANSWER</strong><br><span style="color:#2e7d32; font-weight:500;">${correctAns}</span></div>
+                        </div>
                     </div>
-                `).join('');
+                    `;
+                }).join('');
+            } else {
+                body.innerHTML = '<div style="color:#c62828; text-align:center;">Error fetching details.</div>';
             }
+        }
+
+        async function fetchAssessmentsList() {
+            try {
+                const res = await fetch("/admin/assessments");
+                const data = await res.json();
+
+                let html = `
+                <div class="table-responsive">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 500px;">
+                        <thead>
+                            <tr style="background: var(--admin); color: white;">
+                                <th scope="col" style="padding: 10px;">Date Posted</th>
+                                <th scope="col" style="padding: 10px;">Assessment</th>
+                                <th scope="col" style="padding: 10px;">Duration</th>
+                                <th scope="col" style="padding: 10px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                data.forEach(a => {
+                    const titleStr = a.seq_num ? `${a.type} ${a.seq_num}: ${a.title}` : `${a.type}: ${a.title}`;
+                    const dateStr = new Date(a.start_at).toLocaleString({hour12: true});
+                    html += `
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px;">${dateStr}</td>
+                            <td style="padding: 10px; font-weight: bold;">${titleStr}</td>
+                            <td style="padding: 10px;">${a.total_duration} min</td>
+                            <td style="padding: 10px;">
+                                <button onclick="exportToExcel(${a.id}, '${titleStr.replace(/'/g, "\\'")}')" style="background:var(--iste-green); color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;" aria-label="Export ${titleStr} to Excel">⬇ Export XLSX</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('assessments-container').innerHTML = html + `</tbody></table></div>`;
+            } catch (err) {
+                document.getElementById('assessments-container').innerHTML = `<div style="color:#c62828; text-align:center;">Error loading assessments.</div>`;
+            }
+        }
+
+        async function exportToExcel(aid, title) {
+            const statusEl = document.getElementById('assessments-status');
+            const res = await fetch(`/admin/export_assessment/${aid}`);
+            const data = await res.json();
+
+            if (!data || data.length === 0) {
+                showStatus(statusEl, "No students have submitted this assessment yet.", "error");
+                return;
+            }
+
+            const sheetData = data.map(r => ({
+                "Student ID": r.user_id,
+                "Student Name": r.name,
+                "Total Score": r.total_score,
+                "Total Time Taken (Sec)": r.total_time_sec,
+                "Submission Time": new Date(r.submitted_at).toLocaleString()
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(sheetData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Results");
+
+            const fileName = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_response.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+            showStatus(statusEl, "Export successful.", "success");
         }
 
         async function logout() {
@@ -341,16 +1020,22 @@
             window.location.href = "/admin";
         }
 
+        window.onclick = function(event) {
+            const modal = document.getElementById('perfModal');
+            if (event.target === modal) modal.style.display = "none";
+        };
+
         window.onload = () => {
             fetchQuestions();
-            // Set default start_at to today @ 8 PM
+            fetchAssessmentsList();
+            drawAdminCaptcha('adminCaptcha');
+
             const now = new Date();
             const year = now.getFullYear();
             const month = (now.getMonth() + 1).toString().padStart(2, '0');
             const day = now.getDate().toString().padStart(2, '0');
             document.getElementById('start_at').value = `${year}-${month}-${day}T20:00`;
 
-            // Enter key listeners
             const fields = ['seq_num', 'total_duration', 'test-title', 'start_at', 'start_until'];
             fields.forEach(fid => {
                 const el = document.getElementById(fid);
@@ -358,8 +1043,11 @@
                     if (e.key === 'Enter') scheduleEvent();
                 });
             });
+
+            document.getElementById('admin-captcha-in').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') fetchPerformances();
+            });
         };
     </script>
 </body>
-
 </html>

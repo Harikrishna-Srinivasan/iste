@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
     <title>Student Performance Dashboard | ISTE</title>
     <style>
         :root {
@@ -17,18 +17,35 @@
             --iste-red: #D32F2F;
             --overlay: rgba(0,0,0,0.5);
         }
-
+        html, body {
+            max-width: 100vw;
+            overflow-x: hidden;
+            box-sizing: border-box;
+        }
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+        .card, .container, .sidebar {
+            width: 100%;
+            max-width: 100%;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+        }
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         * { box-sizing: border-box; font-family: 'Inter', 'Segoe UI', sans-serif; margin: 0; padding: 0; }
         body { background-color: var(--bg-body); color: var(--text-main); padding-bottom: 50px; }
-
-        .app-bar { 
-            background: var(--primary-blue); color: white; padding: 12px 30px; 
-            display: flex; justify-content: space-between; align-items: center; 
-            position: sticky; top: 0; z-index: 100; border-bottom: 5px solid var(--thick-yellow); 
+        .app-bar {
+            background: var(--primary-blue); color: white; padding: 12px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100; border-bottom: 5px solid var(--thick-yellow);
+            gap: 12px;
+            flex-wrap: wrap;
         }
-
         .container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
-
         .banner { background: var(--bg-card); border-left: 8px solid var(--primary-blue); padding: 25px; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .banner h3 { color: var(--primary-blue); margin-bottom: 10px; }
         .banner p { font-size: 14px; color: #666; margin-bottom: 15px; }
@@ -39,37 +56,100 @@
         .btn.active { cursor: pointer; opacity: 1; box-shadow: 0 4px 10px rgba(25, 118, 210, 0.3); }
         .btn.active:hover { filter: brightness(1.1); transform: scale(1.01); }
 
-        .section-header { margin-top: 50px; margin-bottom: 20px; font-size: 18px; color: #555; border-bottom: 2px solid var(--border); padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .section-header { margin-top: 50px; margin-bottom: 20px; font-size: 18px; color: #555; border-bottom: 2px solid var(--border); padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+        .refresh-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(2px);
+        }
+        .refresh-btn:active { transform: scale(0.96); background: #eef2fc; }
+        .refresh-btn svg { width: 18px; height: 18px; fill: none; stroke: var(--primary-blue); stroke-width: 2; stroke-linecap: round; }
 
-        details.history-card { 
-            background: var(--bg-card); margin-bottom: 15px; border-radius: 8px; 
+        details.history-card {
+            background: var(--bg-card); margin-bottom: 15px; border-radius: 8px;
             border-left: 8px solid var(--iste-green); padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             transition: 0.3s;
         }
         details.history-card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
         summary { cursor: pointer; font-weight: bold; list-style: none; display: flex; justify-content: space-between; align-items: center; font-size: 16px; }
         summary::-webkit-details-marker { display: none; }
-        
+
         .res-content { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); font-size: 14px; }
         .res-row { display: flex; justify-content: space-between; padding: 6px 0; color: #666; }
 
-        /* Captcha Styles */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--overlay); align-items: center; justify-content: center; z-index: 1000; }
         .modal-content { background: white; padding: 30px; border-radius: 12px; width: 340px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
         #captchaCanvas { background: #f0f0f0; border-radius: 6px; margin: 15px 0; cursor: pointer; display: block; margin-left: auto; margin-right: auto; }
         .captcha-input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-size: 20px; letter-spacing: 4px; font-weight: bold; }
-        
+
         .q-detail-row { padding: 10px; margin-top: 10px; border-radius: 6px; font-size: 13px; border: 1px solid #eee; }
         .q-ans-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; font-weight: 500; }
         .badge-mark { font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+        .badge-neutral { background: #f5f5f5; color: #616161; }
         .badge-right { background: #e8f5e9; color: #2e7d32; }
         .badge-wrong { background: #ffebee; color: #c62828; }
+        .user-nav-info { flex-grow: 1; text-align: right; margin: 0 8px; display: flex; flex-direction: column; justify-content: center; }
+        .user-nav-name { font-weight: bold; font-size: 16px; line-height: 1; }
+        .user-nav-course { color: var(--thick-yellow); font-size: 16px; }
+
+        /* loading spinner for manual refresh */
+        .spinner-small {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(25,118,210,0.2);
+            border-radius: 50%;
+            border-top-color: var(--primary-blue);
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* pull-to-refresh hint (mobile) */
+        .ptr-hint {
+            text-align: center;
+            font-size: 12px;
+            color: var(--primary-blue);
+            margin: 8px auto 0;
+            opacity: 0.7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        @media screen and (max-width: 768px) {
+            .app-bar { flex-direction: column; gap: 10px; text-align: center; align-items: center; }
+            .user-nav-info { text-align: center; margin: 5px 0 0 0; width: 100%; order: 2; }
+            .app-bar h2 { order: 1; }
+            .app-bar .logout-btn { order: 3; }
+            .container { margin: 20px auto; }
+            .section-header { flex-direction: column; align-items: stretch; }
+            .refresh-btn { justify-content: center; }
+        }
     </style>
 </head>
 <body>
-    <header class="app-bar">
-        <h2>ISTE Performance Portal</h2>
-        <button onclick="logout()" style="background:none; border:2px solid white; color:white; padding:5px 15px; border-radius:5px; cursor:pointer;">Logout</button>
+    <header class="app-bar" style="flex-wrap: wrap;">
+        <h2 style="white-space: nowrap;">ISTE Performance Portal</h2>
+
+        {% if user %}
+        <div class="user-nav-info">
+            <div class="user-nav-name">{{ user.name }} ({{ user.reg_no }})</div>
+            <div class="user-nav-course">{{ user.course }}</div>
+        </div>
+        {% endif %}
+
+        <button onclick="logout()" class="logout-btn" style="background:none; border:2px solid white; color:white; padding:5px 15px; border-radius:5px; cursor:pointer; white-space: nowrap;">Logout</button>
     </header>
 
     <div class="container" id="main-view">
@@ -83,140 +163,209 @@
             <div id="no-test-msg" style="text-align: center; color: #999; margin: 40px 0; display: none;">No assessments currently scheduled. Check back soon!</div>
         </div>
 
-        <div class="section-header">Past Week Results <span>Archive</span></div>
+        <div class="section-header">
+            <span>📋 Past Week Results <span style="font-size:13px;">(Archive)</span></span>
+            <button id="manualRefreshBtn" class="refresh-btn" onclick="manualRefreshDashboard()">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Refresh
+            </button>
+        </div>
         <div id="history-container">
-            <!-- Results populated here -->
             <p style="color: #999; text-align: center;">Loading result history...</p>
+        </div>
+        <div class="ptr-hint">
+            <span>⬇️ Pull down or tap Refresh to sync latest data</span>
         </div>
     </div>
 
-    <!-- Captcha Modal -->
     <div id="captchaModal" class="modal">
         <div class="modal-content">
             <h4>Security Verification</h4>
             <p style="font-size: 12px; color: #666; margin-top: 5px;">Type the characters below to begin</p>
             <canvas id="captchaCanvas" width="200" height="70" onclick="generateCaptcha()"></canvas>
-            <input type="text" id="captchaInput" class="captcha-input" placeholder="..." autocomplete="off">
+            <input type="text" id="captchaInput" class="captcha-input" autocomplete="off">
             <button class="btn active" onclick="validateAndStart()">Verify & Launch Environment</button>
             <p style="font-size: 11px; margin-top: 15px; color: var(--primary-blue); cursor: pointer;" onclick="exitCaptcha()">Cancel</p>
         </div>
     </div>
 
-    <script>
+<script>
         let selectedAssessmentId = null;
         let correctCaptcha = "";
+        let activeCountdownIntervals = {};
 
-        async function fetchDashboard() {
-            // 1. Fetch Active Assessments (List)
-            const activeRes = await fetch("/student/active");
-            const container = document.getElementById('active-assessment-container');
-            
-            if (activeRes.ok) {
-                const assessments = await activeRes.json();
-                if (assessments.length === 0) {
-                    container.innerHTML = `<div id="no-test-msg" style="text-align: center; color: #999; margin: 40px 0;">No assessments currently scheduled. Check back soon!</div>`;
-                } else {
-                    container.innerHTML = assessments.map((ass, i) => `
-                        <div class="banner" id="test-card-${ass.id}">
-                            <h3>${ass.title}</h3>
-                            <p>Entry Window: <span id="test-time-${ass.id}">--:--</span> to <span id="until-time-${ass.id}">--:--</span></p>
-                            <div id="countdown-${ass.id}" class="timer-badge">Syncing Schedule...</div>
-                            <button id="start-btn-${ass.id}" class="btn" onclick="openCaptcha(${ass.id})">Awaiting Window</button>
-                        </div>
-                    `).join('');
+        const cleanNum = (num) => Number(parseFloat(num).toFixed(2));
 
-                    assessments.forEach(ass => {
-                        const startTime = new Date(ass.start_at);
-                        const untilTime = new Date(ass.start_until);
-                        document.getElementById(`test-time-${ass.id}`).innerText = startTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                        document.getElementById(`until-time-${ass.id}`).innerText = untilTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                        startCountdown(ass.id, startTime, untilTime);
-                    });
-                }
-            } else {
-                container.innerHTML = `<div id="no-test-msg" style="text-align: center; color: #999; margin: 40px 0;">Error fetching assessments.</div>`;
-            }
-
-            // 2. Fetch History
-            const historyRes = await fetch("/student/attempts");
-            if (historyRes.ok) {
-                const data = await historyRes.json();
-                const container = document.getElementById('history-container');
-                if (data.length === 0) {
-                    container.innerHTML = "<p style='color: #999; text-align:center;'>No past attempts found.</p>";
-                } else {
-                    container.innerHTML = data.map(h => {
-                        const scoreDisplay = h.results_available 
-                            ? `<span style="color: var(--iste-green);">${h.total_score} / ${h.total_questions} ▼</span>`
-                            : `<span style="color: #666; font-size:11px;">PENDING RELEASE</span>`;
-                            
-                        return `
-                        <details class="history-card" style="border-left-color: ${h.results_available ? 'var(--iste-green)' : '#999'}" onclick="if(!this.open && ${h.results_available}) fetchDetails(${h.assessment_id})">
-                            <summary>
-                                <span>${h.title}</span>
-                                ${scoreDisplay}
-                            </summary>
-                            <div class="res-content" id="details-${h.assessment_id}">
-                                <div class="res-row"><span>Time Taken:</span> <span>${Math.round(h.total_time_taken_sec / 60)} mins</span></div>
-                                <div class="res-row"><span>Evaluation Status:</span> <span style="font-weight:bold; color:${h.results_available ? 'var(--iste-green)' : '#EF6C00'};">${h.results_available ? 'Finalised' : 'Result Pending'}</span></div>
-                                ${h.results_available ? `<div class="loading-spinner" style="padding:10px; text-align:center; font-size:12px; color:#999;">Fetching Detailed Breakdown...</div>` : '<p style="font-size:11px; margin-top:10px; color:#777;">Official evaluation will be released after the test duration concludes for all candidates.</p>'}
-                            </div>
-                        </details>
-                    `}).join('');
-                }
-            }
+        function clearAllCountdownTimers() {
+            Object.values(activeCountdownIntervals).forEach(interval => clearInterval(interval));
+            activeCountdownIntervals = {};
         }
 
-        async function fetchDetails(aid) {
-            const container = document.getElementById(`details-${aid}`);
-            const res = await fetch(`/student/attempt_details/${aid}`);
-            if (res.ok) {
-                const data = await res.json();
-                container.innerHTML = `
-                    <div style="border-top: 1px solid #ddd; padding-top: 15px; margin-top: 15px;">
-                        <h4 style="font-size: 14px; margin-bottom: 10px; color: var(--primary-blue);">Detailed Question Analysis</h4>
-                        ${data.map((q, i) => {
-                            const isCorrect = q.score > 0;
-                            const markClass = isCorrect ? 'badge-right' : 'badge-wrong';
-                            
-                            let studentAns = "No Response";
-                            let correctAns = "---";
-                            
-                            if (q.type === 'MCQ' || q.type === 'MSQ') {
-                                const sIds = q.student_response?.selected_ids || (q.student_response?.selected_id !== undefined ? [q.student_response.selected_id] : []);
-                                const cIds = q.correct_answer.correct_ids || [q.correct_answer.correct_id];
-                                
-                                studentAns = sIds.map(id => q.correct_answer.options[id]).join(', ') || "Awaiting Response";
-                                correctAns = cIds.map(id => q.correct_answer.options[id]).join(', ');
+        let isRefreshing = false;
+        async function fetchDashboard() {
+            const modal = document.getElementById('captchaModal');
+            if (modal && modal.style.display === 'flex') return;
+
+            if (isRefreshing) return;
+            isRefreshing = true;
+            const refreshBtn = document.getElementById('manualRefreshBtn');
+            const originalBtnHtml = refreshBtn ? refreshBtn.innerHTML : '';
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.innerHTML = '<span class="spinner-small"></span> Syncing...';
+            }
+
+            try {
+                clearAllCountdownTimers();
+
+                const activeRes = await fetch("/student/active");
+                const container = document.getElementById('active-assessment-container');
+
+                if (activeRes.ok) {
+                    const assessments = await activeRes.json();
+                    if (assessments.length === 0) {
+                        container.innerHTML = `<div id="no-test-msg" style="text-align: center; color: #999; margin: 40px 0;">No assessments currently scheduled. Check back soon!</div>`;
+                    } else {
+                        const newHtml = assessments.map((a) => `
+                            <div class="banner" id="test-card-${a.id}">
+                                <h3>${a.type} ${a.seq_num || ''}: ${a.title}</h3>
+                                <p>Entry Window: <span id="test-time-${a.id}">--:--</span> to <span id="until-time-${a.id}">--:--</span></p>
+                                <div id="countdown-${a.id}" class="timer-badge">Syncing Schedule...</div>
+                                <button id="start-btn-${a.id}" class="btn" onclick="openCaptcha(${a.id})">Awaiting Window</button>
+                            </div>
+                        `).join('');
+                        container.innerHTML = newHtml;
+                        assessments.forEach(ass => {
+                            const startTime = new Date(ass.start_at);
+                            const untilTime = new Date(ass.start_until);
+                            const startTimeElem = document.getElementById(`test-time-${ass.id}`);
+                            const untilTimeElem = document.getElementById(`until-time-${ass.id}`);
+                            if (startTimeElem) startTimeElem.innerText = startTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                            if (untilTimeElem) untilTimeElem.innerText = untilTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                            startCountdown(ass.id, startTime, untilTime);
+                        });
+                    }
+                }
+
+                const openTabs = Array.from(document.querySelectorAll('details.history-card[open]'))
+                                    .map(d => d.id);
+                const historyRes = await fetch("/student/attempts");
+                if (historyRes.ok) {
+                    const data = await historyRes.json();
+                    const historyContainer = document.getElementById('history-container');
+                    if (data.length === 0) {
+                        historyContainer.innerHTML = "<p style='color: #999; text-align:center;'>No past attempts found.</p>";
+                    } else {
+                        historyContainer.innerHTML = data.map(h => {
+                            const maxMarks = h.max_marks || h.total_questions;
+                            const typeStr = h.type ? (h.type.charAt(0).toUpperCase() + h.type.slice(1).toLowerCase()) : 'Assessment';
+                            const displayTitle = h.seq_num ? `${typeStr} ${h.seq_num}: ${h.title}` : `${typeStr}: ${h.title}`;
+
+                            let scoreDisplay = '';
+                            let statusColor = '#999';
+                            let subStatus = '';
+
+                            const untilDate = new Date(h.start_until);
+                            const deadlineDate = new Date(untilDate.getTime() + (h.total_duration || 60) * 60000);
+                            const deadlineStr = deadlineDate.toLocaleString([], {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+
+                            if (h.is_attempted == 1) {
+                                if (!h.results_available) {
+                                    scoreDisplay = `<span style="color: #EF6C00; font-size:12px; font-weight:bold;">ATTEMPTED (PENDING EVALUATION)</span>`;
+                                    statusColor = '#EF6C00';
+                                    subStatus = `Results release after: <strong>${deadlineStr}</strong>`;
+                                } else {
+                                    scoreDisplay = `<span style="color: var(--iste-green); font-weight:bold;">${cleanNum(h.total_score)} / ${cleanNum(maxMarks)} ▼</span>`;
+                                    statusColor = 'var(--iste-green)';
+                                    subStatus = 'Finalised';
+                                }
                             } else {
-                                studentAns = q.student_response?.value || "Empty";
-                                correctAns = q.correct_answer.value || (q.correct_answer.range ? `${q.correct_answer.range[0]} to ${q.correct_answer.range[1]}` : "N/A");
+                                if (!h.results_available) {
+                                    scoreDisplay = `<span style="color: #666; font-size:11px;">PENDING DEADLINE</span>`;
+                                    statusColor = '#999';
+                                    subStatus = `Window Closes: <strong>${deadlineStr}</strong>`;
+                                } else {
+                                    scoreDisplay = `<span style="color: var(--iste-red); font-size:12px; font-weight:bold;">MISSED / 0 POINTS ▼</span>`;
+                                    statusColor = 'var(--iste-red)';
+                                    subStatus = 'Missed Assessment';
+                                }
                             }
 
                             return `
-                            <div class="q-detail-row">
-                                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                                    <strong>Q${i+1}: ${q.type}</strong>
-                                    <span class="badge-mark ${markClass}">${isCorrect ? '+' : ''}${q.score} Points</span>
+                            <details class="history-card" id="history-card-${h.assessment_id}" style="border-left-color: ${statusColor}" onclick="if(!this.open && ${h.results_available}) fetchDetails(${h.assessment_id})">
+                                <summary>
+                                    <span><strong style="color:var(--primary-blue)">${displayTitle}</strong></span>
+                                    ${scoreDisplay}
+                                </summary>
+                                <div class="res-content" id="details-${h.assessment_id}">
+                                    <div class="res-row"><span>Time Taken:</span> <span>${h.is_attempted ? Math.round(h.total_time_taken_sec / 60) + ' mins' : 'N/A'}</span></div>
+                                    <div class="res-row"><span>Evaluation Status:</span> <span style="font-weight:bold; color:${statusColor};">${subStatus}</span></div>
+                                    ${h.results_available && h.is_attempted ? `<div class="loading-spinner" style="padding:10px; text-align:center; font-size:12px; color:#999;">Tap to load detailed breakdown...</div>` : '<p style="font-size:11px; margin-top:10px; color:#777;">Official evaluation will be released after the test duration concludes for all candidates.</p>'}
                                 </div>
-                                <div style="color: #444; margin-bottom:8px;">${q.question}</div>
-                                <div class="q-ans-box">
-                                    <div style="font-size: 11px;">Your Response:<br><span style="color:${isCorrect ? '#2e7d32' : '#c62828'}">${studentAns}</span></div>
-                                    <div style="font-size: 11px;">Correct Answer:<br><span style="color:#2e7d32">${correctAns}</span></div>
-                                </div>
-                            </div>
-                            `;
-                        }).join('')}
-                    </div>
-                `;
+                            </details>
+                        `}).join('');
+
+                        // restore open states after refresh
+                        openTabs.forEach(tabId => {
+                            const tab = document.getElementById(tabId);
+                            if (tab) tab.open = true;
+                        });
+                    }
+                }
+            } catch (err) {
+                console.warn("Dashboard fetch error:", err);
+                const container = document.getElementById('history-container');
+                if (container) container.innerHTML = '<p style="color: #c62828; text-align:center;">⚠️ Failed to refresh. Check network & try again.</p>';
+            } finally {
+                isRefreshing = false;
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = originalBtnHtml || '<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Refresh';
+                }
             }
         }
 
+        // Manual refresh trigger (button + pull gesture)
+        window.manualRefreshDashboard = function() {
+            if (document.getElementById('captchaModal').style.display === 'flex') {
+                alert("Please complete CAPTCHA before refreshing.");
+                return;
+            }
+            fetchDashboard();
+        };
+
+        // Pull-to-refresh simple detection (mobile friendly)
+        let touchStartY = 0;
+        let isPulling = false;
+        document.addEventListener('touchstart', (e) => {
+            if (window.scrollY === 0 && e.touches.length === 1) {
+                touchStartY = e.touches[0].clientY;
+                isPulling = true;
+            }
+        });
+        document.addEventListener('touchmove', (e) => {
+            if (isPulling && window.scrollY === 0 && e.touches[0].clientY - touchStartY > 70) {
+                isPulling = false;
+                if (document.getElementById('captchaModal').style.display !== 'flex') {
+                    manualRefreshDashboard();
+                }
+            }
+        });
+        document.addEventListener('touchend', () => { isPulling = false; });
+
+        // Enhanced countdown with proper interval cleanup
         function startCountdown(id, startTime, untilTime) {
+            // Clear previous interval for this assessment if exists
+            if (activeCountdownIntervals[id]) {
+                clearInterval(activeCountdownIntervals[id]);
+                delete activeCountdownIntervals[id];
+            }
+
             const btn = document.getElementById(`start-btn-${id}`);
             const countdownEl = document.getElementById(`countdown-${id}`);
-            
-            const ticker = setInterval(() => {
+            if (!btn || !countdownEl) return;
+
+            const interval = setInterval(() => {
                 const now = new Date();
                 if (now < startTime) {
                     const diff = startTime - now;
@@ -235,7 +384,8 @@
                     btn.disabled = false;
                     btn.innerText = "Access Assessment Environment";
                 } else {
-                    clearInterval(ticker);
+                    clearInterval(interval);
+                    delete activeCountdownIntervals[id];
                     countdownEl.innerText = "ENTRY WINDOW HAS EXPIRED";
                     countdownEl.style.background = "#ffebee";
                     countdownEl.style.color = "#c62828";
@@ -244,37 +394,160 @@
                     btn.innerText = "Window Expired";
                 }
             }, 1000);
+            activeCountdownIntervals[id] = interval;
         }
 
+        async function fetchDetails(aid) {
+            const container = document.getElementById(`details-${aid}`);
+            if (!container) return;
+            // prevent double fetch if already loading or populated
+            if (container.querySelector('.summary-stats')) return;
+            container.innerHTML = '<div style="padding:15px; text-align:center;">📊 Loading detailed analysis...</div>';
+            const res = await fetch(`/student/attempt_details/${aid}`);
+            if (res.ok) {
+                const data = await res.json();
+                let totalScore = 0, totalPositive = 0, totalNegative = 0, totalTime = 0, totalMaxMarks = 0;
+                const numQuestions = data.length;
+                data.forEach(q => {
+                    const score = parseFloat(q.score) || 0;
+                    const time = parseInt(q.time_taken_sec) || 0;
+                    const maxMark = parseFloat(q.mark) || 1;
+                    totalScore += score;
+                    if (score > 0) totalPositive += score;
+                    if (score < 0) totalNegative += Math.abs(score);
+                    totalTime += time;
+                    totalMaxMarks += maxMark;
+                });
+                const avgTime = numQuestions > 0 ? (totalTime / numQuestions) : 0;
+
+                const summaryHtml = `
+                    <div class="summary-stats" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 13px; border: 1px solid #e0e0e0;">
+                        <div><strong>Total Score:</strong> ${cleanNum(totalScore)} / ${cleanNum(totalMaxMarks)}</div>
+                        <div><strong>Positive Marks:</strong> <span style="color:#2e7d32">+${cleanNum(totalPositive)}</span></div>
+                        <div><strong>Negative Marks:</strong> <span style="color:#c62828">-${cleanNum(totalNegative)}</span></div>
+                        <div><strong>Total Time:</strong> ${Math.floor(totalTime / 60)}m ${totalTime % 60}s</div>
+                        <div><strong>Avg Time / Q:</strong> ${cleanNum(avgTime)}s</div>
+                        <div><strong>Score %:</strong> ${totalMaxMarks > 0 ? cleanNum((totalScore/totalMaxMarks)*100) : 0}%</div>
+                    </div>
+                `;
+
+                const questionsHtml = data.map((q, i) => {
+                    const score = cleanNum(q.score || 0);
+                    const time = parseInt(q.time_taken_sec) || 0;
+                    const isCorrect = score > 0;
+                    const isNegative = score < 0;
+                    let markClass = 'badge-neutral';
+                    if (isCorrect) markClass = 'badge-right';
+                    else if (isNegative) markClass = 'badge-wrong';
+
+                    let studentAns = "Skipped / Unattempted";
+                    let correctAns = "---";
+                    let sResp = q.student_response;
+                    if (typeof sResp === 'string') {
+                        try { sResp = JSON.parse(sResp); } catch(e) { sResp = {}; }
+                    }
+                    sResp = sResp || {};
+
+                    if (q.type === 'MCQ' || q.type === 'MSQ') {
+                        const sIds = sResp.selected_ids || (sResp.selected_id !== undefined ? [sResp.selected_id] : []);
+                        const cIds = q.correct_answer.correct_ids || [q.correct_answer.correct_id];
+                        if (sIds.length > 0) studentAns = sIds.map(id => q.correct_answer.options[id]).join(', ');
+                        correctAns = cIds.map(id => q.correct_answer.options[id]).join(', ');
+                    } else {
+                        if (sResp.value !== undefined && sResp.value !== "") studentAns = sResp.value;
+                        correctAns = q.correct_answer.value !== undefined ? q.correct_answer.value : (q.correct_answer.range ? `${q.correct_answer.range[0]} to ${q.correct_answer.range[1]}` : "N/A");
+                    }
+                    return `
+                    <div class="q-detail-row">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                            <strong>Q${i+1}: ${q.type}</strong>
+                            <div><span style="font-size: 11px; color: #666; margin-right: 10px;">🕒 ${time}s</span>
+                            <span class="badge-mark ${markClass}">${score > 0 ? '+' : ''}${score} Points</span></div>
+                        </div>
+                        <div style="color: #444; margin-bottom:8px;">${q.question}</div>
+                        <div class="q-ans-box">
+                            <div style="font-size: 11px;">Your Response:<br><span style="color:${isCorrect ? '#2e7d32' : (isNegative ? '#c62828' : '#757575')}">${studentAns}</span></div>
+                            <div style="font-size: 11px;">Correct Answer:<br><span style="color:#2e7d32">${correctAns}</span></div>
+                        </div>
+                    </div>`;
+                }).join('');
+                container.innerHTML = `<div style="border-top: 1px solid #ddd; padding-top: 15px; margin-top: 15px;">
+                        <h4 style="font-size: 14px; margin-bottom: 10px; color: var(--primary-blue);">Performance Summary</h4>
+                        ${summaryHtml}
+                        <h4 style="font-size: 14px; margin-bottom: 10px; color: var(--primary-blue);">Detailed Question Analysis</h4>
+                        ${questionsHtml}
+                    </div>`;
+            } else {
+                container.innerHTML = '<p style="color:#c62828;">Failed to load details. Please try refreshing.</p>';
+            }
+        }
+
+        // CAPTCHA and start logic unchanged
         function openCaptcha(id) {
             selectedAssessmentId = id;
             document.getElementById('captchaModal').style.display = 'flex';
             generateCaptcha();
         }
-
         function exitCaptcha() { document.getElementById('captchaModal').style.display = 'none'; }
-
-        function generateCaptcha() {
-            const canvas = document.getElementById('captchaCanvas');
+        function generateCaptcha() { correctCaptcha = drawAdvancedCaptcha("captchaCanvas"); }
+        function drawAdvancedCaptcha(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return "";
             const ctx = canvas.getContext('2d');
-            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-            correctCaptcha = "";
-            ctx.fillStyle = "#f8f9fa";
+            const chars = "ABCDEFGHJKLMNPRSTUVWXYZ23456789";
+            const fonts = ["'Courier New'", "Arial", "Georgia", "Impact", "Tahoma"];
+            let code = "";
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#F8F9FA";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.font = "bold 32px 'Courier New'";
+            for (let x = 0; x < canvas.width; x += 15) {
+                ctx.beginPath(); ctx.moveTo(x + (Math.random() * 4 - 2), 0); ctx.lineTo(x + (Math.random() * 4 - 2), canvas.height);
+                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.05 + 0.02})`; ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 15) {
+                ctx.beginPath(); ctx.moveTo(0, y + (Math.random() * 4 - 2)); ctx.lineTo(canvas.width, y + (Math.random() * 4 - 2));
+                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.05 + 0.02})`; ctx.stroke();
+            }
+            for (let i = 0; i < 20; i++) {
+                ctx.beginPath();
+                let x = Math.random() * canvas.width, y = Math.random() * canvas.height;
+                ctx.moveTo(x, y); ctx.lineTo(x + Math.random() * 15 - 7, y + Math.random() * 15 - 7);
+                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.3})`; ctx.lineWidth = Math.random() * 1.5 + 0.5; ctx.stroke();
+            }
             ctx.textBaseline = 'middle';
-            for (let i = 0; i < 5; i++) {
+            const charCount = 5;
+            const stepX = canvas.width / (charCount + 1);
+            for (let i = 0; i < charCount; i++) {
                 const char = chars.charAt(Math.floor(Math.random() * chars.length));
-                correctCaptcha += char;
+                code += char;
                 ctx.save();
-                ctx.translate(35 + (i * 35), 35);
-                ctx.rotate((Math.random() - 0.5) * 0.4);
-                ctx.fillStyle = "#1976D2";
-                ctx.fillText(char, 0, 0);
+                ctx.translate((i + 1) * stepX + (Math.random() * 10 - 5), canvas.height / 2 + (Math.random() * 8 - 4));
+                ctx.rotate((Math.random() - 0.5) * 0.8);
+                ctx.transform(1, 0, Math.random() * 0.4 - 0.2, 1, 0, 0);
+                ctx.font = `${Math.floor(canvas.height * 0.5 + Math.random() * (canvas.height * 0.25))}px ${fonts[Math.floor(Math.random() * fonts.length)]}`;
+                const r = Math.floor(Math.random() * 120), g = Math.floor(Math.random() * 120), b = Math.floor(Math.random() * 150 + 50);
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowOffsetX = 1.5; ctx.shadowOffsetY = 1.5; ctx.shadowBlur = 2;
+                ctx.fillText(char, -ctx.measureText(char).width / 2, 0);
+                ctx.shadowColor = 'transparent';
+                if (Math.random() > 0.2) {
+                    ctx.beginPath(); ctx.moveTo(-15, (Math.random() - 0.5) * 15); ctx.lineTo(15, (Math.random() - 0.5) * 15);
+                    ctx.strokeStyle = `rgba(${r},${g},${b},${Math.random() * 0.6 + 0.3})`; ctx.lineWidth = Math.random() * 2 + 1; ctx.stroke();
+                }
                 ctx.restore();
             }
+            for (let i = 0; i < 90; i++) {
+                const x = Math.random() * canvas.width, y = Math.random() * canvas.height;
+                ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.35})`;
+                ctx.beginPath(); ctx.arc(x, y, Math.random() * 2.2, 0, 2 * Math.PI); ctx.fill();
+                if (Math.random() > 0.75) {
+                    for (let j = 0; j < 3; j++) {
+                        ctx.beginPath(); ctx.arc(x + Math.random() * 6 - 3, y + Math.random() * 6 - 3, Math.random() * 1.2, 0, 2 * Math.PI); ctx.fill();
+                    }
+                }
+            }
+            return code;
         }
-
         function validateAndStart() {
             const input = document.getElementById('captchaInput').value.toUpperCase();
             if (input !== correctCaptcha) {
@@ -283,23 +556,45 @@
                 document.getElementById('captchaInput').value = "";
                 return;
             }
-            // Store selected ID for test page session
             sessionStorage.setItem('joining_assessment_id', selectedAssessmentId);
             window.location.href = "/test";
         }
-
         async function logout() {
+            if (window.Capacitor && Capacitor.Plugins?.LocalNotifications) {
+                const { LocalNotifications } = Capacitor.Plugins;
+                const pending = await LocalNotifications.getPending();
+                for (const n of pending.notifications) await LocalNotifications.cancel({ notifications: [{ id: n.id }] });
+            }
             await fetch("/logout");
             window.location.href = "/";
         }
 
+        // Initialization: NO POLLING, only fetch once and on visibility change + manual
+        function initDashboard() {
+            fetchDashboard();  // initial load
+            // Refresh when tab becomes visible again (mobile friendly)
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && document.getElementById('captchaModal').style.display !== 'flex') {
+                    fetchDashboard();
+                }
+            });
+            // Also on pageshow (for back/forward cache)
+            window.addEventListener('pageshow', (e) => {
+                if (e.persisted && document.getElementById('captchaModal').style.display !== 'flex') fetchDashboard();
+            });
+        }
+
         document.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && document.getElementById('captchaModal').style.display === 'flex') {
-                validateAndStart();
-            }
+            if (e.key === 'Enter' && document.getElementById('captchaModal').style.display === 'flex') validateAndStart();
         });
 
-        window.onload = fetchDashboard;
+        document.addEventListener('DOMContentLoaded', initDashboard);
+        if (window.Capacitor && Capacitor.Plugins?.LocalNotifications) {
+            Capacitor.Plugins.LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
+                const aid = notification.notification.extra?.assessment_id;
+                if (aid) { sessionStorage.setItem('joining_assessment_id', aid); window.location.href = "/test"; }
+            });
+        }
     </script>
 </body>
 </html>
