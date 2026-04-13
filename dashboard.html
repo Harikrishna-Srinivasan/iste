@@ -552,6 +552,7 @@
 
         const cleanNum = (num) => Number(parseFloat(num).toFixed(2));
 
+        // --- GLOBAL HEARTBEAT (High-Precision Efficiency) ---
         let assessmentsToTrack = [];
         function startGlobalHeartbeat() {
             function tick() {
@@ -673,8 +674,8 @@
         let currentHistoryData = [];
         let historyLimit = 10;
         function renderHistoryLazy(data) {
-            currentHistoryData = data;
             const container = document.getElementById('history-container');
+            data = data.filter(h => h.is_attempted == 1 || h.results_available == 1);
             if (data.length === 0) {
                 container.innerHTML = "<p style='color: #999; text-align:center;'>No past attempts found.</p>";
                 return;
@@ -687,7 +688,6 @@
 
         function expandHistory() {
             historyLimit += 20;
-            currentHistoryData = currentHistoryData.filter(h => h.is_attempted == 1 || h.results_available == 1)
             renderHistoryLazy(currentHistoryData);
         }
 
