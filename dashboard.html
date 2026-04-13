@@ -600,9 +600,8 @@
             if (!container) return;
             assessmentsToTrack = [];
 
-            if (assessments.length === 0) {
-                container.innerHTML = `<div style="text-align: center; color: #999; margin: 40px 0;">📭 No assessments currently scheduled.</div>`;
-            } else {
+            if (assessments.length === 0) container.innerHTML = `<div style="text-align: center; color: #999; margin: 40px 0;">📭 No assessments currently scheduled.</div>`;
+            else {
                 container.innerHTML = assessments.map((a) => {
                     if (a.is_attempted) {
                         return `
@@ -654,15 +653,9 @@
                     subStatus = 'Finalised';
                 }
             } else {
-                if (!h.results_available) {
-                    scoreDisplay = `<span style="color: #666; font-size:12px;">⏰ PENDING DEADLINE</span>`;
-                    statusColor = '#999';
-                    subStatus = `Window Closes: <strong>${deadlineStr}</strong>`;
-                } else {
-                    scoreDisplay = `<span style="color: var(--iste-red); font-size:12px; font-weight:bold;">MISSED / 0 POINTS</span>`;
-                    statusColor = 'var(--iste-red)';
-                    subStatus = 'Missed Assessment';
-                }
+                scoreDisplay = `<span style="color: var(--iste-red); font-size:12px; font-weight:bold;">MISSED / 0 POINTS</span>`;
+                statusColor = 'var(--iste-red)';
+                subStatus = 'Missed Assessment';
             }
 
             return `<details class="history-card" id="history-card-${h.assessment_id}" style="border-left-color: ${statusColor}" onclick="if(!this.open && ${h.results_available}) setTimeout(() => fetchDetails(${h.assessment_id}), 50)">
@@ -688,10 +681,8 @@
                 return;
             }
             const chunk = data.slice(0, historyLimit);
-            let html = chunk.map(h => renderHistoryCard(h)).join('');
-            if (data.length > historyLimit) {
-                html += `<button id="show-more-hist" class="btn" style="background:transparent; color:var(--primary-blue); border:1px solid var(--primary-blue); margin-top:15px; width:100%; cursor:pointer; opacity:1;" onclick="expandHistory()">See Older Records</button>`;
-            }
+            let html = chunk.filter(h => h.is_attempted == 1 || h.results_available == 1).map(h => renderHistoryCard(h)).join('');
+            if (data.length > historyLimit) html += `<button id="show-more-hist" class="btn" style="background:transparent; color:var(--primary-blue); border:1px solid var(--primary-blue); margin-top:15px; width:100%; cursor:pointer; opacity:1;" onclick="expandHistory()">See Older Records</button>`;
             container.innerHTML = html;
         }
 
@@ -715,7 +706,7 @@
             try {
                 const activeRes = await fetch("/student/active");
                 if (activeRes.ok) {
-                    const assessments = await activeRes.json();
+                    const assessments = (await activeRes.json()).filter(a => !a.is_attempted);
                     const activeStr = JSON.stringify(assessments);
                     if (activeStr !== lastActiveData) {
                         lastActiveData = activeStr;
@@ -1037,6 +1028,10 @@
             loadDashboardData();
 
             if (Notification.permission === 'default') Notification.requestPermission();
+
+            setInterval(() => {
+                if (!isRefreshing) loadDashboardData();
+            }, 6000);
         });
 
         window.addEventListener('pageshow', (e) => { if (e.persisted) loadDashboardData(); });

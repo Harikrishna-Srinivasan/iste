@@ -495,7 +495,7 @@ def process_push_queue():
 
         for push in pending_pushes:
             for i in range(0, len(tokens), 500):
-                chunk = tokens[i:i + 500]
+                chunk = tokens[i:i+500]
                 message = messaging.MulticastMessage(
                     notification=messaging.Notification(
                         title=push['title'],
@@ -560,7 +560,9 @@ def create_assessment():
     cur.execute("INSERT INTO push_queue (assessment_id, title, body) VALUES (%s, %s, %s)",
                 (aid, f"New Assessment: {data['title']}", "A new assessment has been scheduled. Open the app to view details."))
     conn.commit()
-    cur.close(); conn.close()
+
+    cur.close()
+    conn.close()
 
     trigger_push_processing()
 

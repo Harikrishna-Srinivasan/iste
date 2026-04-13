@@ -243,8 +243,20 @@ def student_login():
         session.permanent = True
         session["user_id"] = user["user_id"]
         session["is_admin"] = False
+
+        fcm_token = body.get("fcm_token")
+        if fcm_token:
+            try:
+                cur.execute(
+                    "INSERT INTO user_devices (user_id, fcm_token) VALUES (%s, %s) ON DUPLICATE KEY UPDATE fcm_token = VALUES(fcm_token)",
+                    (user["user_id"], fcm_token)
+                )
+                conn.commit()
+            except Exception as e:
+                app.logger.error(f"FCM registration failed: {str(e)}")
+
         resp = make_response(jsonify({"status": "Success"}))
-        resp.set_cookie("token", token, httponly=True, secure=False, samesite="Lax", max_age=timedelta(hours=6))
+        resp.set_cookie("token", token, httponly=True, secure=True, samesite="Lax", max_age=timedelta(hours=2))
         return resp
     except Exception as e:
         app.logger.error(f"Login failed: {str(e)}")
