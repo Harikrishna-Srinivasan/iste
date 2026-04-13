@@ -13,3 +13,4 @@ flask-minify
 flask-compress
 waitress
 firebase-admin
+python-dotenv

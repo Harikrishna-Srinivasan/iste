@@ -1,34 +1,45 @@
-import os
+import base64
+import io
 import json
-import time
+import jwt
+import os
 import pymysql
 import pytz
-from datetime import datetime, timedelta, timezone
-from flask import Flask, request, jsonify, render_template, make_response, session, redirect
-from flask_cors import CORS
-from dbutils.pooled_db import PooledDB
-from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
-import jwt
 import random
 import string
-from functools import wraps
-from collections import defaultdict
 import time
+
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+from dbutils.pooled_db import PooledDB
+from dotenv import load_dotenv
+from flask import Flask, request, jsonify, render_template, make_response, session, redirect
+from flask_cors import CORS
 from threading import Lock
 from flask_minify import Minify
 from flask_compress import Compress
-from dotenv import load_dotenv
+from functools import wraps
 from waitress import serve
+
 load_dotenv()
 
 app = Flask(__name__, template_folder=".")
 Compress(app)
 Minify(app=app, html=True, js=True, cssless=True)
 
-CORS(app, supports_credentials=True)
+
+CORS(app,
+     origins=["https://iste-ws2k.onrender.com"],
+     supports_credentials=True,
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE"])
+
 app.config["SECRET_KEY"] = os.environ["secret_key"]
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=2)
+app.config['SERVER_NAME'] = None
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 IST = pytz.timezone("Asia/Kolkata")
 ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "VII", 8: "VIII", 9: "IX", 10: "X"}
@@ -42,6 +53,7 @@ student_pool = PooledDB(
     maxcached=20,
     blocking=True,
     host=os.environ["host"],
+    port=int(os.environ["port"]),
     user=os.environ["student"],
     password=os.environ["stud_pwd"],
     database=os.environ["db"],
@@ -542,4 +554,9 @@ def student_attempt_details(aid):
         conn.close()
 
 if __name__ == "__main__":
+    app.config.update(
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax'
+    )
     serve(app, host="0.0.0.0", threads=64, port=5000)

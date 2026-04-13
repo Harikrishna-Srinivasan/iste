@@ -30,7 +30,7 @@ from flask_minify import Minify
 
 load_dotenv()
 
-cred = credentials.Certificate("iste-888e2-firebase-adminsdk-fbsvc-7254e2f882.json")
+cred = credentials.Certificate(os.environ["firebase_json"])
 firebase_admin.initialize_app(cred)
 
 app = Flask(__name__, template_folder=".")
@@ -49,6 +49,7 @@ admin_pool = PooledDB(
     maxconnections=2,
     blocking=True,
     host=os.environ["host"],
+    port=int(os.environ["port"]),
     user=os.environ["admin"],
     password=os.environ["password"],
     database=os.environ["db"],
@@ -64,7 +65,7 @@ ph = PasswordHasher()
 JWT_SECRET = os.environ["admin_jwt_secret"]
 JWT_ALGO = "HS256"
 
-ADMIN_USER = os.environ["admin_user"]
+ADMIN_USER = os.environ["admin"]
 ADMIN_PASSWORD_HASH = os.environ["admin_password"]
 
 failed_attempts = defaultdict(list)

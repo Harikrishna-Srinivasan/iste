@@ -2,7 +2,11 @@
 
 android/
 node_modules/
+__pycache__/
 
 flask_session/
 www/
 [a-zA-Z].py
+
+*.json
+!capacitor.config.json
