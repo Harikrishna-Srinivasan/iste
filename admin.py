@@ -1,43 +1,59 @@
-import os
 import json
+import os
+import time
+import firebase_admin
+import jwt
 import pandas as pd
 import pymysql
 import pytz
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from flask import Flask, request, jsonify, render_template, make_response, session
-from flask_cors import CORS
-from dbutils.pooled_db import PooledDB
+from functools import wraps
+from threading import Thread, Lock
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-import jwt
-from functools import wraps
-from collections import defaultdict
-import time
-from threading import Lock
 from apscheduler.schedulers.background import BackgroundScheduler
-
-# ---------- Load environment ----------
+from dbutils.pooled_db import PooledDB
 from dotenv import load_dotenv
+from firebase_admin import credentials, messaging
+from flask import (
+    Flask,
+    jsonify,
+    make_response,
+    render_template,
+    request,
+    session
+)
+from flask_compress import Compress
+from flask_cors import CORS
+from flask_minify import Minify
+
 load_dotenv()
 
+cred = credentials.Certificate("iste-888e2-firebase-adminsdk-fbsvc-7254e2f882.json")
+firebase_admin.initialize_app(cred)
+
 app = Flask(__name__, template_folder=".")
+Compress(app)
+Minify(app=app, html=True, js=True, cssless=True)
+
 CORS(app, supports_credentials=True)
 app.config["SECRET_KEY"] = os.environ["admin_secret_key"]
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=2)
 
 IST = pytz.timezone("Asia/Kolkata")
 
-# ---------- Database pool (admin credentials) ----------
+# ---------- Database pool ----------
 admin_pool = PooledDB(
     creator=pymysql,
-    maxconnections=1,
+    maxconnections=2,
     blocking=True,
-    host=os.environ.get("db_host", "localhost"),
+    host=os.environ["host"],
     user=os.environ["admin"],
     password=os.environ["password"],
-    database=os.environ.get("db_name", "iste"),
+    database=os.environ["db"],
     autocommit=True,
-    charset='utf8mb4'
+    charset="utf8mb4",
 )
 
 def get_admin_conn():
@@ -45,13 +61,12 @@ def get_admin_conn():
 
 # ---------- Auth utilities ----------
 ph = PasswordHasher()
-JWT_SECRET = os.environ["jwt_secret"]
+JWT_SECRET = os.environ["admin_jwt_secret"]
 JWT_ALGO = "HS256"
 
 ADMIN_USER = os.environ["admin_user"]
 ADMIN_PASSWORD_HASH = os.environ["admin_password"]
 
-# Rate limiting (same logic as student)
 failed_attempts = defaultdict(list)
 rate_lock = Lock()
 
@@ -125,20 +140,34 @@ def background_checker():
         for u in upcoming:
             reminders = json.loads(u["reminders"]) if u.get("reminders") else []
             start_at = u["start_at"]
-            for rem_str in reminders:
-                delta = timedelta()
-                for part in rem_str.split():
-                    if "d" in part: delta += timedelta(days=int(part[:-1]))
-                    elif "h" in part: delta += timedelta(hours=int(part[:-1]))
-                    elif "m" in part: delta += timedelta(minutes=int(part[:-1]))
-                rem_time = start_at - delta
-                if IST.localize(rem_time) <= datetime.now(IST) <= IST.localize(rem_time + timedelta(minutes=1)):
-                    print(f"!!! ALERT: Assessment '{u['title']}' starts in {rem_str} !!!")
+            if start_at.tzinfo is None: start_at = IST.localize(start_at)
+            now = datetime.now(IST)
+            sec_diff = (start_at - now).total_seconds()
+
+            milestones = []
+            if 0 < sec_diff <= 20:
+                milestones.append({"title": f"Starting Soon: {u['title']}", "body": "The assessment is starting in just a few seconds! Tap here to join."})
+
+            for r in reminders:
+                r_sec = 0
+                if "d" in r: r_sec = int(r[:-1]) * 86400
+                elif "h" in r: r_sec = int(r[:-1]) * 3600
+                elif "m" in r: r_sec = int(r[:-1]) * 60
+
+                if 0 < (sec_diff - r_sec) <= 65:
+                    milestones.append({"title": f"Reminder: {u['title']}", "body": f"Your assessment starts in {r}. Tap here to prepare."})
+
+            for ms in milestones:
+                cur.execute("SELECT id FROM push_queue WHERE assessment_id=%s AND title=%s", (u["id"], ms["title"]))
+                if not cur.fetchone():
+                    cur.execute("INSERT INTO push_queue (assessment_id, title, body) VALUES (%s, %s, %s)",
+                                (u["id"], ms["title"], ms["body"]))
+
         cur.close()
         conn.close()
 
 scheduler = BackgroundScheduler(timezone=IST)
-scheduler.add_job(func=background_checker, trigger="interval", minutes=1)
+scheduler.add_job(func=background_checker, trigger="interval", minutes=3)
 scheduler.start()
 
 # ---------- Page routes ----------
@@ -168,6 +197,10 @@ def admin_login():
         record_failed_attempt(identifier)
         return jsonify({"error": "Invalid credentials"}), 401
 
+    captcha = body.get("captcha")
+    if not captcha or captcha != session.get('captcha_ans', ''):
+        return jsonify({"error": "Invalid security code"}), 403
+
     try:
         ph.verify(ADMIN_PASSWORD_HASH, password)
     except VerifyMismatchError:
@@ -175,6 +208,7 @@ def admin_login():
         return jsonify({"error": "Invalid credentials"}), 401
 
     reset_failed_attempts(identifier)
+    session.pop('captcha_ans', None)
     token = make_token("admin", is_admin=True)
     session.permanent = True
     session["user_id"] = "admin"
@@ -182,6 +216,13 @@ def admin_login():
     resp = make_response(jsonify({"status": "Success"}))
     resp.set_cookie("token", token, httponly=True, secure=False, samesite="Lax", max_age=timedelta(hours=6))
     return resp
+
+@app.route("/admin/gen_captcha")
+def gen_captcha():
+    import random, string
+    code = ''.join(random.choices(string.ascii_letters + "23456789" + "@#$&*", k=5))
+    session['captcha_ans'] = code
+    return jsonify({"captcha_val": code})
 
 @app.route("/logout")
 def logout():
@@ -363,6 +404,132 @@ def admin_questions():
             except: pass
     return jsonify(rows)
 
+
+def send_scheduled_push(aid, title, body, milestone):
+    """Worker function with a strict 'Send Once' lock."""
+    conn = get_admin_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM sent_notifications WHERE assessment_id=%s AND reminder_str=%s", (aid, milestone))
+        if cur.fetchone(): return
+
+        cur.execute("INSERT INTO push_queue (assessment_id, title, body) VALUES (%s, %s, %s)", (aid, title, body))
+
+        cur.execute("INSERT INTO sent_notifications (user_id, assessment_id, reminder_str, sent_at) VALUES (0, %s, %s, NOW())", (aid, milestone))
+
+        conn.commit()
+        trigger_push_processing()
+    except Exception as e: print(f"Scheduled Push Error: {e}")
+    finally:
+        cur.close(); conn.close()
+
+def schedule_assessment_alerts(aid, title, start_at, reminders_raw):
+    """Calculates milestones and adds specific 'date' jobs to the scheduler."""
+    if start_at.tzinfo is None: start_at = IST.localize(start_at)
+
+    try:
+        reminders = json.loads(reminders_raw) if isinstance(reminders_raw, str) else (reminders_raw or [])
+    except: reminders = []
+    trigger_30s = start_at - timedelta(seconds=30)
+    if trigger_30s > datetime.now(IST):
+        scheduler.add_job(
+            func=send_scheduled_push,
+            trigger='date',
+            run_date=trigger_30s,
+            args=[aid, f"Starting in 30s: {title}", "Assessment begins in 30 seconds! Get ready.", "START_30S"],
+            id=f"start_{aid}",
+            replace_existing=True
+        )
+
+    for r in reminders:
+        r_sec = 0
+        if "d" in r: r_sec = int(r[:-1]) * 86400
+        elif "h" in r: r_sec = int(r[:-1]) * 3600
+        elif "m" in r: r_sec = int(r[:-1]) * 60
+
+        trigger_rem = start_at - timedelta(seconds=r_sec)
+        if trigger_rem > datetime.now(IST):
+            scheduler.add_job(
+                func=send_scheduled_push,
+                trigger='date',
+                run_date=trigger_rem,
+                args=[aid, f"Reminder: {title}", f"Assessment starts in {r}.", f"REM_{r}"],
+                id=f"rem_{aid}_{r}",
+                replace_existing=True
+            )
+
+def sync_all_future_alerts():
+    """Runs on startup to ensure all future assessments have their jobs in the scheduler."""
+    conn = get_admin_conn()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cur.execute("SELECT id, title, start_at, reminders FROM assessments WHERE start_at > NOW()")
+        for a in cur.fetchall():
+            schedule_assessment_alerts(a['id'], a['title'], a['start_at'], a['reminders'])
+    except Exception as e: print(f"Sync Error: {e}")
+    finally:
+        cur.close(); conn.close()
+
+scheduler = BackgroundScheduler()
+scheduler.start()
+
+sync_all_future_alerts()
+
+
+def trigger_push_processing():
+    """Immediately start processing the push queue in a separate thread to avoid blocking the request."""
+    Thread(target=process_push_queue).start()
+
+def process_push_queue():
+    conn = get_admin_conn()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cur.execute("SELECT id, assessment_id, title, body FROM push_queue WHERE status = 'PENDING'")
+        pending_pushes = cur.fetchall()
+        if not pending_pushes: return
+
+        cur.execute("SELECT fcm_token FROM user_devices WHERE fcm_token IS NOT NULL AND fcm_token NOT LIKE 'WEB_BROWSER_%'")
+        tokens = [row['fcm_token'] for row in cur.fetchall()]
+        if not tokens: return
+
+        for push in pending_pushes:
+            for i in range(0, len(tokens), 500):
+                chunk = tokens[i:i + 500]
+                message = messaging.MulticastMessage(
+                    notification=messaging.Notification(
+                        title=push['title'],
+                        body=push['body'],
+                    ),
+                    data={
+                        "assessment_id": str(push['assessment_id']),
+                        "click_action": "FLUTTER_NOTIFICATION_CLICK"
+                    },
+                    tokens=chunk,
+                    android=messaging.AndroidConfig(
+                        priority='high',
+                        notification=messaging.AndroidNotification(
+                            channel_id='assessment_channel',
+                            priority='max',
+                            default_vibrate_timings=True,
+                            default_sound=True
+                        )
+                    ),
+                    apns=messaging.APNSConfig(
+                        payload=messaging.APNSPayload(
+                            aps=messaging.Aps(sound='default', badge=1, content_available=True)
+                        )
+                    )
+                )
+                response = messaging.send_each_for_multicast(message)
+
+        if pending_pushes:
+            cur.executemany("UPDATE push_queue SET status = 'SENT' WHERE id = %s", [(p['id'],) for p in pending_pushes])
+            conn.commit()
+    except Exception as e: print(f"Push Processing Error: {e}")
+    finally:
+        cur.close(); conn.close()
+
+
 # ---------- Assessments ----------
 @app.route("/admin/create_assessment", methods=["POST"])
 @admin_required
@@ -375,16 +542,27 @@ def create_assessment():
     conn = get_admin_conn()
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO assessments (seq_num, title, type, start_at, start_until)
-        VALUES (%s, %s, %s, %s, %s)
-    """, (data.get("seq_num"), data["title"], data["type"], data["start_at"], data["start_until"]))
+        INSERT INTO assessments (seq_num, title, type, start_at, end_at, reminders)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (data.get("seq_num"), data["title"], data["type"], data["start_at"], data["end_at"], json.dumps(data.get("reminders", []))))
     aid = cur.lastrowid
     for qid in q_ids:
         cur.execute("INSERT INTO assessment_questions (assessment_id, question_id) VALUES (%s, %s)", (aid, qid))
+
+    start_at_str = data["start_at"].replace('T', ' ')
+    if len(start_at_str) == 16: start_at_str += ":00"
+    start_at_dt = datetime.strptime(start_at_str, "%Y-%m-%d %H:%M:%S")
+    schedule_assessment_alerts(aid, data["title"], start_at_dt, data.get("reminders", []))
     duration = min(int(data.get("duration", 60)), len(q_ids))
     cur.execute("UPDATE assessments SET total_duration=%s WHERE id=%s", (duration, aid))
+
+    cur.execute("INSERT INTO push_queue (assessment_id, title, body) VALUES (%s, %s, %s)",
+                (aid, f"New Assessment: {data['title']}", "A new assessment has been scheduled. Open the app to view details."))
     conn.commit()
     cur.close(); conn.close()
+
+    trigger_push_processing()
+
     return jsonify({"status": "Assessment created"})
 
 @app.route("/admin/assessments", methods=["GET"])
@@ -481,4 +659,4 @@ def export_assessment(aid):
     return jsonify(rows)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5002, debug=False)
+    app.run(host="0.0.0.0", port=5002, debug=False, threaded=True)

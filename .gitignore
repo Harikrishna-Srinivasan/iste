@@ -4,5 +4,5 @@ android/
 node_modules/
 
 flask_session/
-
-a.py
+www/
+[a-zA-Z].py

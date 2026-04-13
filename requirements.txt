@@ -9,3 +9,7 @@ pyjwt
 argon2-cffi
 apscheduler
 pytz
+flask-minify
+flask-compress
+waitress
+firebase-admin

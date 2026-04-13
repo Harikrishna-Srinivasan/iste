@@ -1,4 +1,3 @@
--- 1. Identity
 CREATE TABLE users (
     user_id INT UNSIGNED PRIMARY KEY,
     name VARCHAR(80) NOT NULL,
@@ -17,7 +16,14 @@ CREATE TABLE users (
     )
 );
 
--- 2. Question Bank (Stored with strict JSON constraints)
+CREATE TABLE user_devices (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    fcm_token VARCHAR(512) NOT NULL UNIQUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 CREATE TABLE questions (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     type ENUM('MCQ', 'MSQ', 'INT', 'NUM') NOT NULL,
@@ -51,7 +57,8 @@ CREATE TABLE questions (
                     "properties": {
                         "value": {"type": "integer"},
                         "range": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}
-                    }
+                    },
+                    "minProperties": 1
                 }', answer)
             WHEN type = 'NUM' THEN
                 JSON_SCHEMA_VALID('{
@@ -60,7 +67,8 @@ CREATE TABLE questions (
                         "value": {"type": "number"},
                         "tolerance": {"type": "number"},
                         "range": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}
-                    }
+                    },
+                    "minProperties": 1
                 }', answer)
             ELSE 1
         END) = 1
@@ -68,19 +76,17 @@ CREATE TABLE questions (
     CHECK (mark >= negative_mark)
 );
 
--- 3. Assessment Metta
 CREATE TABLE assessments (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     seq_num INT UNSIGNED NOT NULL,
     type ENUM('WEEK', 'DAY', 'MOCK') DEFAULT 'WEEK',
     title VARCHAR(255) NOT NULL,
-    start_at DATETIME DEFAULT (CONCAT(CURDATE(), ' 20:00:00')),
-    start_until DATETIME,
+    start_at DATETIME DEFAULT (CURRENT_DATE + INTERVAL 20 HOUR),
+    end_at DATETIME,
     total_duration INT UNSIGNED DEFAULT 30,
     reminders JSON
 );
 
--- 4. Junction Table
 CREATE TABLE assessment_questions (
     assessment_id INT UNSIGNED,
     question_id INT UNSIGNED,
@@ -98,5 +104,34 @@ CREATE TABLE student_submissions (
     total_time_sec INT UNSIGNED NOT NULL DEFAULT 0,
     detailed_log JSON NOT NULL,
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id, assessment_id)
+    PRIMARY KEY (user_id, assessment_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (assessment_id) REFERENCES assessments(id) ON DELETE CASCADE
 );
+
+CREATE TABLE sent_notifications (
+    user_id INT UNSIGNED NOT NULL,
+    assessment_id INT UNSIGNED NOT NULL,
+    reminder_str VARCHAR(20) NOT NULL,
+    sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, assessment_id, reminder_str),
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY (assessment_id) REFERENCES assessments(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE push_queue (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    assessment_id INT UNSIGNED NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    body TEXT NOT NULL,
+    status ENUM('PENDING', 'SENT') DEFAULT 'PENDING',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (assessment_id) REFERENCES assessments(id) ON DELETE CASCADE
+);
+
+SET GLOBAL event_scheduler = ON;
+
+CREATE EVENT IF NOT EXISTS cleanup_old_notifications
+ON SCHEDULE EVERY 1 HOUR
+DO
+    DELETE FROM sent_notifications WHERE sent_at < NOW() - INTERVAL 1 DAY;
