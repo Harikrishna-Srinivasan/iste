@@ -552,7 +552,6 @@
 
         const cleanNum = (num) => Number(parseFloat(num).toFixed(2));
 
-        // --- GLOBAL HEARTBEAT (High-Precision Efficiency) ---
         let assessmentsToTrack = [];
         function startGlobalHeartbeat() {
             function tick() {
@@ -681,13 +680,14 @@
                 return;
             }
             const chunk = data.slice(0, historyLimit);
-            let html = chunk.filter(h => h.is_attempted == 1 || h.results_available == 1).map(h => renderHistoryCard(h)).join('');
+            let html = chunk.map(h => renderHistoryCard(h)).join('');
             if (data.length > historyLimit) html += `<button id="show-more-hist" class="btn" style="background:transparent; color:var(--primary-blue); border:1px solid var(--primary-blue); margin-top:15px; width:100%; cursor:pointer; opacity:1;" onclick="expandHistory()">See Older Records</button>`;
             container.innerHTML = html;
         }
 
         function expandHistory() {
             historyLimit += 20;
+            currentHistoryData = currentHistoryData.filter(h => h.is_attempted == 1 || h.results_available == 1)
             renderHistoryLazy(currentHistoryData);
         }
 
