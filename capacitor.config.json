@@ -4,6 +4,6 @@
   "webDir": "www",
   "server": {
     "cleartext": true,
-    "url": "http://192.168.1.15:5000"
+    "url": "https://iste-ws2k.onrender.com/"
   }
 }
