@@ -25,7 +25,7 @@ from waitress import serve
 
 load_dotenv()
 
-app = Flask(__name__, template_folder=".")
+app = Flask(__name__, template_folder=".", static_folder=".", static_url_path="")
 Compress(app)
 Minify(app=app, html=True, js=True, cssless=True)
 

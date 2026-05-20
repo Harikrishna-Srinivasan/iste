@@ -33,13 +33,13 @@ load_dotenv()
 cred = credentials.Certificate(os.environ["firebase_json"])
 firebase_admin.initialize_app(cred)
 
-app = Flask(__name__, template_folder=".")
+app = Flask(__name__, template_folder=".", static_folder=".", static_url_path="")
 Compress(app)
 Minify(app=app, html=True, js=True, cssless=True)
 
 CORS(app, supports_credentials=True)
 app.config["SECRET_KEY"] = os.environ["admin_secret_key"]
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=2)
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=7)
 
 IST = pytz.timezone("Asia/Kolkata")
 

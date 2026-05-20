@@ -13,6 +13,7 @@
     "@capacitor/push-notifications": "^8.0.3"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.3.0"
   },
   "repository": {

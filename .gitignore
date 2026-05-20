@@ -1,5 +1,6 @@
 .*
 
+venv
 android/
 node_modules/
 __pycache__/

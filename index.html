@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
         content="Candidate Login for ISTE Performance Portal. Securely access your assessments and tracked performance.">
-    <title>Candidate Login | ISTE Performance Portal</title>
+    <title>ISTE Aptitude Test</title>
     <style>
         :root {
             --primary-blue: #1976d2;
@@ -87,6 +87,11 @@
             border-top: 8px solid var(--primary-blue);
             border: 1px solid var(--border);
             animation: slideUp 0.5s ease;
+        }
+
+        .login-card img {
+            border-radius: 12px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
         }
 
         @keyframes slideUp {
@@ -226,10 +231,11 @@
 
 <body>
     <header class="app-bar">
-        <h1>ISTE Performance Portal</h1>
+        <h1>ISTE Aptitude Test</h1>
     </header>
 
     <div class="login-card">
+        <img src="iste.png" alt="ISTE Logo" style="display:block; margin:auto; width:60px; height:60px;">
         <h2 style="text-align: center; margin-bottom: 30px; font-size: 24px; color: var(--primary-blue);">Student Login
         </h2>
         <div class="form-group">
