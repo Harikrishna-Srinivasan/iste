@@ -14,7 +14,13 @@
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^8.3.0"
+    "@capacitor/cli": "^8.3.4"
+  },
+  "overrides": {
+    "tar": "^7.5.15",
+    "@capacitor/assets": {
+      "@capacitor/cli": "^8.3.4"
+    }
   },
   "repository": {
     "type": "git",

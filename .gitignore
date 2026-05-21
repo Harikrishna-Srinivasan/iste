@@ -1,13 +1,58 @@
-.*
-
-venv
+```
+# Dependencies
 node_modules/
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Python
 __pycache__/
-
-flask_session/
-www/
-[a-zA-Z].py
-
-*.jks
-*.json
-!capacitor.config.json
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.ENV
+.python-version
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git/modules/
+.DS_Store
+.hg
+.hgignore
+.hgcheck
+.hgsigs
+.svn
+.CVS
+.CVSROOT
+*.bak
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+```
