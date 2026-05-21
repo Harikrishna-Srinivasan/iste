@@ -8,5 +8,6 @@ flask_session/
 www/
 [a-zA-Z].py
 
+*.jks
 *.json
 !capacitor.config.json
