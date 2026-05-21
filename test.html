@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ISTE Online Test Environment</title>
+    <link rel="icon" type="image/png" href="/iste.png">
     <style>
         :root {
             --primary-blue: #1976D2;
@@ -46,12 +47,11 @@
             --iste-gray: #45494E;
         }
 
-        /* ANTI-CHEAT CSS */
         body {
             background-color: var(--bg-body); color: var(--text-main);
             transition: background-color 0.3s, color 0.3s;
             line-height: 1.6; min-height: 100vh; overflow: hidden;
-            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; /* Disable Selection */
+            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
         }
 
         .anti-lens-overlay {
@@ -103,7 +103,7 @@
         .option-label:hover { border-color: var(--primary-blue); background: rgba(25, 118, 210, 0.05); }
         .option-label input { margin-right: 12px; transform: scale(1.3); }
 
-        .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-card); padding: 15px 30px; border-top: 5px solid var(--primary-blue); display: flex; gap: 15px; justify-content: center; align-items: center; z-index: 101; }
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-card); padding: 15px 30px; border-top: 5px solid var(--primary-blue); display: flex; gap: 15px; justify-content: center; align-items: center; z-index: 101; overflow-y: auto; }
         .btn { padding: 12px 25px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; flex: 1; }
         .btn-save { background: var(--iste-green); color: white; }
         .btn-review { background: var(--thick-orange); color: white; }
@@ -125,7 +125,9 @@
             .sidebar {
                 border-left: none;
                 border-top: 1px solid var(--border);
-                max-height: 300px;
+                max-height: 160px;
+                overflow-y: auto;
+                scroll-behavior: smooth;
             }
             .header {
                 flex-direction: column;
@@ -171,12 +173,13 @@
     <div class="anti-lens-overlay"></div>
 
     <header class="app-bar" style="flex-wrap: wrap;">
+        <img src="iste.png" alt="ISTE Logo" style="display:block; margin:auto; width:60px; height:60px;" width="60" height="60">
         <h2 id="test-header-title">Loading Assessment...</h2>
 
         {% if user %}
         <div class="user-nav-info">
-            <div class="user-nav-name">{{ user.name }} ({{ user.reg_no }})</div>
-            <div class="user-nav-course">{{ user.course }}</div>
+            <div class="user-nav-name"> {{ user.name }} ({{ user.reg_no }})</div>
+            <div class="user-nav-course"> {{ user.course }}</div>
         </div>
         {% endif %}
     </header>
@@ -218,9 +221,8 @@
         });
 
         document.addEventListener('keydown', e => {
-            if (e.ctrlKey && ['c', 'x', 'v', 'p', 's', 'u', 'a'].includes(e.key.toLowerCase())) {
+            if (e.ctrlKey && ['c', 'x', 'v', 'p', 's', 'u', 'a'].includes(e.key.toLowerCase()))
                 e.preventDefault();
-            }
             if (e.key === 'PrintScreen') {
                 navigator.clipboard.writeText("Screenshots disabled.");
                 document.body.style.display = 'none';
@@ -259,14 +261,14 @@
                 const typeStr = active.type ? (active.type.charAt(0).toUpperCase() + active.type.slice(1).toLowerCase()) : 'Assessment';
                 const displayTitle = active.seq_num ? `${typeStr} ${active.seq_num}: ${active.title}` : `${typeStr}: ${active.title}`;
                 document.getElementById('test-header-title').innerText = displayTitle;
-const qRes = await fetch(`/student/questions/${assessmentId}`);
+                const qRes = await fetch(`/student/questions/${assessmentId}`);
                 const rawData = await qRes.json();
 
-if (rawData.error) {
-    alert(rawData.error); // This will tell you EXACTLY why it failed
-    window.location.href = "/dashboard";
-    return;
-}
+                if (rawData.error) {
+                    alert(rawData.error);
+                    window.location.href = "/dashboard";
+                    return;
+                }
 
                 testData = rawData.map(q => ({
                     id: q.id,
@@ -341,15 +343,21 @@ if (rawData.error) {
             testData.forEach((q, i) => {
                 const el = document.getElementById(`pal-${i}`);
                 el.className = 'p-item';
-                if (i === state.idx) el.classList.add('active');
+
+                if (i === state.idx) {
+                    el.classList.add('active');
+                    el.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest',
+                        inline: 'nearest'
+                    });
+                }
 
                 const resp = state.responses[q.id];
-                if (resp) {
+                if (resp)
                     if (resp.status === 'review') el.classList.add('review');
                     else el.classList.add('answered');
-                } else if (state.visited.includes(i)) {
-                    el.classList.add('not-answered');
-                }
+                else if (state.visited.includes(i)) el.classList.add('not-answered');
             });
         }
 
@@ -381,7 +389,7 @@ if (rawData.error) {
 
             document.getElementById('q-display').innerHTML = `
                 <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:8px;">
-                    <span style="font-weight:bold; color:var(--primary-blue)">Question ${state.idx + 1} (${q.type})</span>
+                    <span style="font-weight:bold; color:var(--primary-blue)">Question ${state.idx + 1} / ${testData.length} (${q.type})</span>
                     <span style="font-size:12px; font-weight:bold; background:var(--iste-gray); padding:3px 8px; border-radius:4px;">
                         +${q.marks} / -${q.negative}
                     </span>

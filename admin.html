@@ -7,6 +7,7 @@
     <meta name="description"
         content="Administration Dashboard for managing assessments, question banks, and candidate performances.">
     <title>Administration Dashboard</title>
+    <link rel="icon" type="image/png" href="/iste.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
@@ -390,7 +391,7 @@
             <select id="man-q-type" onchange="toggleManualQFields()">
                 <option value="MCQ" selected>Single Choice (MCQ)</option>
                 <option value="MSQ">Multiple Select (MSQ)</option>
-                <option value="INT">Exact Integer (INT)</option>
+                <option value="INT">Integer (INT)</option>
                 <option value="NUM">Numeric/Decimal (NUM)</option>
             </select>
 
@@ -491,7 +492,7 @@
         </section>
 
         <section class="card full" style="margin-top: 30px; border-top: 5px solid var(--iste-green);">
-            <h3>📥Export Published Assessments</h3>
+            <h3>Export Published Assessments</h3>
             <div id="assessments-status" class="status-msg" aria-live="polite"></div>
             <div id="assessments-container" style="margin-top: 15px;">
                 <div style="text-align:center; padding: 20px; color: #666;">Loading assessments...</div>

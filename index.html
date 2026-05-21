@@ -7,6 +7,7 @@
     <meta name="description"
         content="Candidate Login for ISTE Performance Portal. Securely access your assessments and tracked performance.">
     <title>ISTE Aptitude Test</title>
+    <link rel="icon" type="image/png" href="/iste.png">
     <style>
         :root {
             --primary-blue: #1976d2;
@@ -331,26 +332,24 @@
                 const r = Math.floor(Math.random() * 120), g = Math.floor(Math.random() * 120), b = Math.floor(Math.random() * 150 + 50);
                 ctx.fillStyle = `rgb(${r},${g},${b})`;
 
-                ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowOffsetX = 1.5; ctx.shadowOffsetY = 1.5; ctx.shadowBlur = 2;
+                ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowOffsetX = 1.5; ctx.shadowOffsetY = 1.5; ctx.shadowBlur = 2;
                 ctx.fillText(char, -ctx.measureText(char).width / 2, 0);
                 ctx.shadowColor = 'transparent';
 
                 if (Math.random() > 0.2) {
                     ctx.beginPath(); ctx.moveTo(-15, (Math.random() - 0.5) * 15); ctx.lineTo(15, (Math.random() - 0.5) * 15);
-                    ctx.strokeStyle = `rgba(${r},${g},${b},${Math.random() * 0.6 + 0.3})`; ctx.lineWidth = Math.random() * 2 + 1; ctx.stroke();
+                    ctx.strokeStyle = `rgba(${r},${g},${b},${Math.random() * 0.9 + 0.3})`; ctx.lineWidth = Math.random() * 2 + 1; ctx.stroke();
                 }
                 ctx.restore();
             }
 
-            for (let i = 0; i < 90; i++) {
+            for (let i = 0; i < 15; i++) {
                 const x = Math.random() * canvas.width, y = Math.random() * canvas.height;
-                ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.35})`;
-                ctx.beginPath(); ctx.arc(x, y, Math.random() * 2.2, 0, 2 * Math.PI); ctx.fill();
-                if (Math.random() > 0.75) {
-                    for (let j = 0; j < 3; j++) {
-                        ctx.beginPath(); ctx.arc(x + Math.random() * 6 - 3, y + Math.random() * 6 - 3, Math.random() * 1.2, 0, 2 * Math.PI); ctx.fill();
-                    }
-                }
+                ctx.fillStyle = `rgba(d,e,f,${Math.random() * 0.5 + 0.3})`;
+                ctx.beginPath(); ctx.arc(x, y, Math.random()*3, 0, 2*Math.PI); ctx.fill();
+                if (Math.random() > 0.75)
+                    for (let j = 0; j < 4; j++)
+                        ctx.beginPath(); ctx.arc(x + Math.random()*6 - 3, y + Math.random()*6 - 3, Math.random()*3, 0, 2*Math.PI); ctx.fill();
             }
             return code;
         }
