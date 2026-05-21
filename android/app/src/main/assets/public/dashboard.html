@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Secure and high-performance ISTE AptitudePortal. Access your tests and review your attempts in real-time.">
+    <meta name="author" content="ISTE">
+    <meta name="theme-color" content="#1a237e">
+    <title>ISTE Aptitude Portal</title>
+    <link rel="icon" type="image/png" href="./iste.png">
+    <style>
+        :root {
+            --primary-blue: #1976D2;
+            --thick-orange: #EF6C00;
+            --thick-yellow: #FDD835;
+            --bg-body: #F4F6F8;
+            --bg-card: #FFFFFF;
+            --text-main: #202124;
+            --border: #DADCE0;
+            --iste-green: #1B5E20;
+            --iste-red: #C62828;
+            --overlay: rgba(0, 0, 0, 0.5);
+        }
+        html, body { max-width: 100vw; overflow-x: hidden; box-sizing: border-box; }
+        *, *:before, *:after { box-sizing: inherit; }
+        .card, .container, .sidebar { width: 100%; max-width: 100%; overflow-wrap: break-word; word-wrap: break-word; }
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        * { box-sizing: border-box; font-family: 'Inter', 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+        body { background-color: var(--bg-body); color: var(--text-main); padding-bottom: 50px; }
+        .app-bar { background: var(--primary-blue); color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 5px solid var(--thick-yellow); gap: 12px; flex-wrap: wrap; }
+        .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
+        .banner { background: var(--bg-card); border-left: 8px solid var(--primary-blue); padding: 25px; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
+        .banner h3 { color: var(--primary-blue); margin-bottom: 10px; }
+        .banner p { font-size: 14px; color: #666; margin-bottom: 15px; }
+        .timer-badge { background: #fff3e0; color: #e65100; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 13px; display: inline-block; margin-bottom: 20px; }
+        .btn { width: 100%; padding: 15px; background: var(--primary-blue); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: not-allowed; opacity: 0.6; transition: 0.3s; font-size: 16px; }
+        .btn.active { cursor: pointer; opacity: 1; box-shadow: 0 4px 10px rgba(25, 118, 210, 0.3); }
+        .btn.active:hover { filter: brightness(1.1); transform: scale(1.01); }
+        .section-header { margin-top: 50px; margin-bottom: 20px; font-size: 18px; color: #555; border-bottom: 2px solid var(--border); padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+        .refresh-btn { background: var(--bg-card); border: 1px solid var(--primary-blue); color: var(--primary-blue); padding: 8px 18px; border-radius: 40px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; backdrop-filter: blur(2px); }
+        .refresh-btn:active { transform: scale(0.96); background: #eef2fc; }
+        .refresh-btn svg { width: 18px; height: 18px; fill: none; stroke: var(--primary-blue); stroke-width: 2; stroke-linecap: round; }
+        details.history-card { background: var(--bg-card); margin-bottom: 15px; border-radius: 8px; border-left: 8px solid var(--iste-green); padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s; content-visibility: auto; contain-intrinsic-size: 0 80px; will-change: transform, box-shadow; transform: translateZ(0); }
+        details.history-card:hover { transform: translateY(-2px) translateZ(0); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08); }
+        summary { cursor: pointer; font-weight: bold; list-style: none; display: flex; justify-content: space-between; align-items: center; font-size: 16px; }
+        summary::-webkit-details-marker { display: none; }
+        .res-content { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); font-size: 14px; contain: layout style; min-height: 100px; }
+        .res-row { display: flex; justify-content: space-between; padding: 6px 0; color: #666; }
+
+        .review-layout { display: flex; gap: 20px; margin-top: 15px; height: 500px; align-items: stretch; }
+        .q-sidebar-nav { width: 220px; min-width: 220px; background: #f8f9fa; border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .q-sidebar-title { font-size: 12px; font-weight: bold; color: #777; text-transform: uppercase; letter-spacing: 0.5px; }
+        .q-num-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+        .q-nav-dot { display: flex; align-items: center; justify-content: center; height: 36px; border-radius: 6px; font-size: 12px; font-weight: bold; background: white; border: 1px solid var(--border); text-decoration: none; color: var(--text-main); cursor: pointer; transition: 0.2s; }
+        .q-nav-dot:hover { background: #eef2fc; border-color: var(--primary-blue); }
+        .q-nav-dot.dot-correct { background: #e8f5e9; border-color: #a5d6a7; color: #2e7d32; }
+        .q-nav-dot.dot-wrong { background: #ffebee; border-color: #ffcdd2; color: #c62828; }
+        .q-nav-dot.dot-skipped { background: #f5f5f5; border-color: var(--border); color: #757575; }
+        .q-main-scroll { flex-grow: 1; overflow-y: auto; padding-right: 8px; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
+
+        #active-assessment-container:empty { min-height: 180px; }
+        #history-container:empty { min-height: 480px; }
+        #active-assessment-container:empty, #history-container:empty { background: linear-gradient(90deg, #f0f0f0 25%, #f8f8f8 50%, #f0f0f0 75%); background-size: 200% 100%; animation: skeleton-pulse 1.5s infinite; border-radius: 8px; margin-bottom: 20px; }
+        .user-nav-info:empty { width: 15rem; height: 24px; background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
+        @keyframes skeleton-pulse { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--overlay); align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 340px; text-align: center; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); }
+        #captchaCanvas { background: #f0f0f0; border-radius: 6px; margin: 15px 0; cursor: pointer; display: block; margin-left: auto; margin-right: auto; }
+        .captcha-input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-size: 20px; letter-spacing: 4px; font-weight: bold; }
+
+        .q-detail-card { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 15px; scroll-margin-top: 10px; }
+        .q-detail-row { padding: 10px; margin-top: 10px; border-radius: 6px; font-size: 13px; border: 1px solid #eee; }
+        .q-ans-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; font-weight: 500; }
+        .badge-mark { font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+        .badge-neutral { background: #f5f5f5; color: #616161; }
+        .badge-right { background: #e8f5e9; color: #2e7d32; }
+        .badge-wrong { background: #ffebee; color: #c62828; }
+
+        .user-nav-info { flex-grow: 1; text-align: right; margin: 0 8px; display: flex; flex-direction: column; justify-content: center; }
+        .user-nav-name { font-weight: bold; font-size: 16px; line-height: 1; margin-bottom: 4px; }
+        .user-nav-course { color: var(--thick-yellow); font-size: 16px; }
+        .spinner-small { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(25, 118, 210, 0.2); border-radius: 50%; border-top-color: var(--primary-blue); animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #notification-toast { position: fixed; bottom: 30px; right: 30px; background: white; border-left: 6px solid var(--primary-blue); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15); padding: 15px 20px; border-radius: 8px; display: none; z-index: 2000; width: 320px; animation: slideInRight 0.4s ease-out; }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-content h4 { color: var(--primary-blue); margin-bottom: 5px; font-size: 15px; }
+        .toast-content p { color: #555; font-size: 13px; line-height: 1.4; }
+        .toast-close { position: absolute; top: 10px; right: 10px; cursor: pointer; color: #999; font-size: 14px; }
+
+        @media screen and (max-width: 768px) {
+            .app-bar { flex-direction: column; gap: 10px; text-align: center; align-items: center; }
+            .user-nav-info { text-align: center; margin: 5px 0 0 0; width: 100%; order: 2; }
+            .app-bar h2 { order: 1; }
+            .app-bar .logout-btn { order: 3; }
+            .container { margin: 20px auto; }
+            .section-header { flex-direction: column; align-items: stretch; }
+            .refresh-btn { justify-content: center; }
+            .review-layout { flex-direction: column; height: auto; max-height: 650px; }
+            .q-sidebar-nav { width: 100%; min-width: 100%; height: 140px; }
+            .q-num-grid { grid-template-columns: repeat(8, 1fr); }
+            .q-main-scroll { height: 350px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="app-bar">
+        <img src="iste.png" alt="ISTE Logo" style="display:block; margin:auto; width:60px; height:60px;" width="60" height="60">
+        <h1 style="white-space: nowrap; font-size: 24px;">ISTE Aptitude Portal</h1>
+        {% if user %}
+        <div class="user-nav-info">
+            <div class="user-nav-name">{{ user.name }} ({{ user.reg_no }})</div>
+            <div class="user-nav-course">{{ user.course }}</div>
+        </div>
+        {% endif %}
+        <button onclick="logout()" class="logout-btn" style="background:none; border:2px solid white; color:white; padding:5px 15px; border-radius:5px; cursor:pointer; white-space: nowrap;">Logout</button>
+    </header>
+
+    <div class="container" id="main-view">
+        <div id="active-assessment-container">
+            <div class="banner" id="test-card" style="display: none;">
+                <h3 id="test-title">Loading...</h3>
+                <p>Entry Opens: <span id="test-time">--:--</span> | Window Closes: <span id="until-time">--:--</span></p>
+                <div id="countdown" class="timer-badge">Syncing Schedule...</div>
+                <button id="start-btn" class="btn" disabled>Awaiting Window</button>
+            </div>
+            <div id="no-test-msg" style="text-align: center; color: #999; margin: 40px 0; display: none;">No assessments currently scheduled. Check back soon!</div>
+        </div>
+
+        <div class="section-header">
+            <span>Past Attempts & Results</span>
+            <div style="display: flex; gap: 10px;">
+                <button id="enableNotificationsBtn" class="refresh-btn" onclick="requestNotificationPermission()" style="display: none;">🔔 Enable Alerts</button>
+                <button id="manualRefreshBtn" class="refresh-btn" onclick="manualRefreshDashboard()">
+                    <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                        <path d="M23 4v6h-6" />
+                        <path d="M1 20v-6h6" />
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                    </svg>
+                    Refresh Data
+                </button>
+            </div>
+        </div>
+        <div id="history-container" onclick="handleHistoryClick(event)">
+            <p style="color: #999; text-align: center;">Loading result history...</p>
+        </div>
+    </div>
+
+    <div id="captchaModal" class="modal">
+        <div class="modal-content">
+            <h4>Security Verification</h4>
+            <p style="font-size: 14px; color: #666; margin-top: 5px;">Type the characters below to begin</p>
+            <canvas id="captchaCanvas" width="200" height="70"></canvas>
+            <input type="text" id="captchaInput" class="captcha-input" autocomplete="off">
+            <button class="btn active" onclick="validateAndStart()">Verify & Launch Environment</button>
+            <p style="font-size: 14px; margin-top: 15px; color: var(--primary-blue); cursor: pointer;" onclick="exitCaptcha()">Cancel</p>
+        </div>
+    </div>
+
+    <div id="notification-toast">
+        <span class="toast-close" onclick="closeToast()">✕</span>
+        <div class="toast-content">
+            <h4 id="toast-title">Update</h4>
+            <p id="toast-body"></p>
+        </div>
+        <button class="btn active" id="toast-btn" style="margin-top:10px; padding: 8px; font-size:12px;">View Details</button>
+    </div>
+
+    <script>
+        let selectedAssessmentId = null;
+        let isRefreshing = false;
+        let lastActiveData = "";
+        let lastHistoryData = "";
+        let assessmentsToTrack = [];
+        let currentHistoryData = [];
+        let historyLimit = 10;
+        let toastTimeout = null;
+
+        const cleanNum = (num) => Number(parseFloat(num).toFixed(2));
+        function startGlobalHeartbeat() {
+            function tick() {
+                const now = Date.now();
+                let elementsChanged = false;
+
+                assessmentsToTrack.forEach(ass => {
+                    const btn = document.getElementById(`start-btn-${ass.id}`);
+                    const countdownEl = document.getElementById(`countdown-${ass.id}`);
+                    if (!btn || !countdownEl) return;
+
+                    const startTime = ass.start_at;
+                    const untilTime = ass.end_at;
+                    if (now < startTime) {
+                        const diff = startTime - now;
+                        const h = Math.floor(diff / 3600000);
+                        const m = Math.floor((diff % 3600000) / 60000);
+                        const s = Math.floor((diff % 60000) / 1000);
+
+                        const targetText = `Window opens in: ${h}h ${m}m ${s}s`;
+                        if (countdownEl.innerText !== targetText) {
+                            countdownEl.innerText = targetText;
+                            btn.innerText = "Entry Closed";
+                            btn.classList.remove('active');
+                            btn.disabled = true;
+                        }
+                    } else if (now >= startTime && now <= untilTime) {
+                        if (countdownEl.innerText !== "ENTRY WINDOW IS ACTIVE") {
+                            countdownEl.innerText = "ENTRY WINDOW IS ACTIVE";
+                            countdownEl.style.background = "#e8f5e9";
+                            countdownEl.style.color = "#2e7d32";
+                            btn.classList.add('active');
+                            btn.disabled = false;
+                            btn.innerText = "Access Assessment Environment";
+                        }
+                    } else {
+                        if (btn.innerText !== "⌛ Window Expired") {
+                            countdownEl.innerText = "⛔ ENTRY WINDOW HAS EXPIRED";
+                            countdownEl.style.background = "#ffebee";
+                            countdownEl.style.color = "#c62828";
+                            btn.classList.remove('active');
+                            btn.disabled = true;
+                            btn.innerText = "⌛ Window Expired";
+                        }
+                    }
+                });
+                setTimeout(tick, 1000);
+            }
+            tick();
+        }
+
+        function renderDashboard(assessments) {
+            const container = document.getElementById('active-assessment-container');
+            if (!container) return;
+
+            assessmentsToTrack = assessments.filter(a => !a.is_attempted).map(a => ({
+                id: a.id,
+                start_at: new Date(a.start_at).getTime(),
+                end_at: new Date(a.end_at).getTime()
+            }));
+
+            if (assessments.length === 0) {
+                container.innerHTML = `<div style="text-align: center; color: #999; margin: 40px 0;">No assessments currently scheduled.</div>`;
+                return;
+            }
+
+            container.innerHTML = assessments.map((a) => {
+                if (a.is_attempted) {
+                    return `
+                    <div class="banner completed">
+                        <h3>${a.type} ${a.seq_num || ''}: ${a.title}</h3>
+                        <div class="timer-badge" style="background:#e8f5e9; color:#2e7d32; border:1px solid #c8e6c9;">SUBMITTED & RECORDED</div>
+                        <button class="btn" disabled style="background:#9e9e9e; cursor:not-allowed;">Attempt Finished</button>
+                    </div>`;
+                }
+                return `
+                <div class="banner">
+                    <h3>${a.type} ${a.seq_num || ''}: ${a.title}</h3>
+                    <p>Entry Window: <span id="test-time-${a.id}">--:--</span> to <span id="until-time-${a.id}">--:--</span></p>
+                    <div id="countdown-${a.id}" class="timer-badge">Syncing...</div>
+                    <button id="start-btn-${a.id}" class="btn" onclick="openCaptcha(${a.id})">Awaiting Window</button>
+                </div>`;
+            }).join('');
+
+            assessments.forEach(ass => {
+                if (ass.is_attempted) return;
+                const startTime = new Date(ass.start_at);
+                const untilTime = new Date(ass.end_at);
+
+                const tEl = document.getElementById(`test-time-${ass.id}`);
+                const uEl = document.getElementById(`until-time-${ass.id}`);
+
+                if (tEl) tEl.innerText = startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                if (uEl) uEl.innerText = untilTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            });
+        }
+
+        function renderHistoryCard(h) {
+            const maxMarks = h.max_marks || h.total_questions;
+            const typeStr = h.type ? (h.type.charAt(0).toUpperCase() + h.type.slice(1).toLowerCase()) : 'Assessment';
+            const displayTitle = h.seq_num ? `${typeStr} ${h.seq_num}: ${h.title}` : `${typeStr}: ${h.title}`;
+            let scoreDisplay = '';
+            let statusColor = '#999';
+            let subStatus = '';
+            const untilDate = new Date(h.end_at);
+            const deadlineDate = new Date(untilDate.getTime() + (h.total_duration || 60) * 60000);
+            const deadlineStr = deadlineDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+            if (h.is_attempted == 1) {
+                if (!h.results_available) {
+                    scoreDisplay = `<span style="color: #EF6C00; font-size:12px; font-weight:bold;">⏳ ATTEMPTED (PENDING)</span>`;
+                    statusColor = '#EF6C00';
+                    subStatus = `Results release after: <strong>${deadlineStr}</strong>`;
+                } else {
+                    scoreDisplay = `<span style="color: var(--iste-green); font-weight:bold;">${cleanNum(h.total_score)} / ${cleanNum(maxMarks)}</span>`;
+                    statusColor = 'var(--iste-green)';
+                    subStatus = 'Finalised';
+                }
+            } else {
+                scoreDisplay = `<span style="color: var(--iste-red); font-size:12px; font-weight:bold;">MISSED / 0 POINTS</span>`;
+                statusColor = 'var(--iste-red)';
+                subStatus = 'Missed Assessment';
+            }
+
+            return `<details class="history-card" id="history-card-${h.assessment_id}" data-aid="${h.assessment_id}" data-results="${h.results_available ? 'true' : 'false'}" style="border-left-color: ${statusColor}">
+                <summary>
+                    <span><strong style="color:var(--primary-blue)">${displayTitle}</strong></span>
+                    ${scoreDisplay}
+                </summary>
+                <div class="res-content" id="details-${h.assessment_id}">
+                    <div class="res-row"><span>⏱️ Time Taken:</span> <span>${h.is_attempted ? Math.round(h.total_time_taken_sec / 60) + ' mins' : 'N/A'}</span></div>
+                    <div class="res-row"><span>📋 Evaluation Status:</span> <span style="font-weight:bold; color:${statusColor};">${subStatus}</span></div>
+                    ${h.results_available && h.is_attempted ? `<div class="loading-spinner" style="padding:10px; text-align:center; font-size:12px; color:#999;">🔍 Click to load detailed breakdown...</div>` : '<p style="font-size:12px; margin-top:10px; color:#777;">📌 Official evaluation will be released after the test duration concludes for all candidates.</p>'}
+                </div>
+            </details>`;
+        }
+
+        function renderHistoryLazy(data) {
+            currentHistoryData = data;
+            const container = document.getElementById('history-container');
+            const filteredData = data.filter(h => h.is_attempted == 1 || h.results_available == 1);
+
+            if (filteredData.length === 0) {
+                container.innerHTML = "<p style='color: #999; text-align:center;'>No past attempts found.</p>";
+                return;
+            }
+
+            const chunk = filteredData.slice(0, historyLimit);
+            let html = chunk.map(h => renderHistoryCard(h)).join('');
+            if (filteredData.length > historyLimit) {
+                html += `<button id="show-more-hist" class="btn" style="background:transparent; color:var(--primary-blue); border:1px solid var(--primary-blue); margin-top:15px; width:100%; cursor:pointer; opacity:1;" onclick="expandHistory()">See Older Records</button>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function handleHistoryClick(event) {
+            const card = event.target.closest('details.history-card');
+            if (!card) return;
+
+            const isOpened = card.hasAttribute('open');
+            const aid = card.getAttribute('data-aid');
+            const hasResults = card.getAttribute('data-results') === 'true';
+            if (!isOpened && hasResults) {
+                setTimeout(() => fetchDetails(aid), 50);
+            }
+        }
+
+        function expandHistory() {
+            historyLimit += 20;
+            renderHistoryLazy(currentHistoryData);
+        }
+
+        async function loadDashboardData() {
+            const modal = document.getElementById('captchaModal');
+            if (modal && modal.style.display === 'flex') return;
+            if (isRefreshing) return;
+            isRefreshing = true;
+
+            const refreshBtn = document.getElementById('manualRefreshBtn');
+            const originalBtnHtml = refreshBtn ? refreshBtn.innerHTML : '';
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.innerHTML = '<span class="spinner-small"></span> Refreshing...';
+            }
+
+            try {
+                const [activeRes, historyRes] = await Promise.all([
+                    fetch("https://iste-ws2k.onrender.com/student/active"),
+                    fetch("https://iste-ws2k.onrender.com/student/attempts")
+                ]);
+
+                if (activeRes.ok) {
+                    const assessments = (await activeRes.json()).filter(a => !a.is_attempted);
+                    const activeStr = JSON.stringify(assessments);
+                    if (activeStr !== lastActiveData) {
+                        lastActiveData = activeStr;
+                        renderDashboard(assessments);
+                    }
+                }
+
+                if (historyRes.ok) {
+                    const data = await historyRes.json();
+                    const historyStr = JSON.stringify(data);
+                    if (historyStr !== lastHistoryData) {
+                        const openTabs = Array.from(document.querySelectorAll('details.history-card[open]')).map(d => d.id);
+                        lastHistoryData = historyStr;
+                        renderHistoryLazy(data);
+
+                        openTabs.forEach(tabId => {
+                            const tab = document.getElementById(tabId);
+                            if (tab) {
+                                tab.setAttribute('open', '');
+                                const aid = tab.getAttribute('data-aid');
+                                setTimeout(() => fetchDetails(aid), 50);
+                            }
+                        });
+                    }
+                } else document.getElementById('history-container').innerHTML = '<p style="color: #c62828; text-align:center;">⚠️ Failed to load attempt history.</p>';
+            } catch (err) {
+                console.warn("Dashboard sync warning:", err);
+            } finally {
+                isRefreshing = false;
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = originalBtnHtml;
+                }
+            }
+        }
+
+        async function fetchDetails(aid) {
+            const container = document.getElementById(`details-${aid}`);
+            if (!container || container.querySelector('.summary-stats')) return;
+
+            container.innerHTML = '<div style="padding:15px; text-align:center;">📊 Processing detailed analysis...</div>';
+            try {
+                const res = await fetch(`/student/attempt_details/${aid}`);
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+
+                let totalScore = 0, totalPositive = 0, totalNegative = 0, totalTime = 0, totalMaxMarks = 0;
+                const numQuestions = data.length;
+
+                data.forEach(q => {
+                    const score = parseFloat(q.score) || 0;
+                    const time = parseInt(q.time_taken_sec) || 0;
+                    const maxMark = parseFloat(q.mark) || 1;
+                    totalScore += score;
+                    if (score > 0) totalPositive += score;
+                    if (score < 0) totalNegative += Math.abs(score);
+                    totalTime += time;
+                    totalMaxMarks += maxMark;
+                });
+                const avgTime = numQuestions > 0 ? (totalTime / numQuestions) : 0;
+
+                const summaryHtml = `
+                    <div class="summary-stats" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 14px; border: 1px solid #e0e0e0;">
+                        <div><strong>🏆 Total Score:</strong> ${cleanNum(totalScore)} / ${cleanNum(totalMaxMarks)}</div>
+                        <div><strong>👍 Positive Marks:</strong> <span style="color:#2e7d32">+${cleanNum(totalPositive)}</span></div>
+                        <div><strong>👎 Negative Marks:</strong> <span style="color:#c62828">-${cleanNum(totalNegative)}</span></div>
+                        <div><strong>⏱️ Total Time:</strong> ${Math.floor(totalTime / 60)}m ${totalTime % 60}s</div>
+                        <div><strong>⚡ Avg Time / Q:</strong> ${cleanNum(avgTime)}s</div>
+                        <div><strong>📈 Score %:</strong> ${totalMaxMarks > 0 ? cleanNum((totalScore / totalMaxMarks) * 100) : 0}%</div>
+                    </div>`;
+
+                container.innerHTML = `
+                    <div style="border-top: 1px solid #ddd; padding-top: 15px; margin-top: 15px;">
+                        <h2 style="font-size: 16px; margin-bottom: 10px; color: var(--primary-blue);">Performance Summary</h2>
+                        ${summaryHtml}
+                        <h2 style="font-size: 16px; margin-bottom: 10px; color: var(--primary-blue);">Detailed Question Analysis</h2>
+                        <div id="q-analysis-list-${aid}"></div>
+                    </div>`;
+
+                const listContainer = document.getElementById(`q-analysis-list-${aid}`);
+                let index = 0;
+                const chunkSize = 4;
+
+                function renderChunk() {
+                    if (index >= data.length || !listContainer) return;
+                    const chunk = data.slice(index, index + chunkSize);
+
+                    const html = chunk.map((q, i) => {
+                        const globalIdx = index + i;
+                        const score = cleanNum(q.score || 0);
+                        const time = parseInt(q.time_taken_sec) || 0;
+                        const markClass = (score > 0) ? 'badge-right' : (score < 0 ? 'badge-wrong' : 'badge-neutral');
+
+                        let sResp = q.student_response;
+                        if (typeof sResp === 'string') { try { sResp = JSON.parse(sResp); } catch (e) { sResp = {}; } }
+                        sResp = sResp || {};
+
+                        let studentAns = "Skipped / Unattempted";
+                        let correctAns = "---";
+
+                        if (q.type === 'MCQ' || q.type === 'MSQ') {
+                            const sIds = sResp.selected_ids || (sResp.selected_id !== undefined ? [sResp.selected_id] : []);
+                            const cIds = q.correct_answer.correct_ids || [q.correct_answer.correct_id];
+                            if (sIds.length > 0) studentAns = sIds.map(id => q.correct_answer.options[id] || '').join(', ');
+                            correctAns = cIds.map(id => q.correct_answer.options[id] || '').join(', ');
+                        } else {
+                            if (sResp.value !== undefined && sResp.value !== "") studentAns = sResp.value;
+                            correctAns = q.correct_answer.value !== undefined ? q.correct_answer.value : (q.correct_answer.range ? `${q.correct_answer.range[0]} to ${q.correct_answer.range[1]}` : "N/A");
+                        }
+
+                        return `
+                        <div class="q-detail-row">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                <strong>Q${globalIdx + 1}: ${q.type}</strong>
+                                <div><span style="font-size: 14px; color: #666; margin-right: 10px;">🕒 ${time}s</span>
+                                <span class="badge-mark ${markClass}">${score > 0 ? '+' : ''}${score} Points</span></div>
+                            </div>
+                            <div style="color: #444; margin-bottom:8px; font-size:14px;">${q.question}</div>
+                            <div class="q-ans-box">
+                                <div style="font-size: 14px;">📌 Your Response:<br><span style="color:${score > 0 ? '#2e7d32' : (score < 0 ? '#c62828' : '#757575')}">${studentAns}</span></div>
+                                <div style="font-size: 14px; margin-top:5px;">✅ Correct Answer:<br><span style="color:#2e7d32">${correctAns}</span></div>
+                            </div>
+                        </div>`;
+                    }).join('');
+
+                    listContainer.insertAdjacentHTML('beforeend', html);
+                    index += chunkSize;
+                    if (index < data.length) requestAnimationFrame(renderChunk);
+                }
+                requestAnimationFrame(renderChunk);
+            } catch (e) {
+                container.innerHTML = '<p style="color:#c62828;">⚠️ Failed to load details. Please refresh dashboard.</p>';
+            }
+        }
+
+        async function openCaptcha(id) {
+            selectedAssessmentId = id;
+            const modal = document.getElementById('captchaModal');
+            modal.style.display = 'flex';
+            document.getElementById('captchaInput').value = "";
+
+            try {
+                const res = await fetch('/student/gen_captcha');
+                const data = await res.json();
+                renderServerCaptcha(data.captcha_val);
+            } catch (e) {
+                alert("Security error. Please refresh.");
+            }
+        }
+
+        function exitCaptcha() { document.getElementById('captchaModal').style.display = 'none'; }
+
+        function renderServerCaptcha(code) {
+            const canvas = document.getElementById("captchaCanvas");
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const fonts = ["'Courier New'", "Arial", "Georgia", "Impact", "Tahoma"];
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#F8F9FA";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < 15; i++) {
+                ctx.beginPath();
+                ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+                ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
+                ctx.strokeStyle = `rgba(0,0,0,0.5)`;
+                ctx.stroke();
+            }
+
+            ctx.textBaseline = 'middle';
+            const charCount = code.length;
+            const stepX = canvas.width / (charCount + 1);
+
+            for (let i = 0; i < charCount; i++) {
+                const char = code.charAt(i);
+                ctx.save();
+                ctx.translate((i + 1) * stepX + (Math.random() * 10 - 5), canvas.height / 2 + (Math.random() * 8 - 4));
+                ctx.rotate((Math.random() - 0.5) * 0.4);
+                ctx.font = `bold ${Math.floor(canvas.height * 0.6)}px ${fonts[Math.floor(Math.random() * fonts.length)]}`;
+                ctx.fillStyle = `rgb(${Math.random() * 100},${Math.random() * 100},${Math.random() * 150 + 50})`;
+                ctx.fillText(char, -ctx.measureText(char).width / 2, 0);
+                ctx.restore();
+            }
+        }
+
+        async function validateAndStart() {
+            const input = document.getElementById('captchaInput').value;
+            if (!input) return;
+            const btn = document.querySelector("#captchaModal .btn");
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = "Verifying Security Code...";
+            try {
+                const res = await fetch('/student/captcha', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ answer: input })
+                });
+                if (res.ok) {
+                    sessionStorage.setItem('joining_assessment_id', selectedAssessmentId);
+                    window.location.href = "https://iste-ws2k.onrender.com/test";
+                } else {
+                    alert("Security Code Invalid. Loading new code...");
+                    openCaptcha(selectedAssessmentId);
+                }
+            } catch (e) {
+                alert("Network error. Please try again.");
+            } finally {
+                btn.disabled = false; btn.innerText = originalText;
+            }
+        }
+
+        async function logout() { await fetch("https://iste-ws2k.onrender.com/logout"); window.location.href = "https://iste-ws2k.onrender.com/"; }
+
+        window.manualRefreshDashboard = async function () {
+            if (document.getElementById('captchaModal').style.display === 'flex') return alert("Complete CAPTCHA first.");
+            await loadDashboardData();
+            await checkPendingNotifications();
+        };
+
+        if (window.Capacitor && Capacitor.isPluginAvailable('PushNotifications')) {
+            const Push = Capacitor.Plugins.PushNotifications;
+            Push.requestPermissions().then(res => { if (res.receive === 'granted') Push.register(); });
+            Push.addListener('registration', (t) => {
+                fetch('/student/register_device', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fcm_token: t.value }), credentials: 'include'
+                });
+            });
+            Push.addListener('pushNotificationReceived', (n) => {
+                showInAppToast(n.title || "Assessment Update", n.body, n.data?.assessment_id);
+            });
+            Push.addListener('pushNotificationActionPerformed', () => window.location.reload());
+        } else {
+            setTimeout(() => {
+                if (sessionStorage.getItem('device_registered')) return;
+                fetch('/student/register_device', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fcm_token: 'WEB_BROWSER_' + navigator.userAgent.slice(0, 15) }), credentials: 'include'
+                }).then(() => sessionStorage.setItem('device_registered', 'true'))
+                  .catch(err => console.error("Web Reg Failed", err));
+            }, 3000);
+        }
+
+        async function checkPendingNotifications() {
+            if (sessionStorage.getItem('joining_assessment_id')) return;
+            try {
+                const res = await fetch(`/get_pending_notifications?t=${Date.now()}`, { credentials: "include", cache: "no-store" });
+                if (!res.ok) return;
+                const pending = await res.json();
+                for (const notif of pending) {
+                    let msg = `Assessment '${notif.title}' has been scheduled.`;
+                    if (notif.milestone === 'STARTED') msg = `Assessment '${notif.title}' is starting now!`;
+                    else if (notif.milestone.startsWith('REMINDER_')) msg = `Starts in ${notif.milestone.split('_')[1]} mins.`;
+
+                    showInAppToast("Assessment Update", msg, notif.assessment_id);
+                    if (Notification.permission === 'granted') new Notification("Assessment Update", { body: msg, tag: 'a_' + notif.assessment_id });
+
+                    await fetch("https://iste-ws2k.onrender.com/ack_notification", {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ assessment_id: notif.assessment_id, milestone: notif.milestone }), credentials: "include"
+                    });
+                }
+            } catch (e) { console.error("Sync Error", e); }
+        }
+
+        function showInAppToast(title, body, aid) {
+            if (toastTimeout) clearTimeout(toastTimeout);
+            const toast = document.getElementById('notification-toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-body').innerText = body;
+            const btn = document.getElementById('toast-btn');
+            btn.onclick = () => { closeToast(); window.location.reload(); };
+            toast.style.display = 'block';
+            toastTimeout = setTimeout(closeToast, 7000);
+        }
+
+        function closeToast() { document.getElementById('notification-toast').style.display = 'none'; }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboardData();
+            startGlobalHeartbeat();
+
+            if (typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission();
+            setInterval(() => {
+                if (!isRefreshing) loadDashboardData();
+            }, 10000);
+        });
+
+        window.addEventListener('pageshow', e => { if (e.persisted) loadDashboardData(); });
+        document.addEventListener('keypress', e => { if (e.key === 'Enter' && document.getElementById('captchaModal').style.display === 'flex') validateAndStart() });
+    </script>
+</body>

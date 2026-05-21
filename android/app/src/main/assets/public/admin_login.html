@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISTE Admin Access</title>
+    <link rel="icon" type="image/png" href="/iste.png">
+    <style>
+        :root {
+            --admin: #5E35B1;
+            --bg: #f3e5f5;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            width: 350px;
+            border-top: 8px solid var(--admin);
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--admin);
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: var(--admin);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #4527a0;
+        }
+
+        .error {
+            color: #d32f2f;
+            font-size: 13px;
+            text-align: center;
+            display: none;
+        }
+
+        /* Captcha Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            width: 320px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            color: #333;
+        }
+
+        #captchaCanvas {
+            background: #f0f0f0;
+            border-radius: 4px;
+            margin: 15px 0;
+            cursor: pointer;
+        }
+
+        .captcha-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 18px;
+            letter-spacing: 4px;
+            box-sizing: border-box;
+        }
+
+        .btn-verify {
+            width: 100%;
+            padding: 12px;
+            background: var(--admin);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <img src="iste.png" alt="ISTE Logo" style="display:block; margin:auto; width:60px; height:60px;">
+        <h2>Admin Portal</h2>
+        <input type="text" id="user" placeholder="Admin Username">
+        <input type="password" id="pass" placeholder="Admin Password">
+        <button onclick="startLoginFlow()">Authenticate</button>
+        <div id="err" class="error">Access Denied. Internal Credentials Error.</div>
+    </div>
+
+    <!-- Captcha Modal -->
+    <div id="captchaModal" class="modal">
+        <div class="modal-content">
+            <h4>Security Check</h4>
+            <p style="font-size: 12px; color: #666;">Enter the characters shown below</p>
+            <canvas id="captchaCanvas" width="200" height="70" onclick="generateCaptcha()"></canvas>
+            <input type="text" id="captchaInput" class="captcha-input" placeholder="Type here..." autocomplete="off">
+            <button class="btn-verify" onclick="validateAndLogin()">Verify & Log In</button>
+            <p style="font-size: 11px; margin-top: 10px; color: var(--admin); cursor: pointer;"
+                onclick="generateCaptcha()">Refresh Image</p>
+        </div>
+    </div>
+
+    <script>
+        function startLoginFlow() {
+            const user = document.getElementById('user').value;
+            const pass = document.getElementById('pass').value;
+            if (!user || !pass) return alert("All fields required");
+
+            document.getElementById('captchaModal').style.display = 'flex';
+            generateCaptcha();
+        }
+
+        async function generateCaptcha() {
+            try {
+                const res = await fetch("/admin/gen_captcha");
+                const data = await res.json();
+                drawAdvancedCaptcha("captchaCanvas", data.captcha_val);
+            } catch (err) {
+                console.error("Captcha load failed", err);
+            }
+        }
+
+        function drawAdvancedCaptcha(canvasId, code) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return "";
+            const ctx = canvas.getContext('2d');
+
+            const fonts = ["'Courier New'", "Arial", "Georgia", "Impact", "Tahoma"];
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#F8F9FA";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 15) {
+                ctx.beginPath(); ctx.moveTo(x + (Math.random() * 4 - 2), 0); ctx.lineTo(x + (Math.random() * 4 - 2), canvas.height);
+                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.05 + 0.02})`; ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 15) {
+                ctx.beginPath(); ctx.moveTo(0, y + (Math.random() * 4 - 2)); ctx.lineTo(canvas.width, y + (Math.random() * 4 - 2));
+                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.05 + 0.02})`; ctx.stroke();
+            }
+
+            for (let i = 0; i < 20; i++) {
+                ctx.beginPath();
+                let x = Math.random() * canvas.width, y = Math.random() * canvas.height;
+                ctx.moveTo(x, y); ctx.lineTo(x + Math.random() * 15 - 7, y + Math.random() * 15 - 7);
+                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.3})`; ctx.lineWidth = Math.random() * 1.5 + 0.5; ctx.stroke();
+            }
+
+            const charCount = code.length;
+            const stepX = canvas.width / (charCount + 1);
+
+            for (let i = 0; i < charCount; i++) {
+                const char = code.charAt(i);
+                ctx.save();
+
+                ctx.translate((i + 1) * stepX + (Math.random() * 10 - 5), canvas.height / 2 + (Math.random() * 8 - 4));
+                ctx.rotate((Math.random() - 0.5) * 0.8);
+                ctx.transform(1, 0, Math.random() * 0.4 - 0.2, 1, 0, 0);
+
+                ctx.font = `${Math.floor(canvas.height * 0.5 + Math.random() * (canvas.height * 0.25))}px ${fonts[Math.floor(Math.random() * fonts.length)]}`;
+                const r = Math.floor(Math.random() * 120), g = Math.floor(Math.random() * 120), b = Math.floor(Math.random() * 150 + 50);
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+
+                ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowOffsetX = 1.5; ctx.shadowOffsetY = 1.5; ctx.shadowBlur = 2;
+                ctx.fillText(char, -ctx.measureText(char).width / 2, 0);
+                ctx.shadowColor = 'transparent';
+
+                if (Math.random() > 0.2) {
+                    ctx.beginPath(); ctx.moveTo(-15, (Math.random() - 0.5) * 15); ctx.lineTo(15, (Math.random() - 0.5) * 15);
+                    ctx.strokeStyle = `rgba(${r},${g},${b},${Math.random() * 0.6 + 0.3})`; ctx.lineWidth = Math.random() * 2 + 1; ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            for (let i = 0; i < 90; i++) {
+                const x = Math.random() * canvas.width, y = Math.random() * canvas.height;
+                ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.35})`;
+                ctx.beginPath(); ctx.arc(x, y, Math.random() * 2.2, 0, 2 * Math.PI); ctx.fill();
+                if (Math.random() > 0.75) {
+                    for (let j = 0; j < 3; j++) {
+                        ctx.beginPath(); ctx.arc(x + Math.random() * 6 - 3, y + Math.random() * 6 - 3, Math.random() * 1.2, 0, 2 * Math.PI); ctx.fill();
+                    }
+                }
+            }
+            return code;
+        }
+
+        async function validateAndLogin() {
+            const input = document.getElementById('captchaInput').value;
+            if (!input) return alert("Security code required");
+            document.getElementById('captchaModal').style.display = 'none';
+            await login(input);
+        }
+
+        async function login(captchaAns) {
+            const user = document.getElementById('user').value;
+            const pass = document.getElementById('pass').value;
+            const res = await fetch("/admin/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user, password: pass, captcha: captchaAns })
+            });
+
+
+            if (res.ok) window.location.href = "/admin";
+            else document.getElementById('err').style.display = 'block';
+        }
+
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                if (document.getElementById('captchaModal').style.display === 'flex') validateAndLogin();
+                else startLoginFlow();
+            }
+        });
+    </script>
+</body>
+
+</html>

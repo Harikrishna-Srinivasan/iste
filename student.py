@@ -31,15 +31,15 @@ Minify(app=app, html=True, js=True, cssless=True)
 
 
 CORS(app,
-     origins=["https://iste-ws2k.onrender.com"],
+     origins=["https://iste-ws2k.onrender.com", "capacitor://localhost", "http://localhost"],
      supports_credentials=True,
      allow_headers=["Content-Type", "Authorization"],
      methods=["GET", "POST", "PUT", "DELETE"])
 
 app.config["SECRET_KEY"] = os.environ["secret_key"]
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=2)
-app.config['SERVER_NAME'] = None
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+app.config["SERVER_NAME"] = None
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
 IST = pytz.timezone("Asia/Kolkata")
 ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "VII", 8: "VIII", 9: "IX", 10: "X"}
@@ -58,7 +58,7 @@ student_pool = PooledDB(
     password=os.environ["stud_pwd"],
     database=os.environ["db"],
     autocommit=True,
-    charset='utf8mb4'
+    charset="utf8mb4"
 )
 
 def get_student_conn():
@@ -116,7 +116,7 @@ def make_token(uid, is_admin=False):
 def verify_token(token):
     try:
         if not token: return None
-        if token.startswith('Bearer '): token = token[7:]
+        if token.startswith("Bearer "): token = token[7:]
         return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
     except:
         return None
@@ -228,7 +228,7 @@ def student_login():
             return jsonify({"error": "Invalid credentials"}), 401
 
         captcha = body.get("captcha")
-        if not captcha or captcha != session.get('captcha_ans', ''):
+        if not captcha or captcha != session.get("captcha_ans", ""):
             return jsonify({"error": "Invalid security code"}), 403
 
         try:
@@ -238,7 +238,7 @@ def student_login():
             return jsonify({"error": "Invalid credentials"}), 401
 
         reset_failed_attempts(identifier)
-        session.pop('captcha_ans', None)
+        session.pop("captcha_ans", None)
         token = make_token(user["user_id"], is_admin=False)
         session.permanent = True
         session["user_id"] = user["user_id"]
@@ -291,8 +291,8 @@ def register_device():
 @app.route("/student/gen_captcha")
 def gen_captcha():
     """Generates a secure captcha answer and stores it in the session."""
-    code = ''.join(random.choices(string.ascii_letters + "23456789" + "@#$&*", k=5))
-    session['captcha_ans'] = code
+    code = "".join(random.choices(string.ascii_letters + "23456789" + "@#$&*", k=5))
+    session["captcha_ans"] = code
     return jsonify({"captcha_val": code})
 
 @app.route("/student/captcha", methods=["POST"])
@@ -367,7 +367,7 @@ def upcoming_reminders():
             if not a.get("start_at"): continue
             start = a["start_at"]
             if start.tzinfo is None: start = IST.localize(start)
-            title = f"{a['type']} {a['seq_num']}: {a['title']}" if a.get('seq_num') else a['title']
+            title = f"{a['type']} {a['seq_num']}: {a['title']}" if a.get("seq_num") else a["title"]
             for rem_str in json.loads(a.get("reminders") or "[]"):
                 delta = timedelta()
                 for part in rem_str.split():
@@ -407,14 +407,14 @@ def get_pending_notifications():
         cur.execute("SELECT id, title, start_at, total_duration, reminders FROM assessments WHERE start_at > NOW() - INTERVAL 1 DAY")
         assessments = cur.fetchall()
         cur.execute("SELECT assessment_id, reminder_str FROM sent_notifications WHERE user_id = %s", (uid,))
-        sent_data = {row['assessment_id']: row['reminder_str'] for row in cur.fetchall()}
+        sent_data = {row["assessment_id"]: row["reminder_str"] for row in cur.fetchall()}
 
         pending = []
         now = datetime.now(IST)
         for a in assessments:
-            aid, start_at = a['id'], a['start_at']
+            aid, start_at = a["id"], a["start_at"]
             if start_at.tzinfo is None: start_at = IST.localize(start_at)
-            reminders = json.loads(a.get('reminders') or "[]") if isinstance(a.get('reminders'), str) else (a.get('reminders') or [])
+            reminders = json.loads(a.get("reminders") or "[]") if isinstance(a.get("reminders"), str) else (a.get("reminders") or [])
             latest_milestone = "CREATED"
             for r in reminders:
                 r_sec = 0
@@ -427,8 +427,8 @@ def get_pending_notifications():
 
             if now >= (start_at - timedelta(seconds=15)): latest_milestone = "STARTED"
 
-            if sent_data.get(aid) != latest_milestone and (now < start_at + timedelta(minutes=a['total_duration'] or 60)):
-                pending.append({"assessment_id": aid, "title": a['title'], "milestone": latest_milestone})
+            if sent_data.get(aid) != latest_milestone and (now < start_at + timedelta(minutes=a["total_duration"] or 60)):
+                pending.append({"assessment_id": aid, "title": a["title"], "milestone": latest_milestone})
         return jsonify(pending)
     finally:
         cur.close()
@@ -569,6 +569,7 @@ if __name__ == "__main__":
     app.config.update(
         SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SAMESITE='Lax'
+        SESSION_COOKIE_SAMESITE="Lax"
     )
+    app.config["SESSION_COOKIE_NAME"] = "iste_session"
     serve(app, host="0.0.0.0", threads=64, port=5000)

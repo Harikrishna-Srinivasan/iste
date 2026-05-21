@@ -3,7 +3,6 @@
   "appName": "ISTE",
   "webDir": "www",
   "server": {
-    "cleartext": true,
-    "url": "https://iste-ws2k.onrender.com/"
+    "cleartext": true
   }
 }

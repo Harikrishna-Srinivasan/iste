@@ -7,7 +7,7 @@
     <meta name="author" content="ISTE">
     <meta name="theme-color" content="#1a237e">
     <title>ISTE Aptitude Portal</title>
-    <link rel="icon" type="image/png" href="/iste.png">
+    <link rel="icon" type="image/png" href="./iste.png">
     <style>
         :root {
             --primary-blue: #1976D2;
@@ -364,8 +364,8 @@
 
             try {
                 const [activeRes, historyRes] = await Promise.all([
-                    fetch("/student/active"),
-                    fetch("/student/attempts")
+                    fetch("https://iste-ws2k.onrender.com/student/active"),
+                    fetch("https://iste-ws2k.onrender.com/student/attempts")
                 ]);
 
                 if (activeRes.ok) {
@@ -571,7 +571,7 @@
                 });
                 if (res.ok) {
                     sessionStorage.setItem('joining_assessment_id', selectedAssessmentId);
-                    window.location.href = "/test";
+                    window.location.href = "https://iste-ws2k.onrender.com/test";
                 } else {
                     alert("Security Code Invalid. Loading new code...");
                     openCaptcha(selectedAssessmentId);
@@ -583,7 +583,7 @@
             }
         }
 
-        async function logout() { await fetch("/logout"); window.location.href = "/"; }
+        async function logout() { await fetch("https://iste-ws2k.onrender.com/logout"); window.location.href = "https://iste-ws2k.onrender.com/"; }
 
         window.manualRefreshDashboard = async function () {
             if (document.getElementById('captchaModal').style.display === 'flex') return alert("Complete CAPTCHA first.");
@@ -629,7 +629,7 @@
                     showInAppToast("Assessment Update", msg, notif.assessment_id);
                     if (Notification.permission === 'granted') new Notification("Assessment Update", { body: msg, tag: 'a_' + notif.assessment_id });
 
-                    await fetch("/ack_notification", {
+                    await fetch("https://iste-ws2k.onrender.com/ack_notification", {
                         method: "POST", headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ assessment_id: notif.assessment_id, milestone: notif.milestone }), credentials: "include"
                     });

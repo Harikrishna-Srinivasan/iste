@@ -7,7 +7,7 @@
     <meta name="description"
         content="Candidate Login for ISTE Performance Portal. Securely access your assessments and tracked performance.">
     <title>ISTE Aptitude Test</title>
-    <link rel="icon" type="image/png" href="/iste.png">
+    <link rel="icon" type="image/png" href="./iste.png">
     <style>
         :root {
             --primary-blue: #1976d2;
@@ -281,7 +281,7 @@
 
         async function generateCaptcha() {
             try {
-                const res = await fetch("/student/gen_captcha");
+                const res = await fetch("https://iste-ws2k.onrender.com/student/gen_captcha");
                 const data = await res.json();
                 drawAdvancedCaptcha("captchaCanvas", data.captcha_val);
             } catch (err) {
@@ -370,7 +370,7 @@
             errorDiv.className = 'error';
 
             try {
-                const res = await fetch("/student/login", {
+                const res = await fetch("https://iste-ws2k.onrender.com/student/login", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ user_id, password, captcha: captchaAns })
@@ -379,7 +379,7 @@
                 const data = await res.json();
 
                 if (res.ok)
-                    window.location.href = "/dashboard";
+                    window.location.href = "https://iste-ws2k.onrender.com/dashboard";
                 else {
                     if (res.status === 429 && data.blocked) {
                         const waitMinutes = Math.ceil(data.wait_seconds / 60);

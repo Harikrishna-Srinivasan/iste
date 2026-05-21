@@ -2,10 +2,11 @@
 # Dependencies
 node_modules/
 
-# Environment
+# Environment / Secrets
 .env
 .env.local
 *.env.*
+*.jks
 
 # Logs
 *.log

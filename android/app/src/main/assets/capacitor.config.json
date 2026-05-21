@@ -1,0 +1,8 @@
+{
+	"appId": "com.iste.app",
+	"appName": "ISTE",
+	"webDir": "www",
+	"server": {
+		"cleartext": true
+	}
+}

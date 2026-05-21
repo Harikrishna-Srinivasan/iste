@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ISTE Online Test Environment</title>
+    <link rel="icon" type="image/png" href="./iste.png">
+    <style>
+        :root {
+            --primary-blue: #1976D2;
+            --thick-orange: #EF6C00;
+            --thick-yellow: #FDD835;
+            --bg-body: #F4F6F8;
+            --bg-card: #FFFFFF;
+            --text-main: #202124;
+            --border: #DADCE0;
+            --iste-gray: #E0E0E0;
+            --iste-red: #D32F2F;
+            --iste-green: #2E7D32;
+            --iste-purple: #5E35B1;
+        }
+
+        html, body {
+            max-width: 100vw;
+            overflow-x: hidden;
+            box-sizing: border-box;
+        }
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+        .card, .container, .sidebar {
+            width: 100%;
+            max-width: 100%;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+        }
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        [data-theme="dark"] {
+            --bg-body: #1A1C1E;
+            --bg-card: #2D3135;
+            --text-main: #E8EAED;
+            --border: #3C4043;
+            --iste-gray: #45494E;
+        }
+
+        body {
+            background-color: var(--bg-body); color: var(--text-main);
+            transition: background-color 0.3s, color 0.3s;
+            line-height: 1.6; min-height: 100vh; overflow: hidden;
+            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+        }
+
+        .anti-lens-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+            background:
+                repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 3px),
+                repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 3px);
+            animation: moireShift 0.1s infinite alternate;
+        }
+
+        @keyframes moireShift {
+            0% { background-position: 0px 0px; }
+            100% { background-position: 1px 1px; }
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+
+        .app-bar {
+            background: var(--primary-blue); color: white; padding: 12px 16px;
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 100; border-bottom: 5px solid var(--thick-yellow);
+        }
+
+        .main-layout { display: grid; grid-template-columns: 1fr 300px; height: calc(100vh - 60px); }
+
+        .question-scroll { padding: 30px; overflow-y: auto; background: var(--bg-body); }
+        .sidebar { background: var(--bg-card); border-left: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; }
+
+        .q-card { background: var(--bg-card); padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid var(--border); margin-bottom: 80px; }
+
+        .timer-row { display: flex; gap: 10px; margin-bottom: 20px; }
+        .timer-chip { flex: 1; padding: 10px; border: 2px solid var(--primary-blue); border-radius: 5px; text-align: center; font-weight: bold; background: var(--bg-card); }
+
+        .palette-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 15px; }
+        .p-item {
+            width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold; border-radius: 4px; background: var(--iste-gray); color: #555;
+            cursor: pointer; transition: 0.2s;
+        }
+        .p-item.active { border: 2px solid var(--primary-blue); transform: scale(1.1); box-shadow: 0 0 5px var(--primary-blue); }
+        .p-item.answered { background: var(--iste-green); color: white; border-radius: 0 0 15px 15px; }
+        .p-item.not-answered { background: var(--iste-red); color: white; border-radius: 15px 15px 0 0; }
+        .p-item.review { background: var(--iste-purple); color: white; border-radius: 50%; }
+
+        .option-label { display: block; padding: 15px; margin-bottom: 10px; border: 2px solid var(--border); border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .option-label:hover { border-color: var(--primary-blue); background: rgba(25, 118, 210, 0.05); }
+        .option-label input { margin-right: 12px; transform: scale(1.3); }
+
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-card); padding: 15px 30px; border-top: 5px solid var(--primary-blue); display: flex; gap: 15px; justify-content: center; align-items: center; z-index: 101; overflow-y: auto; }
+        .btn { padding: 12px 25px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; flex: 1; }
+        .btn-save { background: var(--iste-green); color: white; }
+        .btn-review { background: var(--thick-orange); color: white; }
+        .btn-clear { background: var(--iste-gray); color: var(--text-main); }
+        .user-nav-info { flex-grow: 1; text-align: right; margin: 0 20px; display: flex; flex-direction: column; justify-content: center; }
+        .user-nav-name { font-weight: bold; font-size: 14px; line-height: 1.2; }
+        .user-nav-course { font-size: 16px; color: var(--thick-yellow); }
+
+        @media (max-width: 850px) {
+            .main-layout { grid-template-columns: 1fr; }
+            .sidebar { order: -1; height: auto; }
+        }
+
+        @media screen and (max-width: 800px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .sidebar {
+                border-left: none;
+                border-top: 1px solid var(--border);
+                max-height: 160px;
+                overflow-y: auto;
+                scroll-behavior: smooth;
+            }
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px 20px;
+                height: auto;
+            }
+            .header-controls {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .q-area { padding: 20px; }
+            .nav-buttons {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            .app-bar { flex-direction: column; text-align: center; gap: 10px; }
+            .user-nav-info { text-align: center; margin: 5px 0 0 0; width: 100%; }
+            .btn {
+                padding: 12px 16px;
+                font-size: 14px;
+                flex: 1 1 45%;
+                text-align: center;
+            }
+            .options-grid { grid-template-columns: 1fr; }
+            button[onclick*="finishTest"] {
+                position: static !important;
+                transform: none !important;
+                flex: 1 1 100% !important;
+                margin-top: 10px !important;
+                background-color: #D32F2F !important;
+                color: white !important;
+                font-size: 16px !important;
+                font-weight: bold !important;
+                box-shadow: none !important;
+            }
+            body { padding-bottom: 20px !important; }
+        }
+    </style>
+</head>
+<body id="body-main">
+    <div class="anti-lens-overlay"></div>
+
+    <header class="app-bar" style="flex-wrap: wrap;">
+        <img src="iste.png" alt="ISTE Logo" style="display:block; margin:auto; width:60px; height:60px;" width="60" height="60">
+        <h2 id="test-header-title">Loading Assessment...</h2>
+
+        {% if user %}
+        <div class="user-nav-info">
+            <div class="user-nav-name"> {{ user.name }} ({{ user.reg_no }})</div>
+            <div class="user-nav-course"> {{ user.course }}</div>
+        </div>
+        {% endif %}
+    </header>
+
+    <div class="main-layout">
+        <div class="question-scroll" id="q-scroll-box">
+            <div class="timer-row">
+                <div class="timer-chip">Total Time: <span id="total-clock">00:00</span></div>
+            </div>
+
+            <div class="q-card" id="q-display">
+                <h2 style="text-align: center; color: #999; margin-top: 50px;">Initialising Exam Environment...</h2>
+            </div>
+        </div>
+
+        <aside class="sidebar">
+            <h4 style="border-bottom: 2px solid var(--border); padding-bottom: 8px;">Question Palette</h4>
+            <div class="palette-grid" id="palette-grid"></div>
+
+            <div style="flex: 1;"></div>
+            <p style="font-size: 11px; color: #777; margin-top: 15px; text-align: center;">Click "Final Submit" in the bottom bar to end the exam.</p>
+        </aside>
+    </div>
+
+    <footer class="footer">
+        <button class="btn btn-clear" onclick="clearSelection()">Clear Response</button>
+        <button class="btn btn-review" onclick="saveAndNext('review')">Mark for Review</button>
+        <button class="btn btn-save" onclick="saveAndNext('save')">Save & Next</button>
+        <button class="btn btn-submit" style="background: var(--iste-red); color: white;" onclick="finishTest()">Final Submit</button>
+    </footer>
+
+    <script>
+        document.addEventListener('mousedown', e => {
+            const tag = e.target.tagName.toLowerCase();
+            const allowedTags = ['input', 'button', 'label', 'textarea', 'span'];
+            if (!allowedTags.includes(tag)) {
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keydown', e => {
+            if (e.ctrlKey && ['c', 'x', 'v', 'p', 's', 'u', 'a'].includes(e.key.toLowerCase()))
+                e.preventDefault();
+            if (e.key === 'PrintScreen') {
+                navigator.clipboard.writeText("Screenshots disabled.");
+                document.body.style.display = 'none';
+                setTimeout(() => document.body.style.display = 'block', 500);
+            }
+        });
+
+        document.addEventListener('dragstart', e => e.preventDefault());
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
+        let assessmentId = null;
+        let testData = [];
+        let state = {
+            idx: 0,
+            timeLeft: 0,
+            qTimeSpent: [],
+            responses: {},
+            visited: []
+        };
+        let timers = { global: null, q: null };
+
+        async function initTest() {
+            try {
+                const targetId = sessionStorage.getItem('joining_assessment_id');
+                const activeRes = await fetch("https://iste-ws2k.onrender.com/student/active");
+                if (!activeRes.ok) throw new Error("No active assessments");
+                const activeList = await activeRes.json();
+
+                let active = null;
+                if (targetId) active = activeList.find(a => a.id == targetId);
+                if (!active && activeList.length > 0) active = activeList[0];
+
+                if (!active) throw new Error("No available test found");
+                assessmentId = active.id;
+
+                const typeStr = active.type ? (active.type.charAt(0).toUpperCase() + active.type.slice(1).toLowerCase()) : 'Assessment';
+                const displayTitle = active.seq_num ? `${typeStr} ${active.seq_num}: ${active.title}` : `${typeStr}: ${active.title}`;
+                document.getElementById('test-header-title').innerText = displayTitle;
+                const qRes = await fetch(`/student/questions/${assessmentId}`);
+                const rawData = await qRes.json();
+
+                if (rawData.error) {
+                    alert(rawData.error);
+                    window.location.href = "https://iste-ws2k.onrender.com/dashboard";
+                    return;
+                }
+
+                testData = rawData.map(q => ({
+                    id: q.id,
+                    type: q.type,
+                    q: q.question,
+                    opts: q.options || [],
+                    marks: q.mark,
+                    negative: q.negative_mark || 0
+                }));
+
+                const saved = localStorage.getItem('iste_test_state_' + assessmentId);
+                if (saved) {
+                    state = JSON.parse(saved);
+                    if (!state.visited) state.visited = [];
+
+                    if (!state.qTimeSpent || state.qTimeRemaining) {
+                        state.qTimeSpent = state.qTimeSpent || new Array(testData.length).fill(0);
+                        delete state.qTimeRemaining;
+                    }
+
+                    if (state.absoluteEndTime) {
+                        state.timeLeft = Math.max(0, Math.floor((state.absoluteEndTime - Date.now()) / 1000));
+                    }
+                } else {
+                    state.idx = 0;
+                    state.responses = {};
+                    state.visited = [];
+                    state.qTimeSpent = new Array(testData.length).fill(0);
+                    state.timeLeft = (active.total_duration || 60) * 60;
+                    state.absoluteEndTime = Date.now() + (state.timeLeft * 1000);
+                }
+
+                initPalette();
+                renderQuestion();
+                startGlobalTimer();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('q-display').innerHTML = `<h2 style="color:var(--iste-red); text-align:center;">Error Loading Assessment: ${err.message}</h2>`;
+            }
+        }
+
+        function startGlobalTimer() {
+            if (!state.absoluteEndTime) return;
+
+            clearInterval(timers.global);
+            timers.global = setInterval(() => {
+                const remaining = Math.max(0, Math.floor((state.absoluteEndTime - Date.now()) / 1000));
+                state.timeLeft = remaining;
+
+                if (remaining > 0) {
+                    const m = Math.floor(remaining / 60).toString().padStart(2, '0');
+                    const s = (remaining % 60).toString().padStart(2, '0');
+                    document.getElementById('total-clock').innerText = `${m}:${s}`;
+                } else {
+                    clearInterval(timers.global);
+                    finishTest(true);
+                }
+            }, 1000);
+        }
+
+        function saveLocal() {
+            localStorage.setItem('iste_test_state_' + assessmentId, JSON.stringify(state));
+        }
+
+        function initPalette() {
+            const grid = document.getElementById('palette-grid');
+            grid.innerHTML = testData.map((_, i) => `<div class="p-item" id="pal-${i}" onclick="jumpTo(${i})">${i+1}</div>`).join('');
+            updatePaletteUI();
+        }
+
+        function updatePaletteUI() {
+            testData.forEach((q, i) => {
+                const el = document.getElementById(`pal-${i}`);
+                el.className = 'p-item';
+
+                if (i === state.idx) {
+                    el.classList.add('active');
+                    el.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest',
+                        inline: 'nearest'
+                    });
+                }
+
+                const resp = state.responses[q.id];
+                if (resp)
+                    if (resp.status === 'review') el.classList.add('review');
+                    else el.classList.add('answered');
+                else if (state.visited.includes(i)) el.classList.add('not-answered');
+            });
+        }
+
+        function renderQuestion() {
+            if (!testData.length) {
+                document.getElementById('q-display').innerHTML = '<h2 style="text-align:center; color:#999; margin-top:50px;">No Questions Assigned</h2>';
+                return;
+            }
+            const q = testData[state.idx];
+            const savedResp = state.responses[q.id] || {};
+
+            let optionsHtml = '';
+            if (q.type === 'MCQ' || q.type === 'MSQ') {
+                optionsHtml = q.opts.map((o, i) => {
+                    const type = q.type === 'MCQ' ? 'radio' : 'checkbox';
+                    let checked = "";
+                    if (q.type === 'MCQ' && savedResp.selected_id === i) checked = 'checked';
+                    if (q.type === 'MSQ' && savedResp.selected_ids?.includes(i)) checked = 'checked';
+
+                    return `
+                        <label class="option-label">
+                            <input type="${type}" name="q-opt" value="${i}" ${checked}> ${o}
+                        </label>
+                    `;
+                }).join('');
+            } else {
+                optionsHtml = `<input type="text" id="ans-text" class="option-label" style="width:100%;" value="${savedResp.value || ''}" placeholder="Type Answer Here...">`;
+            }
+
+            document.getElementById('q-display').innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:8px;">
+                    <span style="font-weight:bold; color:var(--primary-blue)">Question ${state.idx + 1} / ${testData.length} (${q.type})</span>
+                    <span style="font-size:12px; font-weight:bold; background:var(--iste-gray); padding:3px 8px; border-radius:4px;">
+                        +${q.marks} / -${q.negative}
+                    </span>
+                </div>
+                <h3 style="margin-bottom:20px;">${q.q}</h3>
+                <div id="options-box">${optionsHtml}</div>
+            `;
+
+            if (!state.visited.includes(state.idx)) state.visited.push(state.idx);
+            updatePaletteUI();
+            startQuestionTimer();
+        }
+
+        function startQuestionTimer() {
+            clearInterval(timers.q);
+            timers.q = setInterval(() => {
+                state.qTimeSpent[state.idx]++;
+
+                if (state.qTimeSpent[state.idx] % 5 === 0) saveLocal();
+            }, 1000);
+        }
+
+        function jumpTo(i) {
+            state.idx = i;
+            renderQuestion();
+        }
+
+        function saveAndNext(status) {
+            const q = testData[state.idx];
+            let respObj = { status: status };
+
+            if (q.type === 'MCQ' || q.type === 'MSQ') {
+                const checked = Array.from(document.querySelectorAll('input[name="q-opt"]:checked')).map(el => parseInt(el.value));
+                if (checked.length === 0 && status === 'save') return alert("Select an option first.");
+                if (q.type === 'MCQ') respObj.selected_id = checked[0];
+                else respObj.selected_ids = checked;
+            } else {
+                const val = document.getElementById('ans-text').value.trim();
+                if (val === "" && status === 'save') return alert("Enter an answer first.");
+                respObj.value = val;
+            }
+
+            state.responses[q.id] = respObj;
+            moveToNext();
+        }
+
+        function moveToNext() {
+            saveLocal();
+            state.idx = (state.idx + 1) % testData.length;
+            renderQuestion();
+        }
+
+        function clearSelection() {
+            delete state.responses[testData[state.idx].id];
+            renderQuestion();
+            saveLocal();
+        }
+
+        async function finishTest(auto = false) {
+            if (!auto && !confirm("Finalize and submit your test?")) return;
+
+            clearInterval(timers.global);
+            clearInterval(timers.q);
+
+            const timeMap = {};
+            testData.forEach((q, i) => {
+                timeMap[q.id] = state.qTimeSpent[i] || 0;
+            });
+
+            const res = await fetch("https://iste-ws2k.onrender.com/student/submit", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    assessment_id: assessmentId,
+                    responses: state.responses,
+                    times: timeMap
+                })
+            });
+
+            if (res.ok) {
+                localStorage.removeItem('iste_test_state_' + assessmentId);
+                window.location.href = "https://iste-ws2k.onrender.com/dashboard";
+            } else {
+                alert("Submission failed. Please check connection.");
+            }
+        }
+
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const target = e.target;
+                if (target.id === 'ans-text' || target.name === 'q-opt') {
+                    saveAndNext('save');
+                }
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', initTest);
+        window.addEventListener('pageshow', (e) => {
+            if (e.persisted) initTest();
+        });
+    </script>
+</body>
+</html>
