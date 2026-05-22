@@ -27,7 +27,7 @@ load_dotenv()
 
 app = Flask(__name__, template_folder=".", static_folder=".", static_url_path="")
 app.config.update(
-    SESSION_COOKIE_SECURE=False,
+    SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="None"
 )
