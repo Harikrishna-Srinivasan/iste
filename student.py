@@ -26,15 +26,21 @@ from waitress import serve
 load_dotenv()
 
 app = Flask(__name__, template_folder=".", static_folder=".", static_url_path="")
+app.config.update(
+    SESSION_COOKIE_SECURE=False,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="None"
+)
+app.config["SESSION_COOKIE_NAME"] = "iste_session"
+
 Compress(app)
 Minify(app=app, html=True, js=True, cssless=True)
 
-
 CORS(app,
-     origins=["https://iste-ws2k.onrender.com", "capacitor://localhost", "http://localhost"],
+     origins=["https://iste-ws2k.onrender.com", "capacitor://localhost", "http://localhost", "http://localhost:5000"],
      supports_credentials=True,
      allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "DELETE"])
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 app.config["SECRET_KEY"] = os.environ["secret_key"]
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=2)
@@ -134,6 +140,15 @@ def token_required(f):
         return f(*args, **kwargs)
     return decorated
 
+@app.after_request
+def add_cors(response):
+    origin = request.headers.get("Origin", "")
+    if origin in ["https://iste-ws2k.onrender.com", "capacitor://localhost", "http://localhost", "http://localhost:5000"]:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    return response
 
 @app.route("/")
 def serve_index():
@@ -227,10 +242,6 @@ def student_login():
             record_failed_attempt(identifier)
             return jsonify({"error": "Invalid credentials"}), 401
 
-        captcha = body.get("captcha")
-        if not captcha or captcha != session.get("captcha_ans", ""):
-            return jsonify({"error": "Invalid security code"}), 403
-
         try:
             ph.verify(user["password"], password)
         except VerifyMismatchError:
@@ -256,7 +267,7 @@ def student_login():
                 app.logger.error(f"FCM registration failed: {str(e)}")
 
         resp = make_response(jsonify({"status": "Success"}))
-        resp.set_cookie("token", token, httponly=True, secure=True, samesite="Lax", max_age=timedelta(hours=2))
+        resp.set_cookie("token", token, httponly=True, secure=True, samesite="None", max_age=timedelta(hours=2))
         return resp
     except Exception as e:
         app.logger.error(f"Login failed: {str(e)}")
@@ -290,7 +301,6 @@ def register_device():
 
 @app.route("/student/gen_captcha")
 def gen_captcha():
-    """Generates a secure captcha answer and stores it in the session."""
     code = "".join(random.choices(string.ascii_letters + "23456789" + "@#$&*", k=5))
     session["captcha_ans"] = code
     return jsonify({"captcha_val": code})
@@ -566,10 +576,4 @@ def student_attempt_details(aid):
         conn.close()
 
 if __name__ == "__main__":
-    app.config.update(
-        SESSION_COOKIE_SECURE=True,
-        SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SAMESITE="Lax"
-    )
-    app.config["SESSION_COOKIE_NAME"] = "iste_session"
     serve(app, host="0.0.0.0", threads=64, port=5000)

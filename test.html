@@ -103,7 +103,7 @@
         .option-label:hover { border-color: var(--primary-blue); background: rgba(25, 118, 210, 0.05); }
         .option-label input { margin-right: 12px; transform: scale(1.3); }
 
-        .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-card); padding: 15px 30px; border-top: 5px solid var(--primary-blue); display: flex; gap: 15px; justify-content: center; align-items: center; z-index: 101; overflow-y: auto; }
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-card); padding: 15px 30px; border-top: 5px solid var(--primary-blue); display: flex; gap: 10px; justify-content: center; align-items: center; z-index: 101; overflow-y: auto; }
         .btn { padding: 12px 25px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; flex: 1; }
         .btn-save { background: var(--iste-green); color: white; }
         .btn-review { background: var(--thick-orange); color: white; }
@@ -145,7 +145,7 @@
                 flex-wrap: wrap;
                 gap: 10px;
             }
-            .app-bar { flex-direction: column; text-align: center; gap: 10px; }
+            .app-bar { flex-direction: column; text-align: center; }
             .user-nav-info { text-align: center; margin: 5px 0 0 0; width: 100%; }
             .btn {
                 padding: 12px 16px;
@@ -174,7 +174,7 @@
 
     <header class="app-bar" style="flex-wrap: wrap;">
         <img src="iste.png" alt="ISTE Logo" style="display:block; margin:auto; width:60px; height:60px;" width="60" height="60">
-        <h2 id="test-header-title">Loading Assessment...</h2>
+        <h2 id="test-header-title"> Loading Assessment...</h2>
 
         {% if user %}
         <div class="user-nav-info">
@@ -212,6 +212,7 @@
     </footer>
 
     <script>
+        const BASE = window.location.protocol === "https://iste-ws2k.onrender.com";
         document.addEventListener('mousedown', e => {
             const tag = e.target.tagName.toLowerCase();
             const allowedTags = ['input', 'button', 'label', 'textarea', 'span'];
@@ -247,7 +248,7 @@
         async function initTest() {
             try {
                 const targetId = sessionStorage.getItem('joining_assessment_id');
-                const activeRes = await fetch("https://iste-ws2k.onrender.com/student/active");
+                const activeRes = await fetch(`${BASE}/student/active`, { credentials: "include" });
                 if (!activeRes.ok) throw new Error("No active assessments");
                 const activeList = await activeRes.json();
 
@@ -261,12 +262,12 @@
                 const typeStr = active.type ? (active.type.charAt(0).toUpperCase() + active.type.slice(1).toLowerCase()) : 'Assessment';
                 const displayTitle = active.seq_num ? `${typeStr} ${active.seq_num}: ${active.title}` : `${typeStr}: ${active.title}`;
                 document.getElementById('test-header-title').innerText = displayTitle;
-                const qRes = await fetch(`/student/questions/${assessmentId}`);
+                const qRes = await fetch(`/student/questions/${assessmentId}`, { credentials: "include" });
                 const rawData = await qRes.json();
 
                 if (rawData.error) {
                     alert(rawData.error);
-                    window.location.href = "https://iste-ws2k.onrender.com/dashboard";
+                    window.location.href = `${BASE}/dashboard`;
                     return;
                 }
 
@@ -384,7 +385,7 @@
                     `;
                 }).join('');
             } else {
-                optionsHtml = `<input type="text" id="ans-text" class="option-label" style="width:100%;" value="${savedResp.value || ''}" placeholder="Type Answer Here...">`;
+                optionsHtml = `<input type="text" id="ans-text" autofocus class="option-label" style="width:100%;" value="${savedResp.value || ''}" placeholder="Type Answer Here...">`;
             }
 
             document.getElementById('q-display').innerHTML = `
@@ -398,6 +399,7 @@
                 <div id="options-box">${optionsHtml}</div>
             `;
 
+            setTimeout(() => document.getElementById('ans-text')?.focus(), 10);
             if (!state.visited.includes(state.idx)) state.visited.push(state.idx);
             updatePaletteUI();
             startQuestionTimer();
@@ -459,8 +461,9 @@
                 timeMap[q.id] = state.qTimeSpent[i] || 0;
             });
 
-            const res = await fetch("https://iste-ws2k.onrender.com/student/submit", {
+            const res = await fetch(`${BASE}/student/submit`, {
                 method: "POST",
+                credentials: "include",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     assessment_id: assessmentId,
@@ -471,10 +474,8 @@
 
             if (res.ok) {
                 localStorage.removeItem('iste_test_state_' + assessmentId);
-                window.location.href = "https://iste-ws2k.onrender.com/dashboard";
-            } else {
-                alert("Submission failed. Please check connection.");
-            }
+                window.location.href = `${BASE}/dashboard`;
+            } else alert("Submission failed. Please check connection.");
         }
 
         document.addEventListener('keypress', (e) => {

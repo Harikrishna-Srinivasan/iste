@@ -264,6 +264,7 @@
     </div>
 
     <script>
+        const BASE = window.location.protocol === "https://iste-ws2k.onrender.com";
         let blockTimer = null;
         let loginBtn = document.getElementById('login-btn');
 
@@ -279,11 +280,13 @@
             generateCaptcha();
         }
 
+        let _captchaAns = "";
         async function generateCaptcha() {
             try {
-                const res = await fetch("https://iste-ws2k.onrender.com/student/gen_captcha");
+                const res = await fetch(`${BASE}/student/gen_captcha`, { credentials: "include", headers: { "Content-Type": "application/json" }});
                 const data = await res.json();
-                drawAdvancedCaptcha("captchaCanvas", data.captcha_val);
+                _captchaAns = data.captcha_val
+                drawAdvancedCaptcha("captchaCanvas", _captchaAns);
             } catch (err) {
                 console.error("Captcha load failed", err);
             }
@@ -345,7 +348,10 @@
 
             for (let i = 0; i < 15; i++) {
                 const x = Math.random() * canvas.width, y = Math.random() * canvas.height;
-                ctx.fillStyle = `rgba(d,e,f,${Math.random() * 0.5 + 0.3})`;
+                const r = Math.floor(Math.random() * 200),
+                      g = Math.floor(Math.random() * 200),
+                      b = Math.floor(Math.random() * 200);
+                ctx.fillStyle = `rgba(${r},${g},${b},${Math.random() * 0.5 + 0.3})`;
                 ctx.beginPath(); ctx.arc(x, y, Math.random()*3, 0, 2*Math.PI); ctx.fill();
                 if (Math.random() > 0.75)
                     for (let j = 0; j < 4; j++)
@@ -357,11 +363,17 @@
         async function validateAndLogin() {
             const input = document.getElementById('captchaInput').value;
             if (!input) return alert("Please enter the security code.");
+            if (input !== _captchaAns) {
+                generateCaptcha();
+                document.getElementById('captchaInput').value = '';
+                return alert("Wrong code. Try again.");
+            }
+            _captchaAns = "";
             document.getElementById('captchaModal').style.display = 'none';
-            await login(input);
+            await login();
         }
 
-        async function login(captchaAns) {
+        async function login() {
             const user_id = document.getElementById('user_id').value.trim();
             const password = document.getElementById('password').value.trim();
             const errorDiv = document.getElementById('error');
@@ -370,16 +382,17 @@
             errorDiv.className = 'error';
 
             try {
-                const res = await fetch("https://iste-ws2k.onrender.com/student/login", {
+                const res = await fetch(`${BASE}/student/login`, {
                     method: "POST",
+                    credentials: "include",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ user_id, password, captcha: captchaAns })
+                    body: JSON.stringify({ user_id, password })
                 });
 
                 const data = await res.json();
 
                 if (res.ok)
-                    window.location.href = "https://iste-ws2k.onrender.com/dashboard";
+                    window.location.href = `${BASE}/dashboard`;
                 else {
                     if (res.status === 429 && data.blocked) {
                         const waitMinutes = Math.ceil(data.wait_seconds / 60);

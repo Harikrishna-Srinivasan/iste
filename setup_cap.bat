@@ -5,10 +5,10 @@ call npm init -y
 echo Installing Dependencies...
 call npm install
 echo Initializing Capacitor...
-call npx cap init IsteApp com.iste.app --web-dir www
 echo Adding Android...
 call npm run build
-call npx cap copy
+call mkdir www/
+call cp *.html www
 call npx cap add android
 call npx cap sync android
 echo Done!

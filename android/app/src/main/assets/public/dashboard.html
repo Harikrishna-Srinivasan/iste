@@ -168,6 +168,7 @@
     </div>
 
     <script>
+        const BASE = window.location.protocol === "https://iste-ws2k.onrender.com";
         let selectedAssessmentId = null;
         let isRefreshing = false;
         let lastActiveData = "";
@@ -364,8 +365,8 @@
 
             try {
                 const [activeRes, historyRes] = await Promise.all([
-                    fetch("https://iste-ws2k.onrender.com/student/active"),
-                    fetch("https://iste-ws2k.onrender.com/student/attempts")
+                    fetch(`${BASE}/student/active`, { credentials: "include" }),
+                    fetch(`${BASE}/student/attempts`, { credentials: "include" })
                 ]);
 
                 if (activeRes.ok) {
@@ -412,7 +413,7 @@
 
             container.innerHTML = '<div style="padding:15px; text-align:center;">📊 Processing detailed analysis...</div>';
             try {
-                const res = await fetch(`/student/attempt_details/${aid}`);
+                const res = await fetch(`/student/attempt_details/${aid}`, { credentials: "include" });
                 if (!res.ok) throw new Error();
                 const data = await res.json();
 
@@ -505,19 +506,16 @@
             }
         }
 
+        let _captchaAns = "";
         async function openCaptcha(id) {
             selectedAssessmentId = id;
-            const modal = document.getElementById('captchaModal');
-            modal.style.display = 'flex';
+            document.getElementById('captchaModal').style.display = 'flex';
             document.getElementById('captchaInput').value = "";
-
-            try {
-                const res = await fetch('/student/gen_captcha');
-                const data = await res.json();
-                renderServerCaptcha(data.captcha_val);
-            } catch (e) {
-                alert("Security error. Please refresh.");
-            }
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$&*";
+            let code = "";
+            for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+            _captchaAns = code;
+            renderServerCaptcha(code);
         }
 
         function exitCaptcha() { document.getElementById('captchaModal').style.display = 'none'; }
@@ -559,32 +557,16 @@
         async function validateAndStart() {
             const input = document.getElementById('captchaInput').value;
             if (!input) return;
-            const btn = document.querySelector("#captchaModal .btn");
-            const originalText = btn.innerText;
-            btn.disabled = true;
-            btn.innerText = "Verifying Security Code...";
-            try {
-                const res = await fetch('/student/captcha', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ answer: input })
-                });
-                if (res.ok) {
-                    sessionStorage.setItem('joining_assessment_id', selectedAssessmentId);
-                    window.location.href = "https://iste-ws2k.onrender.com/test";
-                } else {
-                    alert("Security Code Invalid. Loading new code...");
-                    openCaptcha(selectedAssessmentId);
-                }
-            } catch (e) {
-                alert("Network error. Please try again.");
-            } finally {
-                btn.disabled = false; btn.innerText = originalText;
+            if (input !== _captchaAns) {
+                openCaptcha(selectedAssessmentId);
+                document.getElementById('captchaInput').value = '';
+                return alert("Wrong code. Try again.");
             }
+            sessionStorage.setItem('joining_assessment_id', selectedAssessmentId);
+            window.location.href = `${BASE}/test`;
         }
 
-        async function logout() { await fetch("https://iste-ws2k.onrender.com/logout"); window.location.href = "https://iste-ws2k.onrender.com/"; }
-
+        async function logout() { await fetch(`${BASE}/logout`, { credentials: "include" }); window.location.href = `${BASE}/`; }
         window.manualRefreshDashboard = async function () {
             if (document.getElementById('captchaModal').style.display === 'flex') return alert("Complete CAPTCHA first.");
             await loadDashboardData();
@@ -629,7 +611,7 @@
                     showInAppToast("Assessment Update", msg, notif.assessment_id);
                     if (Notification.permission === 'granted') new Notification("Assessment Update", { body: msg, tag: 'a_' + notif.assessment_id });
 
-                    await fetch("https://iste-ws2k.onrender.com/ack_notification", {
+                    await fetch(`${BASE}/ack_notification`, {
                         method: "POST", headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ assessment_id: notif.assessment_id, milestone: notif.milestone }), credentials: "include"
                     });
