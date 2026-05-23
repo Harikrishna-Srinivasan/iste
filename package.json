@@ -1,6 +1,6 @@
 {
   "name": "iste-portal",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "ISTE Mobile Client",
   "main": "index.js",
   "scripts": {
@@ -9,18 +9,15 @@
   "dependencies": {
     "@capacitor/android": "^8.3.0",
     "@capacitor/core": "^8.3.0",
+    "@capacitor/http": "^0.0.2",
     "@capacitor/local-notifications": "^8.0.2",
     "@capacitor/push-notifications": "^8.0.3"
   },
   "devDependencies": {
-    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.3.4"
   },
   "overrides": {
-    "tar": "^7.5.15",
-    "@capacitor/assets": {
-      "@capacitor/cli": "^8.3.4"
-    }
+    "tar": "^7.5.15"
   },
   "repository": {
     "type": "git",
