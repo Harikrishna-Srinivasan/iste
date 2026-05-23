@@ -3,6 +3,9 @@
 	"appName": "ISTE",
 	"webDir": "www",
 	"server": {
-		"cleartext": true
+		"hostname": "app.local",
+		"allowNavigation": [
+			"iste-ws2k.onrender.com"
+		]
 	}
 }

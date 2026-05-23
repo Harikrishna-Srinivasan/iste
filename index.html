@@ -264,7 +264,7 @@
     </div>
 
     <script>
-        const BASE = window.location.protocol === "https://iste-ws2k.onrender.com";
+        const BASE = "https://iste-ws2k.onrender.com";
         let blockTimer = null;
         let loginBtn = document.getElementById('login-btn');
 
@@ -285,9 +285,10 @@
             try {
                 const res = await fetch(`${BASE}/student/gen_captcha`, { credentials: "include", headers: { "Content-Type": "application/json" }});
                 const data = await res.json();
-                _captchaAns = data.captcha_val
+                _captchaAns = data.captcha_val;
                 drawAdvancedCaptcha("captchaCanvas", _captchaAns);
             } catch (err) {
+                confirm(err)
                 console.error("Captcha load failed", err);
             }
         }

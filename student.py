@@ -29,7 +29,8 @@ app = Flask(__name__, template_folder=".", static_folder=".", static_url_path=""
 app.config.update(
     SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE="None"
+    SESSION_COOKIE_SAMESITE="None",
+    SESSION_COOKIE_DOMAIN=None
 )
 app.config["SESSION_COOKIE_NAME"] = "iste_session"
 
@@ -37,7 +38,7 @@ Compress(app)
 Minify(app=app, html=True, js=True, cssless=True)
 
 CORS(app,
-     origins=["https://iste-ws2k.onrender.com", "capacitor://localhost", "http://localhost", "http://localhost:5000"],
+     origins=["https://iste-ws2k.onrender.com", "capacitor://localhost", "http://localhost", "http://localhost:5000", "capacitor://app.local", "null"],
      supports_credentials=True,
      allow_headers=["Content-Type", "Authorization"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
@@ -143,7 +144,7 @@ def token_required(f):
 @app.after_request
 def add_cors(response):
     origin = request.headers.get("Origin", "")
-    if origin in ["https://iste-ws2k.onrender.com", "capacitor://localhost", "http://localhost", "http://localhost:5000"]:
+    if origin in ["https://iste-ws2k.onrender.com", "capacitor://localhost", "http://localhost", "http://localhost:5000", "capacitor://app.local", "null"]:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
