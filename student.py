@@ -37,12 +37,6 @@ app.config["SESSION_COOKIE_NAME"] = "iste_session"
 Compress(app)
 Minify(app=app, html=True, js=True, cssless=True)
 
-CORS(app,
-     origins=["https://iste-ws2k.onrender.com", "capacitor://localhost", "http://localhost", "http://localhost:5000", "capacitor://app.local", "null"],
-     supports_credentials=True,
-     allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-
 app.config["SECRET_KEY"] = os.environ["secret_key"]
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=2)
 app.config["SERVER_NAME"] = None
