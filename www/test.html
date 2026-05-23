@@ -262,7 +262,7 @@
                 const typeStr = active.type ? (active.type.charAt(0).toUpperCase() + active.type.slice(1).toLowerCase()) : 'Assessment';
                 const displayTitle = active.seq_num ? `${typeStr} ${active.seq_num}: ${active.title}` : `${typeStr}: ${active.title}`;
                 document.getElementById('test-header-title').innerText = displayTitle;
-                const qRes = await fetch(`/student/questions/${assessmentId}`, { credentials: "include" });
+                const qRes = await fetch(`${BASE}/student/questions/${assessmentId}`, { credentials: "include" });
                 const rawData = await qRes.json();
 
                 if (rawData.error) {

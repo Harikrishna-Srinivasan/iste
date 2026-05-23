@@ -283,7 +283,7 @@
         let _captchaAns = "";
         async function generateCaptcha() {
             try {
-                const res = await fetch(`${BASE}/student/gen_captcha`, { credentials: "include", headers: { "Content-Type": "application/json" }});
+                const res = await fetch(`${BASE}/student/gen_captcha`, { credentials: "include" });
                 const data = await res.json();
                 _captchaAns = data.captcha_val;
                 drawAdvancedCaptcha("captchaCanvas", _captchaAns);

@@ -413,7 +413,7 @@
 
             container.innerHTML = '<div style="padding:15px; text-align:center;">📊 Processing detailed analysis...</div>';
             try {
-                const res = await fetch(`/student/attempt_details/${aid}`, { credentials: "include" });
+                const res = await fetch(`${BASE}/student/attempt_details/${aid}`, { credentials: "include" });
                 if (!res.ok) throw new Error();
                 const data = await res.json();
 
@@ -577,7 +577,7 @@
             const Push = Capacitor.Plugins.PushNotifications;
             Push.requestPermissions().then(res => { if (res.receive === 'granted') Push.register(); });
             Push.addListener('registration', (t) => {
-                fetch('/student/register_device', {
+                fetch(`${BASE}/student/register_device`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ fcm_token: t.value }), credentials: 'include'
                 });
@@ -589,7 +589,7 @@
         } else {
             setTimeout(() => {
                 if (sessionStorage.getItem('device_registered')) return;
-                fetch('/student/register_device', {
+                fetch(`${BASE}/register_device`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ fcm_token: 'WEB_BROWSER_' + navigator.userAgent.slice(0, 15) }), credentials: 'include'
                 }).then(() => sessionStorage.setItem('device_registered', 'true'))
@@ -600,7 +600,7 @@
         async function checkPendingNotifications() {
             if (sessionStorage.getItem('joining_assessment_id')) return;
             try {
-                const res = await fetch(`/get_pending_notifications?t=${Date.now()}`, { credentials: "include", cache: "no-store" });
+                const res = await fetch(`${BASE}/get_pending_notifications?t=${Date.now()}`, { credentials: "include", cache: "no-store" });
                 if (!res.ok) return;
                 const pending = await res.json();
                 for (const notif of pending) {

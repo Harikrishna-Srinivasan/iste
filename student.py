@@ -16,7 +16,6 @@ from datetime import datetime, timedelta, timezone
 from dbutils.pooled_db import PooledDB
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template, make_response, session, redirect
-from flask_cors import CORS
 from threading import Lock
 from flask_minify import Minify
 from flask_compress import Compress
@@ -36,12 +35,6 @@ app.config["SESSION_COOKIE_NAME"] = "iste_session"
 
 Compress(app)
 Minify(app=app, html=True, js=True, cssless=True)
-
-CORS(app,
-     origins=["https://iste-ws2k.onrender.com", "capacitor://localhost", "http://localhost", "http://localhost:5000", "capacitor://app.local", "null"],
-     supports_credentials=True,
-     allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 app.config["SECRET_KEY"] = os.environ["secret_key"]
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=2)
@@ -140,16 +133,6 @@ def token_required(f):
         request.user = payload
         return f(*args, **kwargs)
     return decorated
-
-@app.after_request
-def add_cors(response):
-    origin = request.headers.get("Origin", "")
-    if origin in ["https://iste-ws2k.onrender.com", "capacitor://localhost", "http://localhost", "http://localhost:5000", "capacitor://app.local", "null"]:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    return response
 
 @app.route("/")
 def serve_index():
@@ -305,15 +288,6 @@ def gen_captcha():
     code = "".join(random.choices(string.ascii_letters + "23456789" + "@#$&*", k=5))
     session["captcha_ans"] = code
     return jsonify({"captcha_val": code})
-
-@app.route("/student/captcha", methods=["POST"])
-@token_required
-def verify_captcha():
-    """Verifies the captcha answer against the session."""
-    user_ans = request.json.get("answer")
-    if user_ans and user_ans == session.get("captcha_ans", ""):
-        return jsonify({"status": "success"})
-    return jsonify({"error": "Invalid captcha"}), 403
 
 @app.route("/student/active", methods=["GET"])
 @token_required
