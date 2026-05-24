@@ -1,7 +1,7 @@
 {
   "name": "iste-portal",
-  "version": "1.1.0",
-  "description": "ISTE Mobile Client",
+  "version": "1.2.0",
+  "description": "ISTE",
   "main": "index.js",
   "scripts": {
     "build": "npx cap sync android"

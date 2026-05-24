@@ -284,16 +284,12 @@
         let _captchaAns = "";
         async function generateCaptcha() {
             try {
-                confirm(0)
                 const res = await fetch(`${BASE}/student/gen_captcha`);
-                confirm(4)
-                confirm(res.status)
                 data = await res.json();
                 _captchaAns = data.captcha_val;
                 drawAdvancedCaptcha("captchaCanvas", _captchaAns);
             } catch (err) {
                 alert(err);
-                alert(err.message)
                 console.error("Captcha load failed", err);
             }
         }

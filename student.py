@@ -178,6 +178,15 @@ def serve_test():
         return render_template("index.html")
     return render_template("test.html", user=ui)
 
+@app.route("/health")
+def health_check():
+    try:
+        conn = get_student_conn()
+        conn.close()
+        return jsonify({"status": "healthy", "timestamp": datetime.now(IST).isoformat()}), 200
+    except Exception as e:
+        return jsonify({"status": "unhealthy", "error": str(e)}), 503
+
 def get_my_info():
     try:
         token = request.cookies.get("token") or request.headers.get("Authorization")
