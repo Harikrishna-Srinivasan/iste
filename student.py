@@ -37,6 +37,20 @@ app.config["SESSION_COOKIE_NAME"] = "iste_session"
 Compress(app)
 Minify(app=app, html=True, js=True, cssless=True)
 
+CORS(app,
+     origins=[
+         "https://iste-ws2k.onrender.com",
+         "capacitor://localhost",
+         "capacitor://app.local", 
+         "https://app.local",
+         "http://localhost",
+         "http://localhost:5000",
+         "null"
+     ],
+     supports_credentials=True,
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+
 app.config["SECRET_KEY"] = os.environ["secret_key"]
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=2)
 app.config["SERVER_NAME"] = None
@@ -134,16 +148,6 @@ def token_required(f):
         request.user = payload
         return f(*args, **kwargs)
     return decorated
-
-@app.after_request
-def add_cors(response):
-    origin = request.headers.get("Origin", "")
-    if origin in ["https://iste-ws2k.onrender.com", "capacitor://localhost", "http://localhost", "http://localhost:5000", "capacitor://app.local", "null"]:
-        response.headers["Access-Control-Allow-Origin"] = origin if origin != "null" else "*"
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    return response
 
 @app.route("/")
 def serve_index():

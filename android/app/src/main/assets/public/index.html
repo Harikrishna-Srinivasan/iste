@@ -264,7 +264,7 @@
     </div>
 
     <script>
-        const isCapacitor = () => window.Capacitor?.Platform?.isNative || window.location.protocol === 'capacitor:';
+        const isCapacitor = () => { return window.Capacitor?.Platform?.isNative || window.location.hostname === 'app.local'; }
         const BASE = "https://iste-ws2k.onrender.com";
         let blockTimer = null;
         let loginBtn = document.getElementById('login-btn');
@@ -284,19 +284,16 @@
         let _captchaAns = "";
         async function generateCaptcha() {
             try {
-                let data;
-                if (isCapacitor()) {
-                    const { Http } = await import('@capacitor/http');
-                    const response = await Http.get({ url: `${BASE}/student/gen_captcha` });
-                    data = response.data;
-                } else {
-                    const res = await fetch(`${BASE}/student/gen_captcha`);
-                    data = await res.json();
-                }
+                confirm(0)
+                const res = await fetch(`${BASE}/student/gen_captcha`);
+                confirm(4)
+                confirm(res.status)
+                data = await res.json();
                 _captchaAns = data.captcha_val;
                 drawAdvancedCaptcha("captchaCanvas", _captchaAns);
             } catch (err) {
-                isCapacitor && alert(err);
+                alert(err);
+                alert(err.message)
                 console.error("Captcha load failed", err);
             }
         }
