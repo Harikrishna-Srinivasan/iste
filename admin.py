@@ -172,7 +172,7 @@ scheduler.add_job(func=background_checker, trigger="interval", minutes=3)
 scheduler.start()
 
 # ---------- Page routes ----------
-@app.route("/admin")
+@app.route("/")
 def serve_admin():
     token = request.cookies.get("token")
     payload = verify_token(token) if token else None
