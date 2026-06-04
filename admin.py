@@ -14,66 +14,58 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from apscheduler.schedulers.background import BackgroundScheduler
 from dbutils.pooled_db import PooledDB
-from dotenv import load_dotenv
+from flask import Blueprint, jsonify, make_response, render_template, request, session, current_app
 from firebase_admin import credentials, messaging
-from flask import (
-    Flask,
-    jsonify,
-    make_response,
-    render_template,
-    request,
-    session
-)
-from flask_compress import Compress
-from flask_cors import CORS
-from flask_minify import Minify
 
-load_dotenv()
-
-cred = credentials.Certificate(os.environ["firebase_json"])
-firebase_admin.initialize_app(cred)
-
-app = Flask(__name__, template_folder=".", static_folder=".", static_url_path="")
-Compress(app)
-Minify(app=app, html=True, js=True, cssless=True)
-
-CORS(app, supports_credentials=True)
-app.config["SECRET_KEY"] = os.environ["admin_secret_key"]
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=7)
+admin_bp = Blueprint('admin', __name__)
 
 IST = pytz.timezone("Asia/Kolkata")
 
-# ---------- Database pool ----------
-admin_pool = PooledDB(
-    creator=pymysql,
-    maxconnections=2,
-    blocking=True,
-    host=os.environ["host"],
-    port=int(os.environ["port"]),
-    user=os.environ["admin"],
-    password=os.environ["password"],
-    database=os.environ["db"],
-    autocommit=True,
-    charset="utf8mb4",
-)
-
-def get_admin_conn():
-    return admin_pool.connection()
-
-# ---------- Auth utilities ----------
+admin_pool = None
+get_admin_conn = None
 ph = PasswordHasher()
-JWT_SECRET = os.environ["admin_jwt_secret"]
-JWT_ALGO = "HS256"
+ADMIN_USER = None
+ADMIN_PASSWORD_HASH = None
+admin_failed_attempts = defaultdict(list)
+admin_rate_lock = Lock()
+scheduler = None
 
-ADMIN_USER = os.environ["admin"]
-ADMIN_PASSWORD_HASH = os.environ["admin_password"]
+def init_admin(app, db_env):
+    global admin_pool, get_admin_conn, ADMIN_USER, ADMIN_PASSWORD_HASH, scheduler
 
-failed_attempts = defaultdict(list)
-rate_lock = Lock()
+    if not firebase_admin._apps:
+        cred = credentials.Certificate(os.environ["firebase_json"])
+        firebase_admin.initialize_app(cred)
 
-def check_rate_limit(identifier, max_attempts=5, base_block_sec=240):
-    with rate_lock:
-        attempts = failed_attempts[identifier]
+    admin_pool = PooledDB(
+        creator=pymysql,
+        maxconnections=2,
+        blocking=True,
+        host=db_env["host"],
+        port=int(db_env["port"]),
+        user=db_env["admin_user"],
+        password=db_env["admin_password"],
+        database=db_env["db"],
+        autocommit=True,
+        charset="utf8mb4",
+    )
+
+    def _get_admin_conn():
+        return admin_pool.connection()
+    get_admin_conn = _get_admin_conn
+
+    ADMIN_USER = db_env["admin_user"]
+    ADMIN_PASSWORD_HASH = db_env["admin_password_hash"]
+
+    scheduler = BackgroundScheduler(timezone=IST)
+    scheduler.start()
+    _sync_all_future_alerts()
+    _start_background_checker()
+
+
+def _check_rate_limit(identifier, max_attempts=5, base_block_sec=240):
+    with admin_rate_lock:
+        attempts = admin_failed_attempts[identifier]
         if not attempts:
             return False, 0
         count = len(attempts)
@@ -86,34 +78,37 @@ def check_rate_limit(identifier, max_attempts=5, base_block_sec=240):
             wait = block_sec - (time.time() - last_attempt)
             return True, wait
         else:
-            failed_attempts[identifier] = []
+            admin_failed_attempts[identifier] = []
             return False, 0
 
-def record_failed_attempt(identifier):
-    with rate_lock:
-        failed_attempts[identifier].append(time.time())
-        if len(failed_attempts[identifier]) > 50:
-            failed_attempts[identifier] = failed_attempts[identifier][-50:]
+def _record_failed_attempt(identifier):
+    with admin_rate_lock:
+        admin_failed_attempts[identifier].append(time.time())
+        if len(admin_failed_attempts[identifier]) > 50:
+            admin_failed_attempts[identifier] = admin_failed_attempts[identifier][-50:]
 
-def reset_failed_attempts(identifier):
-    with rate_lock:
-        failed_attempts[identifier] = []
+def _reset_failed_attempts(identifier):
+    with admin_rate_lock:
+        admin_failed_attempts[identifier] = []
 
-def make_token(uid, is_admin=False):
+JWT_SECRET_ADMIN = None
+JWT_ALGO = "HS256"
+
+def admin_make_token(uid, is_admin=False):
     payload = {
         "user_id": uid,
         "is_admin": is_admin,
         "exp": datetime.now(timezone.utc) + timedelta(hours=7)
     }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
+    return jwt.encode(payload, JWT_SECRET_ADMIN, algorithm=JWT_ALGO)
 
-def verify_token(token):
+def admin_verify_token(token):
     try:
         if not token:
             return None
         if token.startswith('Bearer '):
             token = token[7:]
-        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
+        return jwt.decode(token, JWT_SECRET_ADMIN, algorithms=[JWT_ALGO])
     except:
         return None
 
@@ -123,7 +118,7 @@ def admin_required(f):
         token = request.cookies.get("token") or request.headers.get("Authorization")
         if not token:
             return jsonify({"error": "Missing token"}), 401
-        payload = verify_token(token)
+        payload = admin_verify_token(token)
         if not payload or not payload.get("is_admin"):
             return jsonify({"error": "Admin access required"}), 403
         request.user = payload
@@ -131,8 +126,8 @@ def admin_required(f):
     return decorated
 
 # ---------- Background scheduler (alerts) ----------
-def background_checker():
-    with app.app_context():
+def _background_checker():
+    with current_app.app_context():
         conn = get_admin_conn()
         cur = conn.cursor(pymysql.cursors.DictCursor)
         now_str = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
@@ -167,21 +162,19 @@ def background_checker():
         cur.close()
         conn.close()
 
-scheduler = BackgroundScheduler(timezone=IST)
-scheduler.add_job(func=background_checker, trigger="interval", minutes=3)
-scheduler.start()
+def _start_background_checker():
+    scheduler.add_job(func=_background_checker, trigger="interval", minutes=3)
 
 # ---------- Page routes ----------
-@app.route("/")
+@admin_bp.route("/admin")
 def serve_admin():
     token = request.cookies.get("token")
-    payload = verify_token(token) if token else None
+    payload = admin_verify_token(token) if token else None
     if not payload or not payload.get("is_admin"):
         return render_template("admin_login.html")
     return render_template("admin.html")
 
-# ---------- Admin login ----------
-@app.route("/admin/login", methods=["POST"])
+@admin_bp.route("/admin/login", methods=["POST"])
 def admin_login():
     body = request.json
     user = body.get("user")
@@ -190,12 +183,12 @@ def admin_login():
         return jsonify({"error": "Missing credentials"}), 400
 
     identifier = f"admin_{user}"
-    blocked, wait = check_rate_limit(identifier)
+    blocked, wait = _check_rate_limit(identifier)
     if blocked:
         return jsonify({"error": f"Too many attempts. Try again in {int(wait)} seconds."}), 429
 
     if user != ADMIN_USER:
-        record_failed_attempt(identifier)
+        _record_failed_attempt(identifier)
         return jsonify({"error": "Invalid credentials"}), 401
 
     captcha = body.get("captcha")
@@ -205,12 +198,12 @@ def admin_login():
     try:
         ph.verify(ADMIN_PASSWORD_HASH, password)
     except VerifyMismatchError:
-        record_failed_attempt(identifier)
+        _record_failed_attempt(identifier)
         return jsonify({"error": "Invalid credentials"}), 401
 
-    reset_failed_attempts(identifier)
+    _reset_failed_attempts(identifier)
     session.pop('captcha_ans', None)
-    token = make_token("admin", is_admin=True)
+    token = admin_make_token("admin", is_admin=True)
     session.permanent = True
     session["user_id"] = "admin"
     session["is_admin"] = True
@@ -218,22 +211,15 @@ def admin_login():
     resp.set_cookie("token", token, httponly=True, secure=False, samesite="Lax", max_age=timedelta(hours=6))
     return resp
 
-@app.route("/admin/gen_captcha")
+@admin_bp.route("/admin/gen_captcha")
 def gen_captcha():
     import random, string
     code = ''.join(random.choices(string.ascii_letters + "23456789" + "@#$&*", k=5))
     session['captcha_ans'] = code
     return jsonify({"captcha_val": code})
 
-@app.route("/logout")
-def logout():
-    session.clear()
-    resp = make_response(jsonify({"status": "Logged out"}))
-    resp.delete_cookie("token")
-    return resp
-
 # ---------- Question Bank ----------
-@app.route("/admin/upload_excel", methods=["POST"])
+@admin_bp.route("/admin/upload_excel", methods=["POST"])
 @admin_required
 def upload_excel():
     if "file" not in request.files:
@@ -349,7 +335,7 @@ def upload_excel():
     cur.close(); conn.close()
     return jsonify({"status": "success", "count": count, "ids": all_ids})
 
-@app.route("/admin/add_question", methods=["POST"])
+@admin_bp.route("/admin/add_question", methods=["POST"])
 @admin_required
 def add_question():
     data = request.json
@@ -391,7 +377,7 @@ def add_question():
     cur.close(); conn.close()
     return jsonify({"status": "success", "id": new_id})
 
-@app.route("/admin/questions", methods=["GET"])
+@admin_bp.route("/admin/questions", methods=["GET"])
 @admin_required
 def admin_questions():
     conn = get_admin_conn()
@@ -406,8 +392,8 @@ def admin_questions():
     return jsonify(rows)
 
 
+# ---------- Push notifications ----------
 def send_scheduled_push(aid, title, body, milestone):
-    """Worker function with a strict 'Send Once' lock."""
     conn = get_admin_conn()
     cur = conn.cursor()
     try:
@@ -425,7 +411,6 @@ def send_scheduled_push(aid, title, body, milestone):
         cur.close(); conn.close()
 
 def schedule_assessment_alerts(aid, title, start_at, reminders_raw):
-    """Calculates milestones and adds specific 'date' jobs to the scheduler."""
     if start_at.tzinfo is None: start_at = IST.localize(start_at)
 
     try:
@@ -459,8 +444,7 @@ def schedule_assessment_alerts(aid, title, start_at, reminders_raw):
                 replace_existing=True
             )
 
-def sync_all_future_alerts():
-    """Runs on startup to ensure all future assessments have their jobs in the scheduler."""
+def _sync_all_future_alerts():
     conn = get_admin_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
@@ -471,14 +455,7 @@ def sync_all_future_alerts():
     finally:
         cur.close(); conn.close()
 
-scheduler = BackgroundScheduler()
-scheduler.start()
-
-sync_all_future_alerts()
-
-
 def trigger_push_processing():
-    """Immediately start processing the push queue in a separate thread to avoid blocking the request."""
     Thread(target=process_push_queue).start()
 
 def process_push_queue():
@@ -532,7 +509,7 @@ def process_push_queue():
 
 
 # ---------- Assessments ----------
-@app.route("/admin/create_assessment", methods=["POST"])
+@admin_bp.route("/admin/create_assessment", methods=["POST"])
 @admin_required
 def create_assessment():
     data = request.json
@@ -568,7 +545,7 @@ def create_assessment():
 
     return jsonify({"status": "Assessment created"})
 
-@app.route("/admin/assessments", methods=["GET"])
+@admin_bp.route("/admin/assessments", methods=["GET"])
 @admin_required
 def admin_assessments_list():
     conn = get_admin_conn()
@@ -582,7 +559,7 @@ def admin_assessments_list():
     return jsonify(rows)
 
 # ---------- Results ----------
-@app.route("/admin/attempts", methods=["GET"])
+@admin_bp.route("/admin/attempts", methods=["GET"])
 @admin_required
 def admin_attempts():
     user_id = request.args.get("user_id")
@@ -615,7 +592,7 @@ def admin_attempts():
         r.pop("detailed_log", None)
     return jsonify(rows)
 
-@app.route("/admin/attempt_details/<int:uid>/<int:aid>", methods=["GET"])
+@admin_bp.route("/admin/attempt_details/<int:uid>/<int:aid>", methods=["GET"])
 @admin_required
 def admin_attempt_details(uid, aid):
     conn = get_admin_conn()
@@ -651,7 +628,7 @@ def admin_attempt_details(uid, aid):
         })
     return jsonify(result)
 
-@app.route("/admin/send_message", methods=["POST"])
+@admin_bp.route("/admin/send_message", methods=["POST"])
 @admin_required
 def send_message():
     data = request.json
@@ -680,13 +657,13 @@ def send_message():
             trigger_push_processing()
         return jsonify({"status": "Message queued successfully"})
     except Exception as e:
-        app.logger.error(f"Send message failed: {str(e)}")
+        current_app.logger.error(f"Send message failed: {str(e)}")
         return jsonify({"error": "Server error"}), 500
     finally:
         cur.close()
         conn.close()
 
-@app.route("/admin/students", methods=["GET"])
+@admin_bp.route("/admin/students", methods=["GET"])
 @admin_required
 def admin_students():
     conn = get_admin_conn()
@@ -709,7 +686,7 @@ def admin_students():
         cur.close()
         conn.close()
 
-@app.route("/admin/export_assessment/<int:aid>", methods=["GET"])
+@admin_bp.route("/admin/export_assessment/<int:aid>", methods=["GET"])
 @admin_required
 def export_assessment(aid):
     conn = get_admin_conn()
@@ -738,6 +715,3 @@ def export_assessment(aid):
             "submitted_at": r["submitted_at"].isoformat() if r["submitted_at"] else None
         })
     return jsonify(result)
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5002, debug=False, threaded=True)

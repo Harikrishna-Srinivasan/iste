@@ -14,77 +14,58 @@ from argon2.exceptions import VerifyMismatchError
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from dbutils.pooled_db import PooledDB
-from dotenv import load_dotenv
-from flask import Flask, request, jsonify, render_template, make_response, session, redirect
-from flask_cors import CORS
+from flask import Blueprint, request, jsonify, render_template, make_response, session, redirect, current_app
 from threading import Lock
-from flask_minify import Minify
-from flask_compress import Compress
 from functools import wraps
-from waitress import serve
 
-load_dotenv()
-
-app = Flask(__name__, template_folder=".", static_folder=".", static_url_path="")
-app.config.update(
-    SESSION_COOKIE_SECURE=True,
-    SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE="None",
-    SESSION_COOKIE_DOMAIN=None
-)
-app.config["SESSION_COOKIE_NAME"] = "iste_session"
-
-Compress(app)
-Minify(app=app, html=True, js=True, cssless=True)
-
-CORS(app,
-     origins=[
-         "https://iste-ws2k.onrender.com",
-         "capacitor://localhost",
-         "capacitor://app.local", 
-         "https://app.local",
-         "http://localhost",
-         "http://localhost:5000",
-         "null"
-     ],
-     supports_credentials=True,
-     allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
-
-app.config["SECRET_KEY"] = os.environ["secret_key"]
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=2)
-app.config["SERVER_NAME"] = None
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+student_bp = Blueprint('student', __name__)
 
 IST = pytz.timezone("Asia/Kolkata")
 ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "VII", 8: "VIII", 9: "IX", 10: "X"}
 
+student_pool = None
+get_student_conn = None
+ph = PasswordHasher()
+JWT_SECRET = None
+JWT_ALGO = "HS256"
+
 _active_cache = {"data": None, "expiry": datetime.min}
 _cache_lock = Lock()
 
-student_pool = PooledDB(
-    creator=pymysql,
-    maxconnections=50,
-    maxcached=20,
-    blocking=True,
-    host=os.environ["host"],
-    port=int(os.environ["port"]),
-    user=os.environ["student"],
-    password=os.environ["stud_pwd"],
-    database=os.environ["db"],
-    autocommit=True,
-    charset="utf8mb4"
-)
-
-def get_student_conn():
-    return student_pool.connection()
-
-ph = PasswordHasher()
-JWT_SECRET = os.environ["jwt_secret"]
-JWT_ALGO = "HS256"
-
 failed_attempts = defaultdict(list)
 rate_lock = Lock()
+
+get_admin_conn = None
+
+def init_student(app, env, admin_conn_fn):
+    global student_pool, get_student_conn, JWT_SECRET, get_admin_conn
+
+    app.config["SECRET_KEY"] = env["secret_key"]
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=2)
+    app.config["SERVER_NAME"] = None
+    app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+
+    student_pool = PooledDB(
+        creator=pymysql,
+        maxconnections=50,
+        maxcached=20,
+        blocking=True,
+        host=env["host"],
+        port=int(env["port"]),
+        user=env["student"],
+        password=env["stud_pwd"],
+        database=env["db"],
+        autocommit=True,
+        charset="utf8mb4"
+    )
+
+    def _get_student_conn():
+        return student_pool.connection()
+    get_student_conn = _get_student_conn
+
+    JWT_SECRET = env["jwt_secret"]
+    get_admin_conn = admin_conn_fn
+
 
 def check_rate_limit(identifier, max_attempts=5, base_block_sec=240):
     with rate_lock:
@@ -149,7 +130,7 @@ def token_required(f):
         return f(*args, **kwargs)
     return decorated
 
-@app.route("/")
+@student_bp.route("/")
 def serve_index():
     token = request.cookies.get("token")
     if token and verify_token(token):
@@ -158,34 +139,26 @@ def serve_index():
             return render_template("dashboard.html", user=ui)
     return render_template("index.html")
 
-@app.route("/dashboard")
+@student_bp.route("/dashboard")
 def serve_dashboard():
     token = request.cookies.get("token")
     if not token or not verify_token(token):
-        return render_template("index.html")
+        return redirect("/")
     ui = get_my_info()
     if "error" in ui:
-        return render_template("index.html")
+        return redirect("/")
     return render_template("dashboard.html", user=ui)
 
-@app.route("/test")
+@student_bp.route("/test")
 def serve_test():
     token = request.cookies.get("token")
     if not token or not verify_token(token):
-        return render_template("index.html")
-    ui = get_my_info()
-    if "error" in ui:
-        return render_template("index.html")
-    return render_template("test.html", user=ui)
+        return redirect("/")
+    return render_template("test.html")
 
-@app.route("/health")
-def health_check():
-    try:
-        conn = get_student_conn()
-        conn.close()
-        return jsonify({"status": "healthy", "timestamp": datetime.now(IST).isoformat()}), 200
-    except Exception as e:
-        return jsonify({"status": "unhealthy", "error": str(e)}), 503
+@student_bp.route("/health")
+def health():
+    return jsonify({"status": "ok"})
 
 def get_my_info():
     try:
@@ -219,13 +192,13 @@ def get_my_info():
     except:
         return {"error": "Unauthorized"}
 
-@app.route("/student/me", methods=["GET"])
+@student_bp.route("/student/me", methods=["GET"])
 def route_get_my_info():
     info = get_my_info()
     if "error" in info: return jsonify(info), 401
     return jsonify(info)
 
-@app.route("/student/register", methods=["POST"])
+@student_bp.route("/student/register", methods=["POST"])
 def student_register():
     body = request.json
     user_id = body.get("user_id")
@@ -250,7 +223,7 @@ def student_register():
     if year < 1 or year > 4:
         return jsonify({"error": "Year must be between 1 and 4"}), 400
 
-    conn = get_student_conn()
+    conn = get_admin_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
         cur.execute("SELECT user_id FROM users WHERE user_id=%s", (user_id,))
@@ -266,33 +239,35 @@ def student_register():
         conn.commit()
         return jsonify({"status": "Registration successful"}), 201
     except Exception as e:
-        app.logger.error(f"Registration failed: {str(e)}")
+        current_app.logger.error(f"Registration failed: {str(e)}")
         return jsonify({"error": "Server error"}), 500
     finally:
         cur.close()
         conn.close()
 
-@app.route("/student/login", methods=["POST"])
+@student_bp.route("/student/login", methods=["POST"])
 def student_login():
     body = request.json
     user_id = body.get("user_id")
     password = body.get("password")
-    if not user_id or not password: return jsonify({"error": "Missing credentials"}), 400
+    captcha = body.get("captcha")
+
+    if not user_id or not password:
+        return jsonify({"error": "Missing credentials"}), 400
 
     identifier = f"student_{user_id}"
     blocked, wait = check_rate_limit(identifier)
-
     if blocked:
-        w = (wait + 59) // 60
-        return jsonify({"error": f"Too many attempts. Try again in {w} minute{'s' if w != 1 else ''}.","blocked": True,"wait_seconds": wait}), 429
+        return jsonify({"error": f"Too many attempts. Try again in {int(wait)} seconds."}), 429
 
-    conn, cur = None, None
+    if not captcha or captcha != session.get('captcha_ans', ''):
+        return jsonify({"error": "Invalid security code"}), 403
+
+    conn = get_student_conn()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
-        conn = get_student_conn()
-        cur = conn.cursor(pymysql.cursors.DictCursor)
-        cur.execute("SELECT user_id, password FROM users WHERE user_id=%s", (user_id,))
+        cur.execute("SELECT user_id, name, password FROM users WHERE user_id=%s", (user_id,))
         user = cur.fetchone()
-
         if not user:
             record_failed_attempt(identifier)
             return jsonify({"error": "Invalid credentials"}), 401
@@ -304,293 +279,386 @@ def student_login():
             return jsonify({"error": "Invalid credentials"}), 401
 
         reset_failed_attempts(identifier)
-        token = make_token(user["user_id"], is_admin=False)
+        session.pop('captcha_ans', None)
+        token = make_token(user["user_id"])
         session.permanent = True
         session["user_id"] = user["user_id"]
-        session["is_admin"] = False
-
-        fcm_token = body.get("fcm_token")
-        if fcm_token:
-            try:
-                cur.execute(
-                    "INSERT INTO user_devices (user_id, fcm_token) VALUES (%s, %s) ON DUPLICATE KEY UPDATE fcm_token = VALUES(fcm_token)",
-                    (user["user_id"], fcm_token)
-                )
-                conn.commit()
-            except Exception as e:
-                app.logger.error(f"FCM registration failed: {str(e)}")
-
         resp = make_response(jsonify({"status": "Success"}))
-        resp.set_cookie("token", token, httponly=True, secure=True, samesite="None", max_age=timedelta(hours=2))
+        resp.set_cookie("token", token, httponly=True, secure=False, samesite="Lax", max_age=timedelta(hours=6))
         return resp
-    except Exception as e:
-        app.logger.error(f"Login failed: {str(e)}")
-        return jsonify({"error": "Server error"}), 500
     finally:
-        if cur: cur.close()
-        if conn: conn.close()
+        cur.close()
+        conn.close()
 
-@app.route("/logout")
+@student_bp.route("/logout")
 def logout():
     session.clear()
     resp = make_response(jsonify({"status": "Logged out"}))
     resp.delete_cookie("token")
     return resp
 
-@app.route("/student/register_device", methods=["POST"])
+@student_bp.route("/student/register_device", methods=["POST"])
 @token_required
 def register_device():
-    uid = request.user["user_id"]
-    token = request.json.get("fcm_token")
-    if not token: return jsonify({"error": "Missing token"}), 400
+    data = request.json
+    fcm_token = data.get("fcm_token")
+    if not fcm_token:
+        return jsonify({"error": "Missing fcm_token"}), 400
+
+    uid = request.user.get("user_id")
     conn = get_student_conn()
     cur = conn.cursor()
     try:
-        cur.execute("INSERT INTO user_devices (user_id, fcm_token) VALUES (%s, %s) ON DUPLICATE KEY UPDATE user_id = VALUES(user_id)", (uid, token))
+        cur.execute("INSERT INTO user_devices (user_id, fcm_token) VALUES (%s, %s) "
+                     "ON DUPLICATE KEY UPDATE fcm_token=%s", (uid, fcm_token, fcm_token))
         conn.commit()
+        return jsonify({"status": "registered"})
     finally:
         cur.close()
         conn.close()
-    return jsonify({"status": "success"})
 
-@app.route("/student/gen_captcha")
+@student_bp.route("/student/gen_captcha")
 def gen_captcha():
-    code = "".join(random.choices(string.ascii_letters + "23456789" + "@#$&*", k=5))
+    code = ''.join(random.choices(string.ascii_letters + "23456789" + "@#$&*", k=5))
+    session['captcha_ans'] = code
     return jsonify({"captcha_val": code})
 
-@app.route("/student/active", methods=["GET"])
+@student_bp.route("/student/active", methods=["GET"])
 @token_required
-def get_active_assessments():
-    uid = request.user["user_id"]
-    """Returns cached assessment list to prevent DB spam from 600 devices."""
-    global _active_cache
-    now = datetime.now()
-
-    rows = None
-    with _cache_lock:
-        if _active_cache["data"] and _active_cache["expiry"] > now:
-            rows = _active_cache["data"]
-
+def student_active():
     conn = get_student_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
-        if not rows:
-            cur.execute("""
-                SELECT id, title, type, seq_num, start_at, end_at, total_duration
-                FROM assessments
-                WHERE end_at >= NOW() ORDER BY start_at ASC
-            """)
-            rows = cur.fetchall()
-            for r in rows:
-                if r["start_at"]: r["start_at"] = r["start_at"].isoformat()
-                if r["end_at"]: r["end_at"] = r["end_at"].isoformat()
-
-            with _cache_lock:
-                _active_cache = {"data": rows, "expiry": now + timedelta(minutes=3)}
-
-        cur.execute("SELECT assessment_id FROM student_submissions WHERE user_id=%s", (uid,))
-        submitted = {r["assessment_id"] for r in cur.fetchall()}
-
-        result = []
+        now_str = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
+        cur.execute("""
+            SELECT id, title, type, seq_num, start_at, total_duration, reminders
+            FROM assessments WHERE start_at > %s ORDER BY start_at ASC
+        """, (now_str,))
+        rows = cur.fetchall()
         for r in rows:
-            copy = r.copy()
-            copy["is_attempted"] = r["id"] in submitted
-            result.append(copy)
-
-        return jsonify(result)
+            if r["start_at"]:
+                r["start_at"] = r["start_at"].isoformat()
+        return jsonify(rows)
     finally:
-        cur.close(); conn.close()
+        cur.close()
+        conn.close()
 
-@app.route("/student/upcoming_reminders", methods=["GET"])
+@student_bp.route("/student/upcoming_reminders", methods=["GET"])
 @token_required
 def upcoming_reminders():
-    uid = request.user["user_id"]
+    uid = request.user.get("user_id")
     conn = get_student_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
-        now = datetime.now(IST)
-        cur.execute("""
-            SELECT a.id, a.title, a.type, a.seq_num, a.start_at, a.reminders
-            FROM assessments a
-            LEFT JOIN student_submissions sub ON a.id = sub.assessment_id AND sub.user_id = %s
-            WHERE sub.assessment_id IS NULL AND a.end_at >= %s
-        """, (uid, now.strftime("%Y-%m-%d %H:%M:%S")))
-        assessments = cur.fetchall()
-        reminders = []
-        for a in assessments:
-            if not a.get("start_at"): continue
-            start = a["start_at"]
-            if start.tzinfo is None: start = IST.localize(start)
-            title = f"{a['type']} {a['seq_num']}: {a['title']}" if a.get("seq_num") else a["title"]
-            for rem_str in json.loads(a.get("reminders") or "[]"):
-                delta = timedelta()
-                for part in rem_str.split():
-                    if "d" in part: delta += timedelta(days=int(part[:-1]))
-                    elif "h" in part: delta += timedelta(hours=int(part[:-1]))
-                    elif "m" in part: delta += timedelta(minutes=int(part[:-1]))
-                trigger_time = start - delta
-                if trigger_time > now:
-                    reminders.append({"id": f"{a['id']}_{rem_str}", "title": title, "body": f"Starts in {rem_str}", "trigger_at": trigger_time.isoformat(), "assessment_id": a["id"], "reminder_str": rem_str})
-        return jsonify(reminders)
-    finally:
-        cur.close()
-        conn.close()
+        now_str = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
+        cur.execute("SELECT id, title, start_at, reminders FROM assessments WHERE start_at > %s", (now_str,))
+        upcoming = cur.fetchall()
 
-@app.route("/student/notification_sent", methods=["POST"])
-@token_required
-def notification_sent():
-    uid = request.user["user_id"]
-    data = request.json
-    conn = get_student_conn()
-    cur = conn.cursor()
-    try:
-        cur.execute("INSERT INTO sent_notifications (user_id, assessment_id, reminder_str) VALUES (%s, %s, %s)", (uid, data.get("assessment_id"), data.get("reminder_str")))
-        conn.commit()
-        return jsonify({"status": "success"})
-    finally:
-        cur.close()
-        conn.close()
+        cur.execute("SELECT assessment_id FROM student_submissions WHERE user_id=%s", (uid,))
+        submitted = {row["assessment_id"] for row in cur.fetchall()}
 
-@app.route("/get_pending_notifications", methods=["GET"])
-@token_required
-def get_pending_notifications():
-    uid = request.user["user_id"]
-    conn = get_student_conn()
-    cur = conn.cursor(pymysql.cursors.DictCursor)
-    try:
-        cur.execute("SELECT id, title, start_at, total_duration, reminders FROM assessments WHERE start_at > NOW() - INTERVAL 1 DAY")
-        assessments = cur.fetchall()
-        cur.execute("SELECT assessment_id, reminder_str FROM sent_notifications WHERE user_id = %s", (uid,))
-        sent_data = {row["assessment_id"]: row["reminder_str"] for row in cur.fetchall()}
+        notifications = []
+        for a in upcoming:
+            if a["id"] in submitted:
+                continue
+            reminders = json.loads(a["reminders"]) if a.get("reminders") else []
+            start_at = a["start_at"]
+            if start_at.tzinfo is None:
+                start_at = IST.localize(start_at)
+            sec_diff = (start_at - datetime.now(IST)).total_seconds()
 
-        pending = []
-        now = datetime.now(IST)
-        for a in assessments:
-            aid, start_at = a["id"], a["start_at"]
-            if start_at.tzinfo is None: start_at = IST.localize(start_at)
-            reminders = json.loads(a.get("reminders") or "[]") if isinstance(a.get("reminders"), str) else (a.get("reminders") or [])
-            latest_milestone = "CREATED"
+            if 0 < sec_diff <= 20:
+                notifications.append({"title": f"Starting Soon: {a['title']}", "body": "The assessment is starting in just a few seconds! Tap here to join."})
+
             for r in reminders:
                 r_sec = 0
                 if "d" in r: r_sec = int(r[:-1]) * 86400
                 elif "h" in r: r_sec = int(r[:-1]) * 3600
                 elif "m" in r: r_sec = int(r[:-1]) * 60
 
-                if now >= (start_at - timedelta(seconds=r_sec)):
-                    latest_milestone = f"REMINDER_{r}"
+                if 0 < (sec_diff - r_sec) <= 65:
+                    notifications.append({"title": f"Reminder: {a['title']}", "body": f"Your assessment starts in {r}. Tap here to prepare."})
 
-            if now >= (start_at - timedelta(seconds=15)): latest_milestone = "STARTED"
-
-            if sent_data.get(aid) != latest_milestone and (now < start_at + timedelta(minutes=a["total_duration"] or 60)):
-                pending.append({"assessment_id": aid, "title": a["title"], "milestone": latest_milestone})
-        return jsonify(pending)
+        return jsonify(notifications)
     finally:
         cur.close()
         conn.close()
 
-@app.route("/ack_notification", methods=["POST"])
+@student_bp.route("/student/notification_sent", methods=["POST"])
 @token_required
-def ack_notification():
-    uid = request.user["user_id"]
+def mark_notification_sent():
+    uid = request.user.get("user_id")
     data = request.json
-    if not data.get("assessment_id") or not data.get("milestone"): return jsonify({"error": "Bad request"}), 400
+    aid = data.get("assessment_id")
+    title = data.get("title")
+    if not aid or not title:
+        return jsonify({"error": "Missing data"}), 400
+
     conn = get_student_conn()
     cur = conn.cursor()
     try:
-        cur.execute("INSERT INTO sent_notifications (user_id, assessment_id, reminder_str, sent_at) VALUES (%s, %s, %s, NOW()) ON DUPLICATE KEY UPDATE reminder_str = VALUES(reminder_str), sent_at = NOW()", (uid, data.get("assessment_id"), data.get("milestone")))
+        cur.execute("INSERT IGNORE INTO sent_notifications (user_id, assessment_id, reminder_str, sent_at) VALUES (%s, %s, %s, NOW())",
+                     (uid, aid, title))
         conn.commit()
-        return jsonify({"success": True})
+        return jsonify({"status": "marked"})
     finally:
         cur.close()
         conn.close()
 
-@app.route("/student/questions/<int:aid>", methods=["GET"])
+@student_bp.route("/get_pending_notifications", methods=["GET"])
+def get_pending_notifications():
+    if "user_id" not in session:
+        return jsonify([])
+
+    uid = session["user_id"]
+    conn = get_student_conn()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cur.execute("SELECT assessment_id, reminder_str FROM sent_notifications WHERE user_id=%s", (uid,))
+        sent = {(row["assessment_id"], row["reminder_str"]) for row in cur.fetchall()}
+
+        now_str = datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
+        cur.execute("SELECT id, title, start_at, reminders FROM assessments WHERE start_at > %s", (now_str,))
+        upcoming = cur.fetchall()
+
+        cur.execute("SELECT assessment_id FROM student_submissions WHERE user_id=%s", (uid,))
+        submitted = {row["assessment_id"] for row in cur.fetchall()}
+
+        notifications = []
+        for a in upcoming:
+            if a["id"] in submitted:
+                continue
+            reminders = json.loads(a["reminders"]) if a.get("reminders") else []
+            start_at = a["start_at"]
+            if start_at.tzinfo is None:
+                start_at = IST.localize(start_at)
+            sec_diff = (start_at - datetime.now(IST)).total_seconds()
+
+            if 0 < sec_diff <= 20:
+                key = (a["id"], f"Starting Soon: {a['title']}")
+                if key not in sent:
+                    notifications.append({"title": f"Starting Soon: {a['title']}", "body": "The assessment is starting in just a few seconds! Tap here to join.", "assessment_id": a["id"]})
+
+            for r in reminders:
+                r_sec = 0
+                if "d" in r: r_sec = int(r[:-1]) * 86400
+                elif "h" in r: r_sec = int(r[:-1]) * 3600
+                elif "m" in r: r_sec = int(r[:-1]) * 60
+
+                if 0 < (sec_diff - r_sec) <= 65:
+                    reminder_title = f"Reminder: {a['title']}"
+                    key = (a["id"], reminder_title)
+                    if key not in sent:
+                        notifications.append({"title": reminder_title, "body": f"Your assessment starts in {r}. Tap here to prepare.", "assessment_id": a["id"]})
+
+        return jsonify(notifications)
+    finally:
+        cur.close()
+        conn.close()
+
+@student_bp.route("/ack_notification", methods=["POST"])
+def ack_notification():
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    uid = session["user_id"]
+    data = request.json
+    aid = data.get("assessment_id")
+    title = data.get("title")
+    if not aid or not title:
+        return jsonify({"error": "Missing data"}), 400
+
+    conn = get_student_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("INSERT IGNORE INTO sent_notifications (user_id, assessment_id, reminder_str, sent_at) VALUES (%s, %s, %s, NOW())",
+                     (uid, aid, title))
+        conn.commit()
+        return jsonify({"status": "acknowledged"})
+    finally:
+        cur.close()
+        conn.close()
+
+@student_bp.route("/student/questions/<int:aid>", methods=["GET"])
 @token_required
 def get_questions(aid):
-    uid = request.user["user_id"]
+    uid = request.user.get("user_id")
     conn = get_student_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
-        cur.execute("SELECT user_id FROM student_submissions WHERE user_id=%s AND assessment_id=%s", (uid, aid))
-        if cur.fetchone(): return jsonify({"error": "Already submitted"}), 403
+        cur.execute("SELECT start_at, total_duration, title FROM assessments WHERE id=%s", (aid,))
+        assessment = cur.fetchone()
+        if not assessment:
+            return jsonify({"error": "Assessment not found"}), 404
 
-        cur.execute("SELECT q.id, q.type, q.question, q.answer, q.mark, q.negative_mark FROM assessment_questions aq JOIN questions q ON aq.question_id = q.id WHERE aq.assessment_id = %s", (aid,))
-        rows = cur.fetchall()
-        if not rows: return jsonify({"error": "No questions found"}), 404
+        start_at = assessment["start_at"]
+        if start_at.tzinfo is None:
+            start_at = IST.localize(start_at)
+        now = datetime.now(IST)
+        if now < start_at:
+            return jsonify({"error": "Assessment not started"}), 403
 
-        formatted = []
-        for r in rows:
-            ans = json.loads(r["answer"]) if isinstance(r["answer"], str) else (r["answer"].decode("utf-8") if isinstance(r["answer"], bytes) else r["answer"])
-            q_dict = {"id": r["id"], "type": r["type"], "question": r["question"], "mark": float(r.get("mark", 1)), "negative_mark": float(r.get("negative_mark", 0))}
-            if r["type"] in ("MCQ", "MSQ"): q_dict["options"] = ans.get("options", [])
-            formatted.append(q_dict)
-        return jsonify(formatted)
-    finally:
-        cur.close()
-        conn.close()
+        end_at = start_at + timedelta(minutes=assessment["total_duration"])
+        if now > end_at:
+            return jsonify({"error": "Assessment ended"}), 403
 
-@app.route("/student/submit", methods=["POST"])
-@token_required
-def submit_test():
-    uid = request.user["user_id"]
-    if request.user.get("is_admin"): return jsonify({"error": "Admins cannot submit"}), 403
-    body = request.json
-    aid = body.get("assessment_id")
-    conn = get_student_conn()
-    cur = conn.cursor(pymysql.cursors.DictCursor)
-    try:
-        cur.execute("SELECT user_id FROM student_submissions WHERE user_id=%s AND assessment_id=%s", (uid, aid))
-        if cur.fetchone(): return jsonify({"error": "Already submitted"}), 403
-
-        cur.execute("SELECT q.id, q.type, q.mark, q.negative_mark, q.answer FROM assessment_questions aq JOIN questions q ON aq.question_id = q.id WHERE aq.assessment_id = %s", (aid,))
+        cur.execute("SELECT q.id, q.question, q.type, q.answer, q.mark, q.negative_mark "
+                     "FROM assessment_questions aq "
+                     "JOIN questions q ON aq.question_id=q.id "
+                     "WHERE aq.assessment_id=%s", (aid,))
         questions = cur.fetchall()
-        total_score, total_time, detailed_log = 0.0, 0, {}
+
+        cur.execute("SELECT detailed_log FROM student_submissions WHERE user_id=%s AND assessment_id=%s", (uid, aid))
+        sub = cur.fetchone()
+        log = json.loads(sub["detailed_log"]) if sub and sub.get("detailed_log") else {}
 
         for q in questions:
             qid = str(q["id"])
-            correct = json.loads(q["answer"]) if isinstance(q["answer"], str) else q["answer"]
-            resp = body.get("responses", {}).get(qid, {})
-            time_taken = int(body.get("times", {}).get(qid, 0))
-            score = 0.0
-            if resp:
-                is_correct = False
-                try:
-                    if q["type"] == "MCQ": is_correct = (resp.get("selected_id") == correct.get("correct_id"))
-                    elif q["type"] == "MSQ": is_correct = (set(resp.get("selected_ids", [])) == set(correct.get("correct_ids", [])) and len(resp.get("selected_ids", [])) > 0)
-                    elif q["type"] == "INT": is_correct = (int(resp.get("value", 0)) == int(correct.get("value", 0)))
-                    elif q["type"] == "NUM":
-                        v = float(resp.get("value", 0))
-                        is_correct = correct["range"][0] <= v <= correct["range"][1] if "range" in correct else abs(v - float(correct.get("value", 0))) <= float(correct.get("tolerance", 0.1))
+            if qid in log:
+                q["student_response"] = log[qid].get("resp", {})
+            else:
+                q["student_response"] = {}
+            if isinstance(q["answer"], str):
+                try: q["answer"] = json.loads(q["answer"])
                 except: pass
-                score = float(q["mark"]) if is_correct else -float(q["negative_mark"])
-            total_score += score
-            total_time += time_taken
-            detailed_log[qid] = {"score": score, "time": time_taken, "resp": resp if resp else {}}
 
-        cur.execute("INSERT INTO student_submissions (user_id, assessment_id, total_score, total_time_sec, detailed_log, submitted_at) VALUES (%s, %s, %s, %s, %s, %s)", (uid, aid, total_score, total_time, json.dumps(detailed_log), datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")))
-        conn.commit()
-        return jsonify({"status": "Success"})
+        return jsonify({
+            "assessment_id": aid,
+            "title": assessment["title"],
+            "total_duration": assessment["total_duration"],
+            "start_at": start_at.isoformat(),
+            "end_at": end_at.isoformat(),
+            "questions": questions
+        })
     finally:
         cur.close()
         conn.close()
 
-@app.route("/student/attempts", methods=["GET"])
+@student_bp.route("/student/submit", methods=["POST"])
 @token_required
-def student_history():
-    uid = request.user["user_id"]
+def submit_assessment():
+    if request.user.get("is_admin"):
+        return jsonify({"error": "Admins cannot submit"}), 403
+
+    uid = request.user.get("user_id")
+    data = request.json
+    aid = data.get("assessment_id")
+    responses = data.get("responses", {})
+    time_taken = data.get("time_taken_sec", 0)
+
+    if not aid:
+        return jsonify({"error": "Missing assessment_id"}), 400
+
     conn = get_student_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
-        cur.execute("SELECT a.title, a.type, a.seq_num, a.start_at, a.end_at, a.total_duration, a.id as assessment_id, IFNULL(sub.total_score, 0) as total_score, IFNULL(sub.total_time_sec, 0) as total_time_taken_sec, IF(sub.user_id IS NOT NULL, 1, 0) as is_attempted, sub.detailed_log, (SELECT COUNT(*) FROM assessment_questions aq WHERE aq.assessment_id = a.id) as total_questions, (SELECT SUM(q2.mark) FROM assessment_questions aq2 JOIN questions q2 ON aq2.question_id = q2.id WHERE aq2.assessment_id = a.id) as max_marks FROM assessments a LEFT JOIN student_submissions sub ON a.id = sub.assessment_id AND sub.user_id = %s WHERE a.start_at <= %s OR sub.user_id IS NOT NULL ORDER BY a.start_at DESC", (uid, datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")))
-        rows, now = cur.fetchall(), datetime.now(IST)
+        cur.execute("SELECT id FROM student_submissions WHERE user_id=%s AND assessment_id=%s", (uid, aid))
+        if cur.fetchone():
+            return jsonify({"error": "Already submitted"}), 409
+
+        cur.execute("SELECT q.id, q.answer, q.mark, q.negative_mark, q.type "
+                     "FROM assessment_questions aq "
+                     "JOIN questions q ON aq.question_id=q.id "
+                     "WHERE aq.assessment_id=%s", (aid,))
+        questions = cur.fetchall()
+
+        total_score = 0
+        detailed_log = {}
+
+        for q in questions:
+            qid = str(q["id"])
+            correct = q["answer"]
+            if isinstance(correct, str):
+                try: correct = json.loads(correct)
+                except: pass
+
+            resp = responses.get(qid, {})
+            score = 0
+
+            if q["type"] == "MCQ":
+                student_ans = resp.get("option_id") if isinstance(resp, dict) else resp
+                correct_id = correct.get("correct_id") if isinstance(correct, dict) else None
+                if student_ans is not None and correct_id is not None and int(student_ans) == int(correct_id):
+                    score = q["mark"]
+                else:
+                    score = -q["negative_mark"]
+            elif q["type"] == "MSQ":
+                student_ids = set(resp.get("option_ids", [])) if isinstance(resp, dict) else set()
+                correct_ids = set(correct.get("correct_ids", [])) if isinstance(correct, dict) else set()
+                if student_ids and student_ids == correct_ids:
+                    score = q["mark"]
+                elif student_ids:
+                    score = -q["negative_mark"]
+            elif q["type"] == "INT":
+                try:
+                    if int(resp) == int(correct.get("value", -999999) if isinstance(correct, dict) else correct):
+                        score = q["mark"]
+                    else:
+                        score = -q["negative_mark"]
+                except: score = -q["negative_mark"]
+            elif q["type"] == "NUM":
+                try:
+                    val = float(resp)
+                    if isinstance(correct, dict):
+                        if "range" in correct:
+                            if correct["range"][0] <= val <= correct["range"][1]:
+                                score = q["mark"]
+                            else:
+                                score = -q["negative_mark"]
+                        else:
+                            if val == float(correct.get("value", -999999)):
+                                score = q["mark"]
+                            else:
+                                score = -q["negative_mark"]
+                    else:
+                        if val == float(correct):
+                            score = q["mark"]
+                        else:
+                            score = -q["negative_mark"]
+                except: score = -q["negative_mark"]
+
+            total_score += score
+            detailed_log[qid] = {"resp": resp, "score": score, "time": 0}
+
+        cur.execute(
+            "INSERT INTO student_submissions (user_id, assessment_id, total_score, total_time_sec, detailed_log, submitted_at) "
+            "VALUES (%s, %s, %s, %s, %s, NOW())",
+            (uid, aid, total_score, time_taken, json.dumps(detailed_log))
+        )
+        conn.commit()
+        return jsonify({"status": "submitted", "total_score": total_score})
+    except Exception as e:
+        current_app.logger.error(f"Submit failed: {str(e)}")
+        return jsonify({"error": "Server error"}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@student_bp.route("/student/attempts", methods=["GET"])
+@token_required
+def student_attempts():
+    uid = request.user.get("user_id")
+    conn = get_student_conn()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cur.execute("""
+            SELECT a.id as assessment_id, a.title, a.type, a.seq_num,
+                   IFNULL(sub.total_score,0) as total_score,
+                   IFNULL(sub.total_time_sec,0) as total_time_sec,
+                   sub.submitted_at, sub.detailed_log,
+                   (SELECT COUNT(*) FROM assessment_questions aq WHERE aq.assessment_id=a.id) as total_questions,
+                   (SELECT SUM(q.mark) FROM assessment_questions aq2 JOIN questions q ON aq2.question_id=q.id WHERE aq2.assessment_id=a.id) as max_marks
+            FROM assessments a
+            LEFT JOIN student_submissions sub ON sub.assessment_id=a.id AND sub.user_id=%s
+            ORDER BY a.start_at DESC
+        """, (uid,))
+        rows = cur.fetchall()
         for r in rows:
-            r["results_available"] = now > IST.localize(r["end_at"] + timedelta(minutes=(r["total_duration"] or 60))) if r["end_at"] else True
-            if r["start_at"]: r["start_at"] = r["start_at"].isoformat()
-            if r["end_at"]: r["end_at"] = r["end_at"].isoformat()
+            if r["submitted_at"]:
+                r["submitted_at"] = r["submitted_at"].isoformat()
             if r.get("detailed_log"):
                 log = json.loads(r["detailed_log"]) if isinstance(r["detailed_log"], str) else r["detailed_log"]
-                attended = sum(1 for v in log.values() if v.get("resp"))
-                r["attended"] = attended
+                r["attended"] = sum(1 for v in log.values() if v.get("resp"))
             else:
                 r["attended"] = 0
             r.pop("detailed_log", None)
@@ -599,32 +667,43 @@ def student_history():
         cur.close()
         conn.close()
 
-@app.route("/student/attempt_details/<int:aid>", methods=["GET"])
+@student_bp.route("/student/attempt_details/<int:aid>", methods=["GET"])
 @token_required
 def student_attempt_details(aid):
-    uid = request.user["user_id"]
+    uid = request.user.get("user_id")
     conn = get_student_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
-        cur.execute("SELECT start_at, total_duration FROM assessments WHERE id=%s", (aid,))
-        a = cur.fetchone()
-        if not a: return jsonify({"error": "Not found"}), 404
-        if datetime.now(IST) < IST.localize(a["start_at"] + timedelta(minutes=(a["total_duration"] or 60))): return jsonify({"error": "Results pending"}), 403
-
         cur.execute("SELECT detailed_log FROM student_submissions WHERE user_id=%s AND assessment_id=%s", (uid, aid))
         sub = cur.fetchone()
-        log_data = json.loads(sub["detailed_log"]) if sub else {}
+        log = json.loads(sub["detailed_log"]) if sub and sub.get("detailed_log") else {}
 
-        cur.execute("SELECT q.id, q.question, q.type, q.answer as correct_answer, q.mark, q.negative_mark FROM assessment_questions aq JOIN questions q ON aq.question_id = q.id WHERE aq.assessment_id = %s", (aid,))
+        cur.execute("""
+            SELECT q.id, q.question, q.type, q.answer as correct_answer, q.mark, q.negative_mark
+            FROM assessment_questions aq
+            JOIN questions q ON aq.question_id=q.id
+            WHERE aq.assessment_id=%s
+        """, (aid,))
+        questions = cur.fetchall()
+
         result = []
-        for q in cur.fetchall():
+        for q in questions:
             qid = str(q["id"])
-            q_log = log_data.get(qid, {})
-            result.append({"question": q["question"], "type": q["type"], "mark": q["mark"], "negative_mark": q["negative_mark"], "correct_answer": json.loads(q["correct_answer"]) if isinstance(q["correct_answer"], str) else q["correct_answer"], "student_response": q_log.get("resp", {}), "score": q_log.get("score", 0), "time_taken_sec": q_log.get("time", 0)})
+            q_log = log.get(qid, {})
+            correct = q["correct_answer"]
+            if isinstance(correct, str):
+                correct = json.loads(correct)
+            result.append({
+                "question": q["question"],
+                "type": q["type"],
+                "mark": q["mark"],
+                "negative_mark": q["negative_mark"],
+                "correct_answer": correct,
+                "student_response": q_log.get("resp", {}),
+                "score": q_log.get("score", 0),
+                "time_taken_sec": q_log.get("time", 0)
+            })
         return jsonify(result)
     finally:
         cur.close()
         conn.close()
-
-if __name__ == "__main__":
-    serve(app, host="0.0.0.0", threads=64, port=5000)
