@@ -225,6 +225,53 @@ def route_get_my_info():
     if "error" in info: return jsonify(info), 401
     return jsonify(info)
 
+@app.route("/student/register", methods=["POST"])
+def student_register():
+    body = request.json
+    user_id = body.get("user_id")
+    password = body.get("password")
+    name = body.get("name", "").strip()
+    year = body.get("year")
+    degree = body.get("degree", "").strip()
+    stream = body.get("stream", "").strip()
+
+    if not user_id or not password or not name or not year or not degree:
+        return jsonify({"error": "All required fields must be filled"}), 400
+
+    if len(password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters"}), 400
+
+    try:
+        user_id = int(user_id)
+        year = int(year)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid user_id or year"}), 400
+
+    if year < 1 or year > 4:
+        return jsonify({"error": "Year must be between 1 and 4"}), 400
+
+    conn = get_student_conn()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cur.execute("SELECT user_id FROM users WHERE user_id=%s", (user_id,))
+        if cur.fetchone():
+            return jsonify({"error": "Registration ID already exists"}), 409
+
+        hashed = ph.hash(password)
+        details = {"year": year, "degree": degree, "stream": stream}
+        cur.execute(
+            "INSERT INTO users (user_id, name, details, password) VALUES (%s, %s, %s, %s)",
+            (user_id, name, json.dumps(details), hashed)
+        )
+        conn.commit()
+        return jsonify({"status": "Registration successful"}), 201
+    except Exception as e:
+        app.logger.error(f"Registration failed: {str(e)}")
+        return jsonify({"error": "Server error"}), 500
+    finally:
+        cur.close()
+        conn.close()
+
 @app.route("/student/login", methods=["POST"])
 def student_login():
     body = request.json
@@ -534,12 +581,19 @@ def student_history():
     conn = get_student_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
-        cur.execute("SELECT a.title, a.type, a.seq_num, a.start_at, a.end_at, a.total_duration, a.id as assessment_id, IFNULL(sub.total_score, 0) as total_score, IFNULL(sub.total_time_sec, 0) as total_time_taken_sec, IF(sub.user_id IS NOT NULL, 1, 0) as is_attempted, (SELECT COUNT(*) FROM assessment_questions aq WHERE aq.assessment_id = a.id) as total_questions, (SELECT SUM(q2.mark) FROM assessment_questions aq2 JOIN questions q2 ON aq2.question_id = q2.id WHERE aq2.assessment_id = a.id) as max_marks FROM assessments a LEFT JOIN student_submissions sub ON a.id = sub.assessment_id AND sub.user_id = %s WHERE a.start_at <= %s OR sub.user_id IS NOT NULL ORDER BY a.start_at DESC", (uid, datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")))
+        cur.execute("SELECT a.title, a.type, a.seq_num, a.start_at, a.end_at, a.total_duration, a.id as assessment_id, IFNULL(sub.total_score, 0) as total_score, IFNULL(sub.total_time_sec, 0) as total_time_taken_sec, IF(sub.user_id IS NOT NULL, 1, 0) as is_attempted, sub.detailed_log, (SELECT COUNT(*) FROM assessment_questions aq WHERE aq.assessment_id = a.id) as total_questions, (SELECT SUM(q2.mark) FROM assessment_questions aq2 JOIN questions q2 ON aq2.question_id = q2.id WHERE aq2.assessment_id = a.id) as max_marks FROM assessments a LEFT JOIN student_submissions sub ON a.id = sub.assessment_id AND sub.user_id = %s WHERE a.start_at <= %s OR sub.user_id IS NOT NULL ORDER BY a.start_at DESC", (uid, datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")))
         rows, now = cur.fetchall(), datetime.now(IST)
         for r in rows:
             r["results_available"] = now > IST.localize(r["end_at"] + timedelta(minutes=(r["total_duration"] or 60))) if r["end_at"] else True
             if r["start_at"]: r["start_at"] = r["start_at"].isoformat()
             if r["end_at"]: r["end_at"] = r["end_at"].isoformat()
+            if r.get("detailed_log"):
+                log = json.loads(r["detailed_log"]) if isinstance(r["detailed_log"], str) else r["detailed_log"]
+                attended = sum(1 for v in log.values() if v.get("resp"))
+                r["attended"] = attended
+            else:
+                r["attended"] = 0
+            r.pop("detailed_log", None)
         return jsonify(rows)
     finally:
         cur.close()

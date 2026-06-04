@@ -85,7 +85,7 @@
             box-shadow: 0 5px 25px rgba(0, 0, 0, 0.05);
             border: 1px solid var(--border);
             position: relative;
-            overflow: hidden;
+            overflow: visible;
             width: 100%;
         }
 
@@ -235,6 +235,7 @@
                 margin: 0 0 20px 0;
                 border-radius: 8px;
                 padding: 15px;
+                overflow-x: auto;
             }
 
             .full {
@@ -242,9 +243,30 @@
             }
 
             .nav {
+                position: sticky;
+                top: 0;
+                z-index: 100;
                 flex-direction: column;
                 text-align: center;
                 gap: 15px;
+            }
+
+            .perf-table-wrapper, .students-table-wrapper {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            h3 {
+                font-size: 16px;
+            }
+
+            input, select, textarea {
+                font-size: 13px;
+            }
+
+            .btn-action {
+                padding: 8px 12px;
+                font-size: 11px;
             }
         }
     </style>
@@ -476,6 +498,7 @@
                         <tr style="background: #f0f4f8; border-bottom: 2px solid var(--border);">
                             <th scope="col" style="padding: 12px 15px;">Student</th>
                             <th scope="col" style="padding: 12px 15px;">Assessment</th>
+                            <th scope="col" style="padding: 12px 15px;">Attended</th>
                             <th scope="col" style="padding: 12px 15px;">Score</th>
                             <th scope="col" style="padding: 12px 15px;">Time Taken</th>
                             <th scope="col" style="padding: 12px 15px;">Action</th>
@@ -483,7 +506,7 @@
                     </thead>
                     <tbody id="perf-table-body" style="contain: layout;">
                         <tr>
-                            <td colspan="5" style="padding:20px; text-align:center; color:#777;">Click 'Fetch' to
+                            <td colspan="6" style="padding:20px; text-align:center; color:#777;">Click 'Fetch' to
                                 load student data.</td>
                         </tr>
                     </tbody>
@@ -505,6 +528,31 @@
             </p>
             <div id="qb-container">
                 <div style="text-align:center; padding: 20px; color: #666;">Fetching active questions...</div>
+            </div>
+        </section>
+
+        <section class="card full" style="border-top: 5px solid #1565c0;">
+            <h3 style="color: #1565c0;">Send Message to Students (FCM)</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Schedule a push notification to be delivered to all registered students via FCM.</p>
+            <label for="msg-title">Notification Title</label>
+            <input type="text" id="msg-title" placeholder="e.g. Important Announcement">
+            <label for="msg-body">Message Body</label>
+            <textarea id="msg-body" rows="3" placeholder="Type your message here..."></textarea>
+            <label for="msg-schedule">Schedule For (leave empty for no scheduling)</label>
+            <input type="datetime-local" id="msg-schedule">
+            <button class="btn-action" style="background: #1565c0;" onclick="scheduleMessage()">Schedule Message</button>
+            <div id="msg-status" class="status-msg" aria-live="polite"></div>
+        </section>
+
+        <section class="card full" style="border-top: 5px solid #e65100;">
+            <h3 style="color: #e65100;">All Registered Students</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Complete list of all students registered in the system.</p>
+            <div id="students-status" class="status-msg" aria-live="polite"></div>
+            <div style="margin-bottom: 15px;">
+                <button class="btn-action" style="background: #e65100; padding: 10px 20px; width: auto; display: inline-block;" onclick="fetchStudents()">Load Student List</button>
+            </div>
+            <div id="students-container" style="margin-top: 10px;">
+                <div style="text-align:center; padding: 20px; color: #666;">Click "Load Student List" to view all registered students.</div>
             </div>
         </section>
     </main>
@@ -947,7 +995,7 @@
             }
 
             const uid = document.getElementById('search-uid').value.trim();
-            document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='5' style='text-align:center; padding: 20px;'>Loading Logs...</td></tr>";
+                document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='6' style='text-align:center; padding: 20px;'>Loading Logs...</td></tr>";
 
             try {
                 const res = await fetch(`/admin/attempts${uid ? '?user_id=' + uid : ''}`);
@@ -955,27 +1003,25 @@
 
                 if (data.error) {
                     showStatus(statusEl, data.error, "error");
-                    document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='5'></td></tr>";
+                    document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='6'></td></tr>";
                     return;
                 }
 
                 if (data.length === 0) {
-                    document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='5' style='text-align:center; padding: 20px; color: #666;'>No attempts found.</td></tr>";
+                    document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='6' style='text-align:center; padding: 20px; color: #666;'>No attempts found.</td></tr>";
                     return;
                 }
 
                 let html = "";
                 data.forEach(r => {
-                    const avgTimeSec = r.total_questions ? Math.round(r.total_time_taken_sec / r.total_questions) : 0;
                     const mTotal = Math.floor(r.total_time_taken_sec / 60);
                     const sTotal = r.total_time_taken_sec % 60;
-                    const mAvg = Math.floor(avgTimeSec / 60);
-                    const sAvg = avgTimeSec % 60;
 
                     html += `
                         <tr style="border-bottom: 1px solid var(--border);">
                             <td style="padding: 12px;"><b>${r.name}</b><br><span style="font-size: 11px; color: #666;">ID: ${r.user_id}</span></td>
                             <td style="padding: 12px; font-weight: 500;">${r.type}: ${r.title}</td>
+                            <td style="padding: 12px; font-weight: bold;">${r.attended || 0} / ${r.total_questions}</td>
                             <td style="padding: 12px; font-weight: bold; color: ${r.total_score >= 0 ? 'var(--iste-green)' : '#c62828'};">${r.total_score} / ${r.max_marks || 0}</td>
                             <td style="padding: 12px;">${mTotal}m ${sTotal}s</td>
                             <td style="padding: 12px;">
@@ -991,7 +1037,7 @@
                 showStatus(statusEl, "Data fetched successfully.", "success");
             } catch (err) {
                 showStatus(statusEl, "Network Error.", "error");
-                document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='5'></td></tr>";
+                document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='6'></td></tr>";
             }
         }
 
@@ -1107,6 +1153,7 @@
                 "Student ID": r.user_id,
                 "Student Name": r.name,
                 "Total Score": r.total_score,
+                "Questions Attended": r.attended || 0,
                 "Total Time Taken (Sec)": r.total_time_sec,
                 "Submission Time": new Date(r.submitted_at).toLocaleString()
             }));
@@ -1123,6 +1170,96 @@
         async function logout() {
             await fetch("/logout");
             window.location.href = "/admin";
+        }
+
+        async function scheduleMessage() {
+            const statusEl = document.getElementById('msg-status');
+            const title = document.getElementById('msg-title').value.trim();
+            const body = document.getElementById('msg-body').value.trim();
+            const scheduleAt = document.getElementById('msg-schedule').value;
+
+            if (!title || !body) {
+                showStatus(statusEl, "Title and Message Body are required.", "error");
+                return;
+            }
+
+            const payload = { title, body };
+            if (scheduleAt) {
+                payload.schedule_at = scheduleAt.replace('T', ' ') + ':00';
+            }
+
+            showStatus(statusEl, "Scheduling message...", "info");
+
+            try {
+                const res = await fetch("/admin/send_message", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showStatus(statusEl, scheduleAt ? "Message scheduled successfully!" : "Message queued for delivery!", "success");
+                    document.getElementById('msg-title').value = '';
+                    document.getElementById('msg-body').value = '';
+                    document.getElementById('msg-schedule').value = '';
+                } else {
+                    showStatus(statusEl, `Error: ${data.error}`, "error");
+                }
+            } catch (err) {
+                showStatus(statusEl, "Network Error.", "error");
+            }
+        }
+
+        async function fetchStudents() {
+            const statusEl = document.getElementById('students-status');
+            const container = document.getElementById('students-container');
+            showStatus(statusEl, "Loading student list...", "info");
+
+            try {
+                const res = await fetch("/admin/students");
+                const data = await res.json();
+                if (data.error) {
+                    showStatus(statusEl, data.error, "error");
+                    return;
+                }
+
+                if (data.length === 0) {
+                    container.innerHTML = "<div style='text-align:center; padding: 20px; color: #666;'>No students registered yet.</div>";
+                    showStatus(statusEl, "No students found.", "info");
+                    return;
+                }
+
+                let html = `
+                <div class="table-responsive">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 500px;">
+                        <thead>
+                            <tr style="background: #e65100; color: white;">
+                                <th scope="col" style="padding: 10px;">Reg. ID</th>
+                                <th scope="col" style="padding: 10px;">Name</th>
+                                <th scope="col" style="padding: 10px;">Year</th>
+                                <th scope="col" style="padding: 10px;">Degree</th>
+                                <th scope="col" style="padding: 10px;">Stream</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                data.forEach(s => {
+                    const yearRoman = {1:'I', 2:'II', 3:'III', 4:'IV'}[s.year] || s.year;
+                    html += `
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 10px; font-weight: bold;">${s.user_id}</td>
+                            <td style="padding: 10px;">${s.name}</td>
+                            <td style="padding: 10px;">${yearRoman}</td>
+                            <td style="padding: 10px;">${s.degree}</td>
+                            <td style="padding: 10px;">${s.stream || '-'}</td>
+                        </tr>
+                    `;
+                });
+                container.innerHTML = html + `</tbody></table></div>`;
+                showStatus(statusEl, `Loaded ${data.length} registered students.`, "success");
+            } catch (err) {
+                showStatus(statusEl, "Network Error.", "error");
+            }
         }
 
         window.onclick = function (event) {

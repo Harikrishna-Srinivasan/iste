@@ -485,7 +485,7 @@ def process_push_queue():
     conn = get_admin_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
-        cur.execute("SELECT id, assessment_id, title, body FROM push_queue WHERE status = 'PENDING'")
+        cur.execute("SELECT id, assessment_id, title, body FROM push_queue WHERE status = 'PENDING' AND (scheduled_at IS NULL OR scheduled_at <= NOW())")
         pending_pushes = cur.fetchall()
         if not pending_pushes: return
 
@@ -591,6 +591,8 @@ def admin_attempts():
     query = """
         SELECT u.user_id, u.name, a.id as assessment_id, a.title, a.type, a.seq_num,
                IFNULL(sub.total_score,0) as total_score, IFNULL(sub.total_time_sec,0) as total_time_taken_sec,
+               sub.detailed_log,
+               (SELECT COUNT(*) FROM assessment_questions aq WHERE aq.assessment_id=a.id) as total_questions,
                (SELECT SUM(q2.mark) FROM assessment_questions aq2 JOIN questions q2 ON aq2.question_id=q2.id WHERE aq2.assessment_id=a.id) as max_marks
         FROM student_submissions sub
         JOIN users u ON sub.user_id=u.user_id
@@ -604,6 +606,13 @@ def admin_attempts():
     cur.execute(query, params)
     rows = cur.fetchall()
     cur.close(); conn.close()
+    for r in rows:
+        if r.get("detailed_log"):
+            log = json.loads(r["detailed_log"]) if isinstance(r["detailed_log"], str) else r["detailed_log"]
+            r["attended"] = sum(1 for v in log.values() if v.get("resp"))
+        else:
+            r["attended"] = 0
+        r.pop("detailed_log", None)
     return jsonify(rows)
 
 @app.route("/admin/attempt_details/<int:uid>/<int:aid>", methods=["GET"])
@@ -642,13 +651,71 @@ def admin_attempt_details(uid, aid):
         })
     return jsonify(result)
 
+@app.route("/admin/send_message", methods=["POST"])
+@admin_required
+def send_message():
+    data = request.json
+    title = data.get("title", "").strip()
+    body = data.get("body", "").strip()
+    schedule_at = data.get("schedule_at")
+
+    if not title or not body:
+        return jsonify({"error": "Title and body are required"}), 400
+
+    conn = get_admin_conn()
+    cur = conn.cursor()
+    try:
+        if schedule_at:
+            cur.execute(
+                "INSERT INTO push_queue (assessment_id, title, body, status, scheduled_at) VALUES (NULL, %s, %s, 'PENDING', %s)",
+                (title, body, schedule_at)
+            )
+        else:
+            cur.execute(
+                "INSERT INTO push_queue (assessment_id, title, body, status) VALUES (NULL, %s, %s, 'PENDING')",
+                (title, body)
+            )
+        conn.commit()
+        if not schedule_at:
+            trigger_push_processing()
+        return jsonify({"status": "Message queued successfully"})
+    except Exception as e:
+        app.logger.error(f"Send message failed: {str(e)}")
+        return jsonify({"error": "Server error"}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route("/admin/students", methods=["GET"])
+@admin_required
+def admin_students():
+    conn = get_admin_conn()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cur.execute("SELECT user_id, name, details FROM users ORDER BY user_id ASC")
+        rows = cur.fetchall()
+        result = []
+        for r in rows:
+            details = json.loads(r.get("details", "{}")) if isinstance(r.get("details"), str) else (r.get("details") or {})
+            result.append({
+                "user_id": r["user_id"],
+                "name": r["name"],
+                "year": details.get("year"),
+                "degree": details.get("degree"),
+                "stream": details.get("stream", "")
+            })
+        return jsonify(result)
+    finally:
+        cur.close()
+        conn.close()
+
 @app.route("/admin/export_assessment/<int:aid>", methods=["GET"])
 @admin_required
 def export_assessment(aid):
     conn = get_admin_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     cur.execute("""
-        SELECT u.user_id, u.name, sub.total_score, sub.total_time_sec, sub.submitted_at
+        SELECT u.user_id, u.name, sub.total_score, sub.total_time_sec, sub.submitted_at, sub.detailed_log
         FROM student_submissions sub
         JOIN users u ON sub.user_id=u.user_id
         WHERE sub.assessment_id=%s
@@ -656,10 +723,21 @@ def export_assessment(aid):
     """, (aid,))
     rows = cur.fetchall()
     cur.close(); conn.close()
+    result = []
     for r in rows:
-        if r["submitted_at"]:
-            r["submitted_at"] = r["submitted_at"].isoformat()
-    return jsonify(rows)
+        attended = 0
+        if r.get("detailed_log"):
+            log = json.loads(r["detailed_log"]) if isinstance(r["detailed_log"], str) else r["detailed_log"]
+            attended = sum(1 for v in log.values() if v.get("resp"))
+        result.append({
+            "user_id": r["user_id"],
+            "name": r["name"],
+            "total_score": r["total_score"],
+            "total_time_sec": r["total_time_sec"],
+            "attended": attended,
+            "submitted_at": r["submitted_at"].isoformat() if r["submitted_at"] else None
+        })
+    return jsonify(result)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5002, debug=False, threaded=True)

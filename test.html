@@ -78,7 +78,7 @@
             position: sticky; top: 0; z-index: 100; border-bottom: 5px solid var(--thick-yellow);
         }
 
-        .main-layout { display: grid; grid-template-columns: 1fr 300px; height: calc(100vh - 60px); }
+        .main-layout { display: grid; grid-template-columns: 1fr 300px; height: calc(100vh - 60px - 65px); }
 
         .question-scroll { padding: 30px; overflow-y: auto; background: var(--bg-body); }
         .sidebar { background: var(--bg-card); border-left: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; }
@@ -113,8 +113,8 @@
         .user-nav-course { font-size: 16px; color: var(--thick-yellow); }
 
         @media (max-width: 850px) {
-            .main-layout { grid-template-columns: 1fr; }
-            .sidebar { order: -1; height: auto; }
+            .main-layout { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 60px - 65px); }
+            .sidebar { order: -1; height: auto; max-height: 200px; overflow-y: auto; }
         }
 
         @media screen and (max-width: 800px) {
@@ -125,7 +125,7 @@
             .sidebar {
                 border-left: none;
                 border-top: 1px solid var(--border);
-                max-height: 160px;
+                max-height: 200px;
                 overflow-y: auto;
                 scroll-behavior: smooth;
             }

@@ -47,7 +47,7 @@
         .res-content { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border); font-size: 14px; contain: layout style; min-height: 100px; }
         .res-row { display: flex; justify-content: space-between; padding: 6px 0; color: #666; }
 
-        .review-layout { display: flex; gap: 20px; margin-top: 15px; height: 500px; align-items: stretch; }
+        .review-layout { display: flex; gap: 20px; margin-top: 15px; min-height: 400px; max-height: 500px; align-items: stretch; }
         .q-sidebar-nav { width: 220px; min-width: 220px; background: #f8f9fa; border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
         .q-sidebar-title { font-size: 12px; font-weight: bold; color: #777; text-transform: uppercase; letter-spacing: 0.5px; }
         .q-num-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
@@ -83,7 +83,7 @@
         .spinner-small { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(25, 118, 210, 0.2); border-radius: 50%; border-top-color: var(--primary-blue); animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        #notification-toast { position: fixed; bottom: 30px; right: 30px; background: white; border-left: 6px solid var(--primary-blue); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15); padding: 15px 20px; border-radius: 8px; display: none; z-index: 2000; width: 320px; animation: slideInRight 0.4s ease-out; }
+        #notification-toast { position: fixed; bottom: 30px; right: 30px; background: white; border-left: 6px solid var(--primary-blue); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15); padding: 15px 20px; border-radius: 8px; display: none; z-index: 2000; width: 320px; max-width: calc(100vw - 40px); animation: slideInRight 0.4s ease-out; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         .toast-content h4 { color: var(--primary-blue); margin-bottom: 5px; font-size: 15px; }
         .toast-content p { color: #555; font-size: 13px; line-height: 1.4; }
@@ -97,17 +97,20 @@
             .container { margin: 20px auto; }
             .section-header { flex-direction: column; align-items: stretch; }
             .refresh-btn { justify-content: center; }
-            .review-layout { flex-direction: column; height: auto; max-height: 650px; }
-            .q-sidebar-nav { width: 100%; min-width: 100%; height: 140px; }
+            .review-layout { flex-direction: column; height: auto; max-height: none; min-height: auto; }
+            .q-sidebar-nav { width: 100%; min-width: 100%; height: auto; max-height: 120px; }
             .q-num-grid { grid-template-columns: repeat(8, 1fr); }
-            .q-main-scroll { height: 350px; }
+            .q-main-scroll { height: auto; min-height: 250px; max-height: 350px; }
+            #notification-toast { bottom: 15px; right: 15px; width: calc(100vw - 30px); }
+            .app-bar h1 { font-size: 18px; }
+            .container { padding: 15px; }
         }
     </style>
 </head>
 <body>
     <header class="app-bar">
         <img src="iste.png" alt="ISTE Logo" style="display:block; margin:auto; width:60px; height:60px;" width="60" height="60">
-        <h1 style="white-space: nowrap; font-size: 24px;">ISTE Aptitude Portal</h1>
+        <h1 style="font-size: 24px;">ISTE Aptitude Portal</h1>
         {% if user %}
         <div class="user-nav-info">
             <div class="user-nav-name">{{ user.name }} ({{ user.reg_no }})</div>
@@ -309,6 +312,7 @@
                 </summary>
                 <div class="res-content" id="details-${h.assessment_id}">
                     <div class="res-row"><span>⏱️ Time Taken:</span> <span>${h.is_attempted ? Math.round(h.total_time_taken_sec / 60) + ' mins' : 'N/A'}</span></div>
+                    <div class="res-row"><span>📝 Questions Attended:</span> <span>${h.is_attempted ? (h.attended || 0) + ' / ' + h.total_questions : 'N/A'}</span></div>
                     <div class="res-row"><span>📋 Evaluation Status:</span> <span style="font-weight:bold; color:${statusColor};">${subStatus}</span></div>
                     ${h.results_available && h.is_attempted ? `<div class="loading-spinner" style="padding:10px; text-align:center; font-size:12px; color:#999;">🔍 Click to load detailed breakdown...</div>` : '<p style="font-size:12px; margin-top:10px; color:#777;">📌 Official evaluation will be released after the test duration concludes for all candidates.</p>'}
                 </div>

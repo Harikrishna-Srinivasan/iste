@@ -121,10 +121,11 @@ CREATE TABLE sent_notifications (
 
 CREATE TABLE push_queue (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    assessment_id INT UNSIGNED NOT NULL,
+    assessment_id INT UNSIGNED DEFAULT NULL,
     title VARCHAR(255) NOT NULL,
     body TEXT NOT NULL,
     status ENUM('PENDING', 'SENT') DEFAULT 'PENDING',
+    scheduled_at DATETIME DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (assessment_id) REFERENCES assessments(id) ON DELETE CASCADE
 );
