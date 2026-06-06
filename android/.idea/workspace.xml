@@ -22,15 +22,24 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="30203d0d-67d5-46f1-8bfd-f565fc8872bb" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gradle/8.14.3/executionHistory/executionHistory.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.14.3/executionHistory/executionHistory.bin" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/8.14.3/executionHistory/executionHistory.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.14.3/executionHistory/executionHistory.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../admin.html" beforeDir="false" afterPath="$PROJECT_DIR$/../admin.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../admin.py" beforeDir="false" afterPath="$PROJECT_DIR$/../admin.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../admin_login.html" beforeDir="false" afterPath="$PROJECT_DIR$/../admin_login.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/8.14.3/fileHashes/fileHashes.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.14.3/fileHashes/fileHashes.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/8.14.3/fileHashes/fileHashes.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/8.14.3/fileHashes/fileHashes.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/release/app-release.apk" beforeDir="false" afterPath="$PROJECT_DIR$/app/release/app-release.apk" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/release/baselineProfiles/0/app-release.dm" beforeDir="false" afterPath="$PROJECT_DIR$/app/release/baselineProfiles/0/app-release.dm" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/release/baselineProfiles/1/app-release.dm" beforeDir="false" afterPath="$PROJECT_DIR$/app/release/baselineProfiles/1/app-release.dm" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/release/output-metadata.json" beforeDir="false" afterPath="$PROJECT_DIR$/app/release/output-metadata.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/config.properties" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/config.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/admin.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/assets/public/admin.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/admin_login.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/assets/public/admin_login.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/assets/public/dashboard.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/assets/public/index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/test.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/assets/public/test.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../app.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/../dashboard.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../index.html" beforeDir="false" afterPath="$PROJECT_DIR$/../index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../iste512.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../student.py" beforeDir="false" afterPath="$PROJECT_DIR$/../student.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../test.html" beforeDir="false" afterPath="$PROJECT_DIR$/../test.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -40,7 +49,7 @@
   <component name="ClangdSettings">
     <option name="formatViaClangd" value="false" />
   </component>
-  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[PhysicalDevice::serial=103223137C113842]" />
+  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[]" />
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
       <ProjectState />
@@ -96,6 +105,7 @@
     &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;android.gradle.sync.needed&quot;: &quot;true&quot;,
     &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
     &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;master&quot;,

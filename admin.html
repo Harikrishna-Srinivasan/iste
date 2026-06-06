@@ -44,8 +44,8 @@
         }
 
         .nav {
-            background: var(--admin);
-            color: white;
+            background: #ffffff;
+            color: var(--text-main);
             padding: 15px 30px;
             display: flex;
             justify-content: space-between;
@@ -60,9 +60,9 @@
         }
 
         .nav button {
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid white;
-            color: white;
+            background: none;
+            border: 2px solid black;
+            color: black;
             padding: 8px 20px;
             border-radius: 5px;
             cursor: pointer;
@@ -274,7 +274,10 @@
 
 <body>
     <nav class="nav">
-        <img src="iste.png" alt="ISTE Logo" style="display:block; width:60px; height:60px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <img src="sastra.png" alt="SASTRA Logo" style="display:block; width:40px; height:40px; object-fit:contain;">
+            <img src="iste.png" alt="ISTE Logo" style="display:block; width:40px; height:40px;">
+        </div>
         <h1>Administration Dashboard</h1>
         <button onclick="logout()" aria-label="Logout from Administration">Logout</button>
     </nav>
@@ -538,7 +541,7 @@
             <input type="text" id="msg-title" placeholder="e.g. Important Announcement">
             <label for="msg-body">Message Body</label>
             <textarea id="msg-body" rows="3" placeholder="Type your message here..."></textarea>
-            <label for="msg-schedule">Schedule For (leave empty for no scheduling)</label>
+            <label for="msg-schedule">Schedule For (leave empty to send now)</label>
             <input type="datetime-local" id="msg-schedule">
             <button class="btn-action" style="background: #1565c0;" onclick="scheduleMessage()">Schedule Message</button>
             <div id="msg-status" class="status-msg" aria-live="polite"></div>
@@ -1150,12 +1153,11 @@
             }
 
             const sheetData = data.map(r => ({
-                "Student ID": r.user_id,
-                "Student Name": r.name,
-                "Total Score": r.total_score,
+                "Register No": r.user_id,
+                "Name": r.name,
+                "Total": r.total_score,
                 "Questions Attended": r.attended || 0,
-                "Total Time Taken (Sec)": r.total_time_sec,
-                "Submission Time": new Date(r.submitted_at).toLocaleString()
+                "Time Taken (Sec)": r.total_time_sec
             }));
 
             const worksheet = XLSX.utils.json_to_sheet(sheetData);

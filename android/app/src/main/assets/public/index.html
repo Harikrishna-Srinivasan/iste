@@ -62,6 +62,32 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
+            padding-top: 70px;
+        }
+
+        @media screen and (max-width: 480px) {
+            body {
+                padding-top: 65px;
+                align-items: flex-start;
+            }
+            .login-card {
+                padding: 25px 20px;
+                margin: 0 10px;
+                max-height: calc(100vh - 80px);
+                overflow-y: auto;
+            }
+            .login-card img {
+                width: 50px;
+                height: 50px;
+            }
+            .form-group input {
+                padding: 12px;
+                font-size: 14px;
+            }
+            .btn {
+                padding: 12px;
+                font-size: 14px;
+            }
         }
 
         .app-bar {
@@ -227,6 +253,58 @@
             background: #fff3e0;
             color: #e65100;
         }
+
+        .tab-toggle {
+            display: flex;
+            margin-bottom: 25px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .tab-toggle button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: #f5f5f5;
+            color: #666;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 14px;
+        }
+        .tab-toggle button.active {
+            background: var(--primary-blue);
+            color: white;
+        }
+        .tab-toggle button:hover:not(.active) {
+            background: #e8e8e8;
+        }
+        .form-group {
+            position: relative;
+        }
+        .pwd-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(20%);
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--primary-blue);
+            user-select: none;
+            font-weight: bold;
+        }
+        #register-view {
+            display: none;
+        }
+        .select-group select {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--text-main);
+            font-size: 16px;
+        }
     </style>
 </head>
 
@@ -237,18 +315,69 @@
 
     <div class="login-card">
         <img src="iste.png" alt="ISTE Logo" style="display:block; margin:auto; width:60px; height:60px;">
-        <h2 style="text-align: center; margin-bottom: 30px; font-size: 24px; color: var(--primary-blue);">Student Login
-        </h2>
-        <div class="form-group">
-            <label>Registration ID</label>
-            <input type="text" id="user_id" placeholder="Enter the register no">
+        <div class="tab-toggle">
+            <button id="tab-login" class="active" onclick="showTab('login')">Login</button>
+            <button id="tab-register" onclick="showTab('register')">Register</button>
         </div>
-        <div class="form-group">
-            <label>Password</label>
-            <input type="password" id="password" placeholder="Enter the password">
+
+        <!-- Login Form -->
+        <div id="login-view">
+            <h2 style="text-align: center; margin-bottom: 30px; font-size: 24px; color: var(--primary-blue);">Student Login</h2>
+            <div class="form-group">
+                <label>Registration ID</label>
+                <input type="text" id="user_id" placeholder="Enter the register no">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" placeholder="Enter the password">
+                <span class="pwd-toggle" onclick="togglePwd('password', this)">SHOW</span>
+            </div>
+            <button class="btn" id="login-btn" onclick="startLoginFlow()">Authenticate & Login</button>
+            <div id="error" class="error"></div>
         </div>
-        <button class="btn" id="login-btn" onclick="startLoginFlow()">Authenticate & Login</button>
-        <div id="error" class="error"></div>
+
+        <!-- Register Form -->
+        <div id="register-view">
+            <h2 style="text-align: center; margin-bottom: 25px; font-size: 24px; color: var(--primary-blue);">Student Registration</h2>
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="reg-name" placeholder="Enter your full name">
+            </div>
+            <div class="form-group">
+                <label>Registration ID</label>
+                <input type="text" id="reg-userid" placeholder="Enter registration number">
+            </div>
+            <div class="form-group select-group">
+                <label>Year</label>
+                <select id="reg-year">
+                    <option value="">Select Year</option>
+                    <option value="1">1st Year</option>
+                    <option value="2">2nd Year</option>
+                    <option value="3">3rd Year</option>
+                    <option value="4">4th Year</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Degree</label>
+                <input type="text" id="reg-degree" placeholder="e.g. B.Tech, B.Sc">
+            </div>
+            <div class="form-group">
+                <label>Stream</label>
+                <input type="text" id="reg-stream" placeholder="e.g. CSE, ECE (optional)">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="reg-password" placeholder="Min 6 characters">
+                <span class="pwd-toggle" onclick="togglePwd('reg-password', this)">SHOW</span>
+            </div>
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <input type="password" id="reg-confirm" placeholder="Re-enter password">
+                <span class="pwd-toggle" onclick="togglePwd('reg-confirm', this)">SHOW</span>
+            </div>
+            <button class="btn" id="register-btn" onclick="doRegister()">Create Account</button>
+            <div id="reg-error" class="error"></div>
+        </div>
     </div>
 
     <div id="captchaModal" class="modal">
@@ -268,6 +397,91 @@
         const BASE = "https://iste-ws2k.onrender.com";
         let blockTimer = null;
         let loginBtn = document.getElementById('login-btn');
+
+        function showTab(tab) {
+            document.getElementById('login-view').style.display = tab === 'login' ? 'block' : 'none';
+            document.getElementById('register-view').style.display = tab === 'register' ? 'block' : 'none';
+            document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+            document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('reg-error').style.display = 'none';
+        }
+
+        function togglePwd(inputId, el) {
+            const inp = document.getElementById(inputId);
+            if (inp.type === 'password') {
+                inp.type = 'text';
+                el.textContent = 'HIDE';
+            } else {
+                inp.type = 'password';
+                el.textContent = 'SHOW';
+            }
+        }
+
+        async function doRegister() {
+            const errDiv = document.getElementById('reg-error');
+            errDiv.style.display = 'none';
+
+            const name = document.getElementById('reg-name').value.trim();
+            const user_id = document.getElementById('reg-userid').value.trim();
+            const year = document.getElementById('reg-year').value;
+            const degree = document.getElementById('reg-degree').value.trim();
+            const stream = document.getElementById('reg-stream').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const confirm = document.getElementById('reg-confirm').value;
+
+            if (!name || !user_id || !year || !degree || !password) {
+                errDiv.textContent = "All required fields must be filled.";
+                errDiv.style.display = 'block';
+                return;
+            }
+            if (password !== confirm) {
+                errDiv.textContent = "Passwords do not match.";
+                errDiv.style.display = 'block';
+                return;
+            }
+            if (password.length < 6) {
+                errDiv.textContent = "Password must be at least 6 characters.";
+                errDiv.style.display = 'block';
+                return;
+            }
+
+            const btn = document.getElementById('register-btn');
+            btn.disabled = true;
+            btn.textContent = "Registering...";
+
+            try {
+                const res = await fetch(`${BASE}/student/register`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name, user_id, year, degree, stream, password })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    errDiv.textContent = "Registration successful! You can now login.";
+                    errDiv.className = 'error info';
+                    errDiv.style.display = 'block';
+                    document.getElementById('reg-name').value = '';
+                    document.getElementById('reg-userid').value = '';
+                    document.getElementById('reg-year').value = '';
+                    document.getElementById('reg-degree').value = '';
+                    document.getElementById('reg-stream').value = '';
+                    document.getElementById('reg-password').value = '';
+                    document.getElementById('reg-confirm').value = '';
+                    setTimeout(() => showTab('login'), 2000);
+                } else {
+                    errDiv.textContent = data.error || "Registration failed.";
+                    errDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errDiv.textContent = "Network error. Please check connection.";
+                errDiv.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Create Account";
+            }
+        }
 
         function startLoginFlow() {
             const user_id = document.getElementById('user_id').value.trim();
