@@ -123,7 +123,7 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    window.location.href = "/admin";
+                    window.location.href = "/";
                 } else {
                     errDiv.textContent = data.error || "Login failed";
                     errDiv.style.display = 'block';
