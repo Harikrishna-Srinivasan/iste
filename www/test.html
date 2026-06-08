@@ -73,7 +73,7 @@
         * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
 
         .app-bar {
-            background: var(--primary-blue); color: white; padding: 12px 16px;
+            background: #e8eaed; color: var(--text-main); padding: 12px 16px;
             display: flex; justify-content: space-between; align-items: center;
             position: sticky; top: 0; z-index: 100; border-bottom: 5px solid var(--thick-yellow);
         }
@@ -110,7 +110,7 @@
         .btn-clear { background: var(--iste-gray); color: var(--text-main); }
         .user-nav-info { flex-grow: 1; text-align: right; margin: 0 20px; display: flex; flex-direction: column; justify-content: center; }
         .user-nav-name { font-weight: bold; font-size: 14px; line-height: 1.2; }
-        .user-nav-course { font-size: 16px; color: var(--thick-yellow); }
+        .user-nav-course { font-size: 16px; color: var(--iste-green); }
 
         @media (max-width: 850px) {
             .main-layout { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 60px - 65px); }
@@ -173,7 +173,10 @@
     <div class="anti-lens-overlay"></div>
 
     <header class="app-bar" style="flex-wrap: wrap;">
-        <img src="iste.png" alt="ISTE Logo" style="display:block; margin:auto; width:60px; height:60px;" width="60" height="60">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <img src="sastra.png" alt="SASTRA Logo" style="display:block; width:40px; height:40px; object-fit:contain;">
+            <img src="iste.png" alt="ISTE Logo" style="display:block; width:40px; height:40px;">
+        </div>
         <h2 id="test-header-title"> Loading Assessment...</h2>
 
         {% if user %}
@@ -196,11 +199,9 @@
         </div>
 
         <aside class="sidebar">
-            <h4 style="border-bottom: 2px solid var(--border); padding-bottom: 8px;">Question Palette</h4>
             <div class="palette-grid" id="palette-grid"></div>
 
             <div style="flex: 1;"></div>
-            <p style="font-size: 11px; color: #777; margin-top: 15px; text-align: center;">Click "Final Submit" in the bottom bar to end the exam.</p>
         </aside>
     </div>
 
@@ -298,7 +299,7 @@
                     state.responses = {};
                     state.visited = [];
                     state.qTimeSpent = new Array(testData.length).fill(0);
-                    state.timeLeft = (active.total_duration || 60) * 60;
+                    state.timeLeft = (active.total_duration || 60) * 60 + 10;
                     state.absoluteEndTime = Date.now() + (state.timeLeft * 1000);
                 }
 

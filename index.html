@@ -72,6 +72,7 @@
             }
             .login-card {
                 padding: 25px 20px;
+                text-align: center;
                 margin: 0 10px;
                 max-height: calc(100vh - 80px);
                 overflow-y: auto;
@@ -91,11 +92,11 @@
         }
 
         .app-bar {
-            background: var(--primary-blue);
-            color: white;
+            background: #e8eaed;
+            color: var(--primary-blue);
             padding: 12px 16px;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
             position: fixed;
             top: 0;
@@ -107,6 +108,7 @@
         .login-card {
             background: var(--bg-card);
             padding: 40px;
+            text-align: center;
             border-radius: 12px;
             width: 100%;
             max-width: 400px;
@@ -310,12 +312,12 @@
 
 <body>
     <header class="app-bar">
-        <img src="sastra.png" alt="SASTRA Logo" style="width:36px; height:36px; object-fit:contain;">
-        <img src="iste.png" alt="ISTE Logo" style="width:36px; height:36px; object-fit:contain;">
-        <h1>ISTE Aptitude Test</h1>
+        <img src="sastra.png" alt="SASTRA Logo" style="display:block; width:40px; height:40px; object-fit:contain;">
+        <h1 style="font-size: 24px; color: var(--primary-blue);">ISTE Aptitude Portal</h1>
     </header>
 
     <div class="login-card">
+        <img src="iste.png" alt="ISTE Logo" style="width:40px; height:40px; object-fit:contain;">
         <div class="tab-toggle">
             <button id="tab-login" class="active" onclick="showTab('login')">Login</button>
             <button id="tab-register" onclick="showTab('register')">Register</button>
@@ -397,7 +399,7 @@
 
     <script>
         const isCapacitor = () => { return window.Capacitor?.Platform?.isNative || window.location.hostname === 'app.local'; }
-        const BASE = "";
+        const BASE = "https://iste-ws2k.onrender.com/";
         let blockTimer = null;
         let loginBtn = document.getElementById('login-btn');
 

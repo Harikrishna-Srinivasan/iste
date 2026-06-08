@@ -8,6 +8,8 @@
     <meta name="theme-color" content="#1a237e">
     <title>ISTE Aptitude Portal</title>
     <link rel="icon" type="image/png" href="./iste.png">
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
     <style>
         :root {
             --primary-blue: #1976D2;
@@ -27,7 +29,7 @@
         .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         * { box-sizing: border-box; font-family: 'Inter', 'Segoe UI', sans-serif; margin: 0; padding: 0; }
         body { background-color: var(--bg-body); color: var(--text-main); padding-bottom: 50px; }
-        .app-bar { background: var(--primary-blue); color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 5px solid var(--thick-yellow); gap: 12px; flex-wrap: wrap; }
+        .app-bar { background: #e8eaed; color: var(--text-main); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 5px solid var(--thick-yellow); gap: 12px; flex-wrap: wrap; }
         .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
         .banner { background: var(--bg-card); border-left: 8px solid var(--primary-blue); padding: 25px; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
         .banner h3 { color: var(--primary-blue); margin-bottom: 10px; }
@@ -64,11 +66,6 @@
         .user-nav-info:empty { width: 15rem; height: 24px; background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
         @keyframes skeleton-pulse { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--overlay); align-items: center; justify-content: center; z-index: 1000; }
-        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 340px; text-align: center; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); }
-        #captchaCanvas { background: #f0f0f0; border-radius: 6px; margin: 15px 0; cursor: pointer; display: block; margin-left: auto; margin-right: auto; }
-        .captcha-input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-size: 20px; letter-spacing: 4px; font-weight: bold; }
-
         .q-detail-card { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 15px; scroll-margin-top: 10px; }
         .q-detail-row { padding: 10px; margin-top: 10px; border-radius: 6px; font-size: 13px; border: 1px solid #eee; }
         .q-ans-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; font-weight: 500; }
@@ -79,7 +76,7 @@
 
         .user-nav-info { flex-grow: 1; text-align: right; margin: 0 8px; display: flex; flex-direction: column; justify-content: center; }
         .user-nav-name { font-weight: bold; font-size: 16px; line-height: 1; margin-bottom: 4px; }
-        .user-nav-course { color: var(--thick-yellow); font-size: 16px; }
+        .user-nav-course { color: var(--iste-green); font-size: 16px; }
         .spinner-small { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(25, 118, 210, 0.2); border-radius: 50%; border-top-color: var(--primary-blue); animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -90,10 +87,14 @@
         .toast-close { position: absolute; top: 10px; right: 10px; cursor: pointer; color: #999; font-size: 14px; }
 
         @media screen and (max-width: 768px) {
-            .app-bar { flex-direction: column; gap: 10px; text-align: center; align-items: center; }
-            .user-nav-info { text-align: center; margin: 5px 0 0 0; width: 100%; order: 2; }
-            .app-bar h2 { order: 1; }
-            .app-bar .logout-btn { order: 3; }
+            .app-bar { flex-direction: column; gap: 4px; text-align: center; align-items: center; padding: 6px 12px; }
+            .app-bar > img { width: 30px; height: 30px; }
+            .app-bar h1 { font-size: 14px; }
+            .user-nav-info { text-align: center; margin: 0; width: 100%; }
+            .user-nav-info .user-nav-name { font-size: 13px; }
+            .user-nav-info .user-nav-course { font-size: 13px; }
+            .app-bar .logout-btn { font-size: 12px; padding: 3px 10px; }
+            .app-bar > div:first-child { justify-content: center; }
             .container { margin: 20px auto; }
             .section-header { flex-direction: column; align-items: stretch; }
             .refresh-btn { justify-content: center; }
@@ -109,15 +110,17 @@
 </head>
 <body>
     <header class="app-bar">
-        <img src="iste.png" alt="ISTE Logo" style="display:block; margin:auto; width:60px; height:60px;" width="60" height="60">
-        <h1 style="font-size: 24px;">ISTE Aptitude Portal</h1>
+        <div style="display:flex; align-items:center; gap:5px;">
+            <img src="sastra.png" alt="SASTRA Logo" style="display:block; width:40px; height:40px; object-fit:contain;">
+            <h1 style="font-size: 24px; color: var(--primary-blue);">ISTE Aptitude Portal</h1>
+        </div>
         {% if user %}
         <div class="user-nav-info">
-            <div class="user-nav-name">{{ user.name }} ({{ user.reg_no }})</div>
+            <div class="user-nav-name"><img src="iste.png" alt="ISTE Logo" style="width:22px; height:22px; vertical-align:middle; margin-right:6px;">{{ user.name }} ({{ user.reg_no }})</div>
             <div class="user-nav-course">{{ user.course }}</div>
         </div>
         {% endif %}
-        <button onclick="logout()" class="logout-btn" style="background:none; border:2px solid white; color:white; padding:5px 15px; border-radius:5px; cursor:pointer; white-space: nowrap;">Logout</button>
+        <button onclick="logout()" class="logout-btn" style="background:none; border:2px solid black; color:black; padding:5px 15px; border-radius:5px; cursor:pointer; white-space: nowrap;">Logout</button>
     </header>
 
     <div class="container" id="main-view">
@@ -150,17 +153,6 @@
         </div>
     </div>
 
-    <div id="captchaModal" class="modal">
-        <div class="modal-content">
-            <h4>Security Verification</h4>
-            <p style="font-size: 14px; color: #666; margin-top: 5px;">Type the characters below to begin</p>
-            <canvas id="captchaCanvas" width="200" height="70"></canvas>
-            <input type="text" id="captchaInput" class="captcha-input" autocomplete="off">
-            <button class="btn active" onclick="validateAndStart()">Verify & Launch Environment</button>
-            <p style="font-size: 14px; margin-top: 15px; color: var(--primary-blue); cursor: pointer;" onclick="exitCaptcha()">Cancel</p>
-        </div>
-    </div>
-
     <div id="notification-toast">
         <span class="toast-close" onclick="closeToast()">✕</span>
         <div class="toast-content">
@@ -171,7 +163,7 @@
     </div>
 
     <script>
-        const BASE = "https://iste-ws2k.onrender.com";
+        const BASE = "https://iste-ws2k.onrender.com/";
         let selectedAssessmentId = null;
         let isRefreshing = false;
         let lastActiveData = "";
@@ -261,7 +253,7 @@
                     <h3>${a.type} ${a.seq_num || ''}: ${a.title}</h3>
                     <p>Entry Window: <span id="test-time-${a.id}">--:--</span> to <span id="until-time-${a.id}">--:--</span></p>
                     <div id="countdown-${a.id}" class="timer-badge">Syncing...</div>
-                    <button id="start-btn-${a.id}" class="btn" onclick="openCaptcha(${a.id})">Awaiting Window</button>
+                    <button id="start-btn-${a.id}" class="btn" onclick="startTest(${a.id})">Awaiting Window</button>
                 </div>`;
             }).join('');
 
@@ -355,8 +347,6 @@
         }
 
         async function loadDashboardData() {
-            const modal = document.getElementById('captchaModal');
-            if (modal && modal.style.display === 'flex') return;
             if (isRefreshing) return;
             isRefreshing = true;
 
@@ -510,69 +500,13 @@
             }
         }
 
-        let _captchaAns = "";
-        async function openCaptcha(id) {
-            selectedAssessmentId = id;
-            document.getElementById('captchaModal').style.display = 'flex';
-            document.getElementById('captchaInput').value = "";
-            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$&*";
-            let code = "";
-            for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
-            _captchaAns = code;
-            renderServerCaptcha(code);
-        }
-
-        function exitCaptcha() { document.getElementById('captchaModal').style.display = 'none'; }
-
-        function renderServerCaptcha(code) {
-            const canvas = document.getElementById("captchaCanvas");
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            const fonts = ["'Courier New'", "Arial", "Georgia", "Impact", "Tahoma"];
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#F8F9FA";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            for (let i = 0; i < 15; i++) {
-                ctx.beginPath();
-                ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
-                ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
-                ctx.strokeStyle = `rgba(0,0,0,0.5)`;
-                ctx.stroke();
-            }
-
-            ctx.textBaseline = 'middle';
-            const charCount = code.length;
-            const stepX = canvas.width / (charCount + 1);
-
-            for (let i = 0; i < charCount; i++) {
-                const char = code.charAt(i);
-                ctx.save();
-                ctx.translate((i + 1) * stepX + (Math.random() * 10 - 5), canvas.height / 2 + (Math.random() * 8 - 4));
-                ctx.rotate((Math.random() - 0.5) * 0.4);
-                ctx.font = `bold ${Math.floor(canvas.height * 0.6)}px ${fonts[Math.floor(Math.random() * fonts.length)]}`;
-                ctx.fillStyle = `rgb(${Math.random() * 100},${Math.random() * 100},${Math.random() * 150 + 50})`;
-                ctx.fillText(char, -ctx.measureText(char).width / 2, 0);
-                ctx.restore();
-            }
-        }
-
-        async function validateAndStart() {
-            const input = document.getElementById('captchaInput').value;
-            if (!input) return;
-            if (input !== _captchaAns) {
-                openCaptcha(selectedAssessmentId);
-                document.getElementById('captchaInput').value = '';
-                return alert("Wrong code. Try again.");
-            }
-            sessionStorage.setItem('joining_assessment_id', selectedAssessmentId);
+        function startTest(id) {
+            sessionStorage.setItem('joining_assessment_id', id);
             window.location.href = `${BASE}/test`;
         }
 
         async function logout() { await fetch(`${BASE}/logout`, { credentials: "include" }); window.location.href = `${BASE}/`; }
         window.manualRefreshDashboard = async function () {
-            if (document.getElementById('captchaModal').style.display === 'flex') return alert("Complete CAPTCHA first.");
             await loadDashboardData();
             await checkPendingNotifications();
         };
@@ -591,14 +525,37 @@
             });
             Push.addListener('pushNotificationActionPerformed', () => window.location.reload());
         } else {
-            setTimeout(() => {
+            (async () => {
                 if (sessionStorage.getItem('device_registered')) return;
-                fetch(`${BASE}/register_device`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fcm_token: 'WEB_BROWSER_' + navigator.userAgent.slice(0, 15) }), credentials: 'include'
-                }).then(() => sessionStorage.setItem('device_registered', 'true'))
-                  .catch(err => console.error("Web Reg Failed", err));
-            }, 3000);
+                try {
+                    const res = await fetch(`${BASE}/student/firebase-config`);
+                    const config = await res.json();
+                    if (!config.apiKey) return console.error("Firebase config missing");
+
+                    firebase.initializeApp(config);
+                    const messaging = firebase.messaging();
+
+                    const permission = await Notification.requestPermission();
+                    if (permission !== 'granted') return;
+
+                    const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+
+                    const token = await messaging.getToken();
+                    if (token) {
+                        await fetch(`${BASE}/student/register_device`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ fcm_token: token }), credentials: 'include'
+                        });
+                        sessionStorage.setItem('device_registered', 'true');
+                    }
+
+                    messaging.onMessage((payload) => {
+                        showInAppToast(payload.notification?.title || "Notification", payload.notification?.body || "", payload.data?.assessment_id);
+                    });
+                } catch (err) {
+                    console.error("Firebase FCM init failed", err);
+                }
+            })();
         }
 
         async function checkPendingNotifications() {
@@ -647,6 +604,5 @@
         });
 
         window.addEventListener('pageshow', e => { if (e.persisted) loadDashboardData(); });
-        document.addEventListener('keypress', e => { if (e.key === 'Enter' && document.getElementById('captchaModal').style.display === 'flex') validateAndStart() });
     </script>
 </body>

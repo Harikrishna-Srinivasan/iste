@@ -72,6 +72,7 @@
             }
             .login-card {
                 padding: 25px 20px;
+                text-align: center;
                 margin: 0 10px;
                 max-height: calc(100vh - 80px);
                 overflow-y: auto;
@@ -91,11 +92,11 @@
         }
 
         .app-bar {
-            background: var(--primary-blue);
-            color: white;
+            background: #e8eaed;
+            color: var(--primary-blue);
             padding: 12px 16px;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
             position: fixed;
             top: 0;
@@ -107,6 +108,7 @@
         .login-card {
             background: var(--bg-card);
             padding: 40px;
+            text-align: center;
             border-radius: 12px;
             width: 100%;
             max-width: 400px;
@@ -310,11 +312,12 @@
 
 <body>
     <header class="app-bar">
-        <h1>ISTE Aptitude Test</h1>
+        <img src="sastra.png" alt="SASTRA Logo" style="display:block; width:40px; height:40px; object-fit:contain;">
+        <h1 style="font-size: 24px; color: var(--primary-blue);">ISTE Aptitude Portal</h1>
     </header>
 
     <div class="login-card">
-        <img src="iste.png" alt="ISTE Logo" style="display:block; margin:auto; width:60px; height:60px;">
+        <img src="iste.png" alt="ISTE Logo" style="width:40px; height:40px; object-fit:contain;">
         <div class="tab-toggle">
             <button id="tab-login" class="active" onclick="showTab('login')">Login</button>
             <button id="tab-register" onclick="showTab('register')">Register</button>
@@ -323,17 +326,19 @@
         <!-- Login Form -->
         <div id="login-view">
             <h2 style="text-align: center; margin-bottom: 30px; font-size: 24px; color: var(--primary-blue);">Student Login</h2>
-            <div class="form-group">
-                <label>Registration ID</label>
-                <input type="text" id="user_id" placeholder="Enter the register no">
-            </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" id="password" placeholder="Enter the password">
-                <span class="pwd-toggle" onclick="togglePwd('password', this)">SHOW</span>
-            </div>
-            <button class="btn" id="login-btn" onclick="startLoginFlow()">Authenticate & Login</button>
-            <div id="error" class="error"></div>
+            <form id="login-form" method="POST" action="/student/login" onsubmit="event.preventDefault(); startLoginFlow();">
+                <div class="form-group">
+                    <label>Registration ID</label>
+                    <input type="text" id="user_id" name="user_id" placeholder="Enter the register no" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter the password" autocomplete="current-password">
+                    <span class="pwd-toggle" onclick="togglePwd('password', this)">SHOW</span>
+                </div>
+                <button type="submit" class="btn" id="login-btn">Authenticate & Login</button>
+            </form>
+            <div id="error" class="error" {% if error %}style="display:block;"{% endif %}>{% if error %}{{ error }}{% endif %}</div>
         </div>
 
         <!-- Register Form -->
@@ -359,11 +364,11 @@
             </div>
             <div class="form-group">
                 <label>Degree</label>
-                <input type="text" id="reg-degree" placeholder="e.g. B.Tech, B.Sc">
+                <input type="text" id="reg-degree" placeholder="e.g. B.Tech">
             </div>
             <div class="form-group">
                 <label>Stream</label>
-                <input type="text" id="reg-stream" placeholder="e.g. CSE, ECE (optional)">
+                <input type="text" id="reg-stream" placeholder="e.g. CSE">
             </div>
             <div class="form-group">
                 <label>Password</label>
@@ -394,7 +399,7 @@
 
     <script>
         const isCapacitor = () => { return window.Capacitor?.Platform?.isNative || window.location.hostname === 'app.local'; }
-        const BASE = "https://iste-ws2k.onrender.com";
+        const BASE = "https://iste-ws2k.onrender.com/";
         let blockTimer = null;
         let loginBtn = document.getElementById('login-btn');
 
@@ -586,47 +591,9 @@
             }
             _captchaAns = "";
             document.getElementById('captchaModal').style.display = 'none';
-            await login();
+            document.getElementById('login-form').submit();
         }
 
-        async function login() {
-            const user_id = document.getElementById('user_id').value.trim();
-            const password = document.getElementById('password').value.trim();
-            const errorDiv = document.getElementById('error');
-
-            errorDiv.style.display = 'none';
-            errorDiv.className = 'error';
-
-            try {
-                const res = await fetch(`${BASE}/student/login`, {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ user_id, password })
-                });
-
-                const data = await res.json();
-
-                if (res.ok)
-                    window.location.href = `${BASE}/dashboard`;
-                else {
-                    if (res.status === 429 && data.blocked) {
-                        const waitMinutes = Math.ceil(data.wait_seconds / 60);
-                        errorDiv.innerHTML = `⏰ Too many failed attempts.<br>Please try again after <strong>${waitMinutes} minute${waitMinutes !== 1 ? 's' : ''}</strong>.`;
-                        errorDiv.className = 'error info';
-                        errorDiv.style.display = 'block';
-
-                        disableLoginButton(data.wait_seconds);
-                    } else {
-                        errorDiv.textContent = data.error || 'Invalid Credentials. Access Denied.';
-                        errorDiv.style.display = 'block';
-                    }
-                }
-            } catch (err) {
-                errorDiv.textContent = 'Network error. Please check your connection.';
-                errorDiv.style.display = 'block';
-            }
-        }
 
         function disableLoginButton(waitSeconds) {
             const btn = document.getElementById('login-btn');
