@@ -3,9 +3,10 @@
 	"appName": "ISTE",
 	"webDir": "www",
 	"server": {
-		"hostname": "app.local",
+		"url": "https://iste-ws2k.onrender.com",
 		"allowNavigation": [
-			"iste-ws2k.onrender.com"
+			"iste-ws2k.onrender.com",
+			"app.local"
 		]
 	}
 }

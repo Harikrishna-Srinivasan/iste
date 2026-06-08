@@ -7,7 +7,7 @@
     <meta name="description"
         content="Candidate Login for ISTE Performance Portal. Securely access your assessments and tracked performance.">
     <title>ISTE Aptitude Test</title>
-    <link rel="icon" type="image/png" href="./iste.png">
+    <link rel="icon" type="image/png" href="/iste.png">
     <style>
         :root {
             --primary-blue: #1976d2;
@@ -182,50 +182,6 @@
             transform: scale(1.01);
         }
 
-        /* Captcha Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--overlay);
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            width: 340px;
-            text-align: center;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-        }
-
-        #captchaCanvas {
-            background: #f0f0f0;
-            border-radius: 6px;
-            margin: 15px 0;
-            cursor: pointer;
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .captcha-input {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 15px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            text-align: center;
-            font-size: 20px;
-            letter-spacing: 4px;
-            font-weight: bold;
-        }
 
         .btn:disabled {
             background: #9e9e9e !important;
@@ -234,7 +190,6 @@
             transform: none !important;
             filter: none !important;
         }
-
         .btn:disabled:hover {
             filter: none !important;
             transform: none !important;
@@ -312,12 +267,12 @@
 
 <body>
     <header class="app-bar">
-        <img src="sastra.png" alt="SASTRA Logo" style="display:block; width:40px; height:40px; object-fit:contain;">
+        <img src="/sastra.png" alt="SASTRA Logo" style="display:block; width:40px; height:40px; object-fit:contain;">
         <h1 style="font-size: 24px; color: var(--primary-blue);">ISTE Aptitude Portal</h1>
     </header>
 
     <div class="login-card">
-        <img src="iste.png" alt="ISTE Logo" style="width:40px; height:40px; object-fit:contain;">
+        <img src="/iste.png" alt="ISTE Logo" style="width:40px; height:40px; object-fit:contain;">
         <div class="tab-toggle">
             <button id="tab-login" class="active" onclick="showTab('login')">Login</button>
             <button id="tab-register" onclick="showTab('register')">Register</button>
@@ -385,21 +340,10 @@
         </div>
     </div>
 
-    <div id="captchaModal" class="modal">
-        <div class="modal-content">
-            <h4>Security Verification</h4>
-            <p style="font-size: 12px; color: #666; margin-top: 5px;">Type the characters from the image below</p>
-            <canvas id="captchaCanvas" width="200" height="70" onclick="generateCaptcha()"></canvas>
-            <input type="text" id="captchaInput" class="captcha-input" autocomplete="off">
-            <button class="btn" onclick="validateAndLogin()">Verify & Proceed</button>
-            <p style="font-size: 11px; margin-top: 15px; color: var(--primary-blue); cursor: pointer;"
-                onclick="generateCaptcha()">Refresh Image</p>
-        </div>
-    </div>
 
     <script>
         const isCapacitor = () => { return window.Capacitor?.Platform?.isNative || window.location.hostname === 'app.local'; }
-        const BASE = "https://iste-ws2k.onrender.com/";
+        const BASE = "https://iste-ws2k.onrender.com";
         let blockTimer = null;
         let loginBtn = document.getElementById('login-btn');
 
@@ -492,105 +436,6 @@
             const user_id = document.getElementById('user_id').value.trim();
             const password = document.getElementById('password').value.trim();
             if (!user_id || !password) return alert("Fill all fields.");
-
-            document.getElementById('captchaModal').style.display = 'flex';
-            const capInput = document.getElementById('captchaInput');
-            capInput.value = '';
-            capInput.focus();
-            generateCaptcha();
-        }
-
-        let _captchaAns = "";
-        async function generateCaptcha() {
-            try {
-                const res = await fetch(`${BASE}/student/gen_captcha`);
-                data = await res.json();
-                _captchaAns = data.captcha_val;
-                drawAdvancedCaptcha("captchaCanvas", _captchaAns);
-            } catch (err) {
-                alert(err);
-                console.error("Captcha load failed", err);
-            }
-        }
-
-        function drawAdvancedCaptcha(canvasId, code) {
-            const canvas = document.getElementById(canvasId);
-            if (!canvas) return "";
-            const ctx = canvas.getContext('2d');
-
-            const fonts = ["'Courier New'", "Arial", "Georgia", "Impact", "Tahoma"];
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#F8F9FA";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            ctx.lineWidth = 1;
-            for (let x = 0; x < canvas.width; x += 15) {
-                ctx.beginPath(); ctx.moveTo(x + (Math.random() * 4 - 2), 0); ctx.lineTo(x + (Math.random() * 4 - 2), canvas.height);
-                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.05 + 0.02})`; ctx.stroke();
-            }
-            for (let y = 0; y < canvas.height; y += 15) {
-                ctx.beginPath(); ctx.moveTo(0, y + (Math.random() * 4 - 2)); ctx.lineTo(canvas.width, y + (Math.random() * 4 - 2));
-                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.05 + 0.02})`; ctx.stroke();
-            }
-
-            for (let i = 0; i < 20; i++) {
-                ctx.beginPath();
-                let x = Math.random() * canvas.width, y = Math.random() * canvas.height;
-                ctx.moveTo(x, y); ctx.lineTo(x + Math.random() * 15 - 7, y + Math.random() * 15 - 7);
-                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.3})`; ctx.lineWidth = Math.random() * 1.5 + 0.5; ctx.stroke();
-            }
-
-            const charCount = code.length;
-            const stepX = canvas.width / (charCount + 1);
-
-            for (let i = 0; i < charCount; i++) {
-                const char = code.charAt(i);
-                ctx.save();
-
-                ctx.translate((i + 1) * stepX + (Math.random() * 10 - 5), canvas.height / 2 + (Math.random() * 8 - 4));
-                ctx.rotate((Math.random() - 0.5) * 0.8);
-                ctx.transform(1, 0, Math.random() * 0.4 - 0.2, 1, 0, 0);
-
-                ctx.font = `${Math.floor(canvas.height * 0.5 + Math.random() * (canvas.height * 0.25))}px ${fonts[Math.floor(Math.random() * fonts.length)]}`;
-                const r = Math.floor(Math.random() * 120), g = Math.floor(Math.random() * 120), b = Math.floor(Math.random() * 150 + 50);
-                ctx.fillStyle = `rgb(${r},${g},${b})`;
-
-                ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowOffsetX = 1.5; ctx.shadowOffsetY = 1.5; ctx.shadowBlur = 2;
-                ctx.fillText(char, -ctx.measureText(char).width / 2, 0);
-                ctx.shadowColor = 'transparent';
-
-                if (Math.random() > 0.2) {
-                    ctx.beginPath(); ctx.moveTo(-15, (Math.random() - 0.5) * 15); ctx.lineTo(15, (Math.random() - 0.5) * 15);
-                    ctx.strokeStyle = `rgba(${r},${g},${b},${Math.random() * 0.9 + 0.3})`; ctx.lineWidth = Math.random() * 2 + 1; ctx.stroke();
-                }
-                ctx.restore();
-            }
-
-            for (let i = 0; i < 15; i++) {
-                const x = Math.random() * canvas.width, y = Math.random() * canvas.height;
-                const r = Math.floor(Math.random() * 200),
-                      g = Math.floor(Math.random() * 200),
-                      b = Math.floor(Math.random() * 200);
-                ctx.fillStyle = `rgba(${r},${g},${b},${Math.random() * 0.5 + 0.3})`;
-                ctx.beginPath(); ctx.arc(x, y, Math.random()*3, 0, 2*Math.PI); ctx.fill();
-                if (Math.random() > 0.75)
-                    for (let j = 0; j < 4; j++)
-                        ctx.beginPath(); ctx.arc(x + Math.random()*6 - 3, y + Math.random()*6 - 3, Math.random()*3, 0, 2*Math.PI); ctx.fill();
-            }
-            return code;
-        }
-
-        async function validateAndLogin() {
-            const input = document.getElementById('captchaInput').value;
-            if (!input) return alert("Please enter the security code.");
-            if (input !== _captchaAns) {
-                generateCaptcha();
-                document.getElementById('captchaInput').value = '';
-                return alert("Wrong code. Try again.");
-            }
-            _captchaAns = "";
-            document.getElementById('captchaModal').style.display = 'none';
             document.getElementById('login-form').submit();
         }
 
@@ -627,10 +472,7 @@
             if (e.key === 'Enter') {
                 e.preventDefault();
                 const btn = document.getElementById('login-btn');
-                if (!btn.disabled) {
-                    if (document.getElementById('captchaModal').style.display === 'flex') validateAndLogin();
-                    else startLoginFlow();
-                }
+                if (!btn.disabled) startLoginFlow();
             }
         });
     </script>

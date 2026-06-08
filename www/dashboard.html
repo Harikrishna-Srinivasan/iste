@@ -7,7 +7,7 @@
     <meta name="author" content="ISTE">
     <meta name="theme-color" content="#1a237e">
     <title>ISTE Aptitude Portal</title>
-    <link rel="icon" type="image/png" href="./iste.png">
+    <link rel="icon" type="image/png" href="/iste.png">
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
     <style>
@@ -111,12 +111,12 @@
 <body>
     <header class="app-bar">
         <div style="display:flex; align-items:center; gap:5px;">
-            <img src="sastra.png" alt="SASTRA Logo" style="display:block; width:40px; height:40px; object-fit:contain;">
+            <img src="/sastra.png" alt="SASTRA Logo" style="display:block; width:40px; height:40px; object-fit:contain;">
             <h1 style="font-size: 24px; color: var(--primary-blue);">ISTE Aptitude Portal</h1>
         </div>
         {% if user %}
         <div class="user-nav-info">
-            <div class="user-nav-name"><img src="iste.png" alt="ISTE Logo" style="width:22px; height:22px; vertical-align:middle; margin-right:6px;">{{ user.name }} ({{ user.reg_no }})</div>
+            <div class="user-nav-name"><img src="/iste.png" alt="ISTE Logo" style="width:22px; height:22px; vertical-align:middle; margin-right:6px;">{{ user.name }} ({{ user.reg_no }})</div>
             <div class="user-nav-course">{{ user.course }}</div>
         </div>
         {% endif %}
@@ -163,7 +163,7 @@
     </div>
 
     <script>
-        const BASE = "https://iste-ws2k.onrender.com/";
+        const BASE = "https://iste-ws2k.onrender.com";
         let selectedAssessmentId = null;
         let isRefreshing = false;
         let lastActiveData = "";
