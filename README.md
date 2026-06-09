@@ -49,7 +49,8 @@ That's it. Students will see the test on their dashboard and can start writing.
 4. Type the letters exactly as shown (it is case-sensitive — `A` and `a` are **NOT** the same)
 5. Click **Verify Captcha**
 
-> **Tip:** If the **CAPTCHA** image is not clear, click **refresh image** to get a new image
+> [!TIP]
+> If the **CAPTCHA** image is not clear, click **refresh image** to get a new image
 
 ---
 
@@ -124,7 +125,8 @@ correct:     A,C
 marks:       2
 ```
 
-> **Note for MSQ:** Separate multiple correct answers with commas: `A,C` or `A,B,D`
+> [!NOTE]
+> (For MSQs) Separate multiple correct answers with commas: `A,C` or `A, B, D` (with or without space)
 
 #### Example: Adding an Integer Question
 
@@ -351,7 +353,8 @@ A: Yes! Just add all questions to the question bank first, then select the speci
 
 If your browser crashes or you accidentally close the tab, don't worry. When you reopen the test, your previous answers are **automatically restored** from local storage.
 
-> **Caution:** Your progress is saved **only on the device you started the test on**. If you log in from a different device, your previous answers will not be there. Also, the timer keeps running in the background even when the test tab is closed — so get back quickly!
+> [!CAUTION]
+> Your progress is saved **only on the device you started the test on**. If you log in from a different device, your previous answers will not be there. Also, the timer keeps running in the background even when the test tab is closed — so get back quickly!
 
 ---
 
