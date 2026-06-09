@@ -78,7 +78,7 @@
             position: sticky; top: 0; z-index: 100; border-bottom: 5px solid var(--thick-yellow);
         }
 
-        .main-layout { display: grid; grid-template-columns: 1fr 300px; height: calc(100vh - 60px - 65px); }
+        .main-layout { display: grid; grid-template-columns: 1fr 300px; height: calc(100vh - 44px - 65px); }
 
         .question-scroll { padding: 30px; overflow-y: auto; background: var(--bg-body); }
         .sidebar { background: var(--bg-card); border-left: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; }
@@ -108,12 +108,9 @@
         .btn-save { background: var(--iste-green); color: white; }
         .btn-review { background: var(--thick-orange); color: white; }
         .btn-clear { background: var(--iste-gray); color: var(--text-main); }
-        .user-nav-info { flex-grow: 1; text-align: right; margin: 0 20px; display: flex; flex-direction: column; justify-content: center; }
-        .user-nav-name { font-weight: bold; font-size: 14px; line-height: 1.2; }
-        .user-nav-course { font-size: 16px; color: var(--iste-green); }
 
         @media (max-width: 850px) {
-            .main-layout { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 60px - 65px); }
+            .main-layout { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 44px - 65px); }
             .sidebar { order: -1; height: auto; max-height: 200px; overflow-y: auto; }
         }
 
@@ -146,7 +143,6 @@
                 gap: 10px;
             }
             .app-bar { flex-direction: column; text-align: center; }
-            .user-nav-info { text-align: center; margin: 5px 0 0 0; width: 100%; }
             .btn {
                 padding: 12px 16px;
                 font-size: 14px;
@@ -172,19 +168,8 @@
 <body id="body-main">
     <div class="anti-lens-overlay"></div>
 
-    <header class="app-bar" style="flex-wrap: wrap;">
-        <div style="display:flex; align-items:center; gap:8px;">
-            <img src="/sastra.png" alt="SASTRA Logo" style="display:block; width:40px; height:40px; object-fit:contain;">
-            <img src="/iste.png" alt="ISTE Logo" style="display:block; width:40px; height:40px;">
-        </div>
-        <h2 id="test-header-title"> Loading Assessment...</h2>
-
-        {% if user %}
-        <div class="user-nav-info">
-            <div class="user-nav-name"> {{ user.name }} ({{ user.reg_no }})</div>
-            <div class="user-nav-course"> {{ user.course }}</div>
-        </div>
-        {% endif %}
+    <header class="app-bar" style="flex-wrap:wrap; padding:8px 16px;">
+        <h2 id="test-header-title" style="margin:0; font-size:16px;">Loading Assessment...</h2>
     </header>
 
     <div class="main-layout">
@@ -249,7 +234,7 @@
         async function initTest() {
             try {
                 const targetId = sessionStorage.getItem('joining_assessment_id');
-                const activeRes = await fetch(`${BASE}/student/active`, { credentials: "include" });
+                const activeRes = await fetch(`${BASE}/student/active?t=${Date.now()}`, { credentials: "include", cache: "no-store" });
                 if (!activeRes.ok) throw new Error("No active assessments");
                 const activeList = await activeRes.json();
 

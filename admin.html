@@ -466,6 +466,31 @@
             <div id="man-status" class="status-msg" aria-live="polite"></div>
         </section>
 
+        <section class="card full" style="border-top: 5px solid #1565c0;">
+            <h3 style="color: #1565c0;">Send Message to Students</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Schedule a push notification to be delivered to all registered students.</p>
+            <label for="msg-title">Notification Title</label>
+            <input type="text" id="msg-title" placeholder="e.g. Important Announcement">
+            <label for="msg-body">Message Body</label>
+            <textarea id="msg-body" rows="3" placeholder="Type your message here..."></textarea>
+            <label for="msg-schedule">Schedule For (leave empty to send now)</label>
+            <input type="datetime-local" id="msg-schedule">
+            <button class="btn-action" style="background: #1565c0;" onclick="scheduleMessage()">Schedule Message</button>
+            <div id="msg-status" class="status-msg" aria-live="polite"></div>
+        </section>
+
+        <section class="card full" style="border-top: 5px solid #e65100;">
+            <h3 style="color: #e65100;">All Registered Students</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Complete list of all students registered in the system.</p>
+            <div id="students-status" class="status-msg" aria-live="polite"></div>
+            <div style="margin-bottom: 15px;">
+                <button class="btn-action" style="background: #e65100; padding: 10px 20px; width: auto; display: inline-block;" onclick="fetchStudents()">Load Student List</button>
+            </div>
+            <div id="students-container" style="margin-top: 10px;">
+                <div style="text-align:center; padding: 20px; color: #666;">Click "Load Student List" to view all registered students.</div>
+            </div>
+        </section>
+
         <section class="card full">
             <h3>📊 Student Performance Logs</h3>
             <div
@@ -531,31 +556,6 @@
             </p>
             <div id="qb-container">
                 <div style="text-align:center; padding: 20px; color: #666;">Fetching active questions...</div>
-            </div>
-        </section>
-
-        <section class="card full" style="border-top: 5px solid #1565c0;">
-            <h3 style="color: #1565c0;">Send Message to Students (FCM)</h3>
-            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Schedule a push notification to be delivered to all registered students via FCM.</p>
-            <label for="msg-title">Notification Title</label>
-            <input type="text" id="msg-title" placeholder="e.g. Important Announcement">
-            <label for="msg-body">Message Body</label>
-            <textarea id="msg-body" rows="3" placeholder="Type your message here..."></textarea>
-            <label for="msg-schedule">Schedule For (leave empty to send now)</label>
-            <input type="datetime-local" id="msg-schedule">
-            <button class="btn-action" style="background: #1565c0;" onclick="scheduleMessage()">Schedule Message</button>
-            <div id="msg-status" class="status-msg" aria-live="polite"></div>
-        </section>
-
-        <section class="card full" style="border-top: 5px solid #e65100;">
-            <h3 style="color: #e65100;">All Registered Students</h3>
-            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Complete list of all students registered in the system.</p>
-            <div id="students-status" class="status-msg" aria-live="polite"></div>
-            <div style="margin-bottom: 15px;">
-                <button class="btn-action" style="background: #e65100; padding: 10px 20px; width: auto; display: inline-block;" onclick="fetchStudents()">Load Student List</button>
-            </div>
-            <div id="students-container" style="margin-top: 10px;">
-                <div style="text-align:center; padding: 20px; color: #666;">Click "Load Student List" to view all registered students.</div>
             </div>
         </section>
     </main>

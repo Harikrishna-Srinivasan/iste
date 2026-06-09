@@ -293,6 +293,7 @@
                 </div>
                 <button type="submit" class="btn" id="login-btn">Authenticate & Login</button>
             </form>
+            <p style="text-align:center; margin-top:12px;"><a href="#" onclick="event.preventDefault(); openForgotPwd();" style="color:var(--primary-blue); font-size:13px; text-decoration:none;">Forgot Password?</a></p>
             <div id="error" class="error" {% if error %}style="display:block;"{% endif %}>{% if error %}{{ error }}{% endif %}</div>
         </div>
 
@@ -342,7 +343,6 @@
 
 
     <script>
-        const isCapacitor = () => { return window.Capacitor?.Platform?.isNative || window.location.hostname === 'app.local'; }
         const BASE = "https://iste-ws2k.onrender.com";
         let blockTimer = null;
         let loginBtn = document.getElementById('login-btn');
@@ -475,7 +475,112 @@
                 if (!btn.disabled) startLoginFlow();
             }
         });
+
+        let fpUserId = "", fpOtp = "";
+
+        function openForgotPwd() {
+            document.getElementById('forgotModal').style.display = 'flex';
+            document.getElementById('fp-step1').style.display = '';
+            document.getElementById('fp-step2').style.display = 'none';
+            document.getElementById('fp-step3').style.display = 'none';
+            document.getElementById('fp-msg').style.display = 'none';
+            document.getElementById('fp-userid').value = document.getElementById('user_id').value;
+            document.getElementById('fp-step-text').textContent = 'Enter your Registration ID';
+        }
+
+        function closeForgotPwd() {
+            document.getElementById('forgotModal').style.display = 'none';
+        }
+
+        function fpShowMsg(msg, isError) {
+            const el = document.getElementById('fp-msg');
+            el.textContent = msg;
+            el.style.display = 'block';
+            el.style.color = isError ? '#d32f2f' : '#2e7d32';
+        }
+
+        async function fpSendOtp() {
+            fpUserId = document.getElementById('fp-userid').value.trim();
+            if (!fpUserId) return fpShowMsg("Enter your Registration ID", true);
+            try {
+                const res = await fetch("/student/forgot-password", {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ user_id: fpUserId })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    document.getElementById('fp-step1').style.display = 'none';
+                    document.getElementById('fp-step2').style.display = '';
+                    document.getElementById('fp-step-text').textContent = `OTP sent to ${fpUserId}@sastra.ac.in`;
+                    fpShowMsg("Check your email", false);
+                } else fpShowMsg(data.error, true);
+            } catch (e) { fpShowMsg("Server error", true); }
+        }
+
+        async function fpVerifyOtp() {
+            fpOtp = document.getElementById('fp-otp').value.trim();
+            if (!fpOtp || fpOtp.length !== 6) return fpShowMsg("Enter 6-digit OTP", true);
+            try {
+                const res = await fetch("/student/verify-otp", {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ user_id: fpUserId, otp: fpOtp })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    document.getElementById('fp-step2').style.display = 'none';
+                    document.getElementById('fp-step3').style.display = '';
+                    document.getElementById('fp-step-text').textContent = 'Set your new password';
+                    fpShowMsg("", false);
+                } else fpShowMsg(data.error, true);
+            } catch (e) { fpShowMsg("Server error", true); }
+        }
+
+        async function fpResetPwd() {
+            const np = document.getElementById('fp-newpwd').value;
+            const cp = document.getElementById('fp-confirmpwd').value;
+            if (!np || np.length < 6) return fpShowMsg("Password must be at least 6 characters", true);
+            if (np !== cp) return fpShowMsg("Passwords do not match", true);
+            try {
+                const res = await fetch("/student/reset-password", {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({ user_id: fpUserId, otp: fpOtp, new_password: np })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    fpShowMsg("Password reset successful! You can now login.", false);
+                    document.getElementById('fp-step3').style.display = 'none';
+                    setTimeout(() => { closeForgotPwd(); document.getElementById('password').value = np; }, 2000);
+                } else fpShowMsg(data.error, true);
+            } catch (e) { fpShowMsg("Server error", true); }
+        }
     </script>
-</body>
+
+    <div id="forgotModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:30px; border-radius:12px; width:340px; max-width:90vw; box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+            <h3 style="text-align:center; color:var(--primary-blue); margin-bottom:5px;">Forgot Password</h3>
+            <p id="fp-step-text" style="text-align:center; font-size:12px; color:#666; margin-bottom:15px;">Enter your Registration ID</p>
+
+            <div id="fp-step1">
+                <input type="text" id="fp-userid" placeholder="Registration ID" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box; margin-bottom:12px;">
+                <button onclick="fpSendOtp()" style="width:100%; padding:12px; background:var(--primary-blue); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Send OTP</button>
+            </div>
+
+            <div id="fp-step2" style="display:none;">
+                <input type="text" id="fp-otp" placeholder="Enter 6-digit OTP" maxlength="6" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box; margin-bottom:12px; text-align:center; font-size:18px; letter-spacing:4px;">
+                <button onclick="fpVerifyOtp()" style="width:100%; padding:12px; background:var(--primary-blue); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Verify OTP</button>
+            </div>
+
+            <div id="fp-step3" style="display:none;">
+                <input type="password" id="fp-newpwd" placeholder="New password (min 6 chars)" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box; margin-bottom:10px;">
+                <input type="password" id="fp-confirmpwd" placeholder="Confirm password" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; box-sizing:border-box; margin-bottom:12px;">
+                <button onclick="fpResetPwd()" style="width:100%; padding:12px; background:var(--iste-green); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Reset Password</button>
+            </div>
+
+            <p id="fp-msg" style="text-align:center; font-size:12px; margin-top:10px; display:none;"></p>
+            <p style="text-align:center; margin-top:12px;"><a href="#" onclick="event.preventDefault(); closeForgotPwd();" style="color:#999; font-size:12px; text-decoration:none;">Back to Login</a></p>
+        </div>
+    </div>
+
+    <script>
 
 </html>

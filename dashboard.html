@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Secure and high-performance ISTE AptitudePortal. Access your tests and review your attempts in real-time.">
+    <meta name="description" content="Secure and high-performance ISTE Aptitude Portal. Access your tests and review your attempts in real-time.">
     <meta name="author" content="ISTE">
     <meta name="theme-color" content="#1a237e">
     <title>ISTE Aptitude Portal</title>
@@ -163,9 +163,8 @@
     </div>
 
     <script>
-        const BASE = "https://iste-ws2k.onrender.com";
+        const BASE = "";
         let selectedAssessmentId = null;
-        let isRefreshing = false;
         let lastActiveData = "";
         let lastHistoryData = "";
         let assessmentsToTrack = [];
@@ -174,6 +173,13 @@
         let toastTimeout = null;
 
         const cleanNum = (num) => Number(parseFloat(num).toFixed(2));
+        function formatTime(sec) {
+            sec = Math.round(sec);
+            if (sec < 60) return sec + 's';
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            return s > 0 ? m + 'm ' + s + 's' : m + 'm';
+        }
         function startGlobalHeartbeat() {
             function tick() {
                 const now = Date.now();
@@ -303,7 +309,7 @@
                     ${scoreDisplay}
                 </summary>
                 <div class="res-content" id="details-${h.assessment_id}">
-                    <div class="res-row"><span>⏱️ Time Taken:</span> <span>${h.is_attempted ? Math.round(h.total_time_taken_sec / 60) + ' mins' : 'N/A'}</span></div>
+                    <div class="res-row"><span>⏱️ Time Taken:</span> <span>${h.is_attempted ? formatTime(h.total_time_taken_sec) + ' / ' + formatTime((h.total_duration || 60) * 60) : 'N/A'}</span></div>
                     <div class="res-row"><span>📝 Questions Attended:</span> <span>${h.is_attempted ? (h.attended || 0) + ' / ' + h.total_questions : 'N/A'}</span></div>
                     <div class="res-row"><span>📋 Evaluation Status:</span> <span style="font-weight:bold; color:${statusColor};">${subStatus}</span></div>
                     ${h.results_available && h.is_attempted ? `<div class="loading-spinner" style="padding:10px; text-align:center; font-size:12px; color:#999;">🔍 Click to load detailed breakdown...</div>` : '<p style="font-size:12px; margin-top:10px; color:#777;">📌 Official evaluation will be released after the test duration concludes for all candidates.</p>'}
@@ -346,40 +352,47 @@
             renderHistoryLazy(currentHistoryData);
         }
 
-        async function loadDashboardData() {
-            if (isRefreshing) return;
-            isRefreshing = true;
+        let isRefreshingActive = false;
+        let isRefreshingHistory = false;
 
-            const refreshBtn = document.getElementById('manualRefreshBtn');
-            const originalBtnHtml = refreshBtn ? refreshBtn.innerHTML : '';
-            if (refreshBtn) {
-                refreshBtn.disabled = true;
-                refreshBtn.innerHTML = '<span class="spinner-small"></span> Refreshing...';
-            }
-
+        async function loadActiveAssessments() {
+            if (isRefreshingActive) return;
+            isRefreshingActive = true;
             try {
-                const [activeRes, historyRes] = await Promise.all([
-                    fetch(`${BASE}/student/active`, { credentials: "include" }),
-                    fetch(`${BASE}/student/attempts`, { credentials: "include" })
-                ]);
-
-                if (activeRes.ok) {
-                    const assessments = (await activeRes.json()).filter(a => !a.is_attempted);
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 15000);
+                const res = await fetch(`${BASE}/student/active?t=${Date.now()}`, { credentials: "include", cache: "no-store", signal: controller.signal });
+                clearTimeout(timer);
+                if (res.ok) {
+                    const assessments = (await res.json()).filter(a => !a.is_attempted);
                     const activeStr = JSON.stringify(assessments);
                     if (activeStr !== lastActiveData) {
                         lastActiveData = activeStr;
                         renderDashboard(assessments);
                     }
                 }
+            } catch (err) {
+                console.warn("Active assessments sync failed:", err);
+            } finally {
+                isRefreshingActive = false;
+            }
+        }
 
-                if (historyRes.ok) {
-                    const data = await historyRes.json();
+        async function loadHistory() {
+            if (isRefreshingHistory) return;
+            isRefreshingHistory = true;
+            try {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 15000);
+                const res = await fetch(`${BASE}/student/attempts?t=${Date.now()}`, { credentials: "include", cache: "no-store", signal: controller.signal });
+                clearTimeout(timer);
+                if (res.ok) {
+                    const data = await res.json();
                     const historyStr = JSON.stringify(data);
                     if (historyStr !== lastHistoryData) {
                         const openTabs = Array.from(document.querySelectorAll('details.history-card[open]')).map(d => d.id);
                         lastHistoryData = historyStr;
                         renderHistoryLazy(data);
-
                         openTabs.forEach(tabId => {
                             const tab = document.getElementById(tabId);
                             if (tab) {
@@ -389,16 +402,16 @@
                             }
                         });
                     }
-                } else document.getElementById('history-container').innerHTML = '<p style="color: #c62828; text-align:center;">⚠️ Failed to load attempt history.</p>';
+                } else document.getElementById('history-container').innerHTML = '<p style="color: #c62828; text-align:center;">Failed to load attempt history.</p>';
             } catch (err) {
-                console.warn("Dashboard sync warning:", err);
+                console.warn("History sync failed:", err);
             } finally {
-                isRefreshing = false;
-                if (refreshBtn) {
-                    refreshBtn.disabled = false;
-                    refreshBtn.innerHTML = originalBtnHtml;
-                }
+                isRefreshingHistory = false;
             }
+        }
+
+        async function loadDashboardData() {
+            await Promise.allSettled([loadActiveAssessments(), loadHistory()]);
         }
 
         async function fetchDetails(aid) {
@@ -407,7 +420,7 @@
 
             container.innerHTML = '<div style="padding:15px; text-align:center;">📊 Processing detailed analysis...</div>';
             try {
-                const res = await fetch(`${BASE}/student/attempt_details/${aid}`, { credentials: "include" });
+                const res = await fetch(`${BASE}/student/attempt_details/${aid}`, { credentials: "include", cache: "no-store" });
                 if (!res.ok) throw new Error();
                 const data = await res.json();
 
@@ -507,7 +520,8 @@
 
         async function logout() { await fetch(`${BASE}/logout`, { credentials: "include" }); window.location.href = `${BASE}/`; }
         window.manualRefreshDashboard = async function () {
-            await loadDashboardData();
+            await loadActiveAssessments();
+            await loadHistory();
             await checkPendingNotifications();
         };
 
@@ -594,13 +608,17 @@
         function closeToast() { document.getElementById('notification-toast').style.display = 'none'; }
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadDashboardData();
+            loadActiveAssessments();
+            loadHistory();
             startGlobalHeartbeat();
 
             if (typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission();
             setInterval(() => {
-                if (!isRefreshing) loadDashboardData();
+                loadActiveAssessments();
             }, 10000);
+            setInterval(() => {
+                loadHistory();
+            }, 30000);
         });
 
         window.addEventListener('pageshow', e => { if (e.persisted) loadDashboardData(); });

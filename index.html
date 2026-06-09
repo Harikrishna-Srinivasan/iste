@@ -293,6 +293,7 @@
                 </div>
                 <button type="submit" class="btn" id="login-btn">Authenticate & Login</button>
             </form>
+
             <div id="error" class="error" {% if error %}style="display:block;"{% endif %}>{% if error %}{{ error }}{% endif %}</div>
         </div>
 
@@ -342,8 +343,7 @@
 
 
     <script>
-        const isCapacitor = () => { return window.Capacitor?.Platform?.isNative || window.location.hostname === 'app.local'; }
-        const BASE = "https://iste-ws2k.onrender.com";
+        const BASE = "";
         let blockTimer = null;
         let loginBtn = document.getElementById('login-btn');
 
@@ -436,6 +436,9 @@
             const user_id = document.getElementById('user_id').value.trim();
             const password = document.getElementById('password').value.trim();
             if (!user_id || !password) return alert("Fill all fields.");
+            const btn = document.getElementById('login-btn');
+            btn.disabled = true;
+            btn.textContent = "Authenticating...";
             document.getElementById('login-form').submit();
         }
 
@@ -475,7 +478,7 @@
                 if (!btn.disabled) startLoginFlow();
             }
         });
+
     </script>
-</body>
 
 </html>

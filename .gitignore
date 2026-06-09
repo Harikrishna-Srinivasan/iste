@@ -22,6 +22,10 @@ build/
 target/
 android/
 
+# Cached
+*cache*/
+*cache*
+
 # Python
 __pycache__/
 *.pyc

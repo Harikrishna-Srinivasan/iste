@@ -29,7 +29,7 @@ app = Flask(__name__, template_folder=".", static_folder=".", static_url_path=""
 app.config.update(
     SESSION_COOKIE_SECURE=True,
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE="None",
+    SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_DOMAIN=None
 )
 app.config["SESSION_COOKIE_NAME"] = "iste_session"
@@ -49,18 +49,25 @@ CORS(app,
      ],
      supports_credentials=True,
      allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+
+@app.after_request
+def add_cache_headers(response):
+    ct = response.content_type or ""
+    if "application/json" in ct:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        response.headers["Surrogate-Control"] = "no-store"
+    response.headers["Vary"] = "Cookie"
+    return response
 
 app.config["SECRET_KEY"] = os.environ["secret_key"]
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 app.config["SERVER_NAME"] = None
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
 IST = pytz.timezone("Asia/Kolkata")
 ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "VII", 8: "VIII", 9: "IX", 10: "X"}
-
-_active_cache = {"data": None, "expiry": datetime.min}
-_cache_lock = Lock()
 
 student_pool = PooledDB(
     creator=pymysql,
@@ -120,11 +127,11 @@ def reset_failed_attempts(identifier):
         if identifier in failed_attempts:
             del failed_attempts[identifier]
 
-def make_token(uid, is_admin=False):
+def make_token(uid, is_admin=False, expiry_days=14):
     payload = {
         "user_id": uid,
         "is_admin": is_admin,
-        "exp": datetime.now(timezone.utc) + timedelta(days=30)
+        "exp": datetime.now(timezone.utc) + timedelta(days=expiry_days)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
 
@@ -141,7 +148,11 @@ def token_required(f):
     def decorated(*args, **kwargs):
         token = request.cookies.get("token") or request.headers.get("Authorization")
         if not token:
-            return jsonify({"error": "Missing token"}), 401
+            uid = session.get("user_id")
+            if not uid:
+                return jsonify({"error": "Not logged in"}), 401
+            request.user = {"user_id": uid, "is_admin": session.get("is_admin", False)}
+            return f(*args, **kwargs)
         payload = verify_token(token)
         if not payload:
             return jsonify({"error": "Invalid token"}), 401
@@ -152,7 +163,7 @@ def token_required(f):
 @app.route("/")
 def serve_index():
     token = request.cookies.get("token")
-    if token and verify_token(token):
+    if (token and verify_token(token)) or session.get("user_id"):
         ui = get_my_info()
         if "error" not in ui:
             return render_template("dashboard.html", user=ui)
@@ -161,7 +172,7 @@ def serve_index():
 @app.route("/dashboard")
 def serve_dashboard():
     token = request.cookies.get("token")
-    if not token or not verify_token(token):
+    if not (token and verify_token(token)) and not session.get("user_id"):
         return render_template("index.html")
     ui = get_my_info()
     if "error" in ui:
@@ -171,7 +182,7 @@ def serve_dashboard():
 @app.route("/test")
 def serve_test():
     token = request.cookies.get("token")
-    if not token or not verify_token(token):
+    if not (token and verify_token(token)) and not session.get("user_id"):
         return render_template("index.html")
     ui = get_my_info()
     if "error" in ui:
@@ -190,13 +201,15 @@ def health_check():
 def get_my_info():
     try:
         token = request.cookies.get("token") or request.headers.get("Authorization")
-        if not token:
-            uid = session.get("user_id")
-            if not uid: return {"error": "No token"}
-        else:
+        if token:
             payload = verify_token(token)
-            if not payload: return {"error": "Invalid token"}
-            uid = payload.get("user_id")
+            if payload:
+                uid = payload.get("user_id")
+            else:
+                uid = session.get("user_id")
+        else:
+            uid = session.get("user_id")
+        if not uid: return {"error": "No token"}
 
         conn = get_student_conn()
         cur = conn.cursor(pymysql.cursors.DictCursor)
@@ -311,8 +324,7 @@ def student_login():
             return jsonify({"error": "Invalid credentials"}), 401
 
         reset_failed_attempts(identifier)
-        token = make_token(user["user_id"], is_admin=False)
-        session.permanent = True
+        token = make_token(user["user_id"], is_admin=False, expiry_days=1)
         session["user_id"] = user["user_id"]
         session["is_admin"] = False
 
@@ -328,7 +340,7 @@ def student_login():
                 app.logger.error(f"FCM registration failed: {str(e)}")
 
         resp = make_response(redirect("/dashboard") if is_form else jsonify({"status": "Success"}))
-        resp.set_cookie("token", token, httponly=True, secure=True, samesite="None", max_age=timedelta(days=30))
+        resp.set_cookie("token", token, httponly=True, secure=True, samesite="Lax", max_age=timedelta(days=1))
         return resp
     except Exception as e:
         app.logger.error(f"Login failed: {str(e)}")
@@ -380,31 +392,18 @@ def gen_captcha():
 @token_required
 def get_active_assessments():
     uid = request.user["user_id"]
-    """Returns cached assessment list to prevent DB spam from 600 devices."""
-    global _active_cache
-    now = datetime.now()
-
-    rows = None
-    with _cache_lock:
-        if _active_cache["data"] and _active_cache["expiry"] > now:
-            rows = _active_cache["data"]
-
     conn = get_student_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
-        if not rows:
-            cur.execute("""
-                SELECT id, title, type, seq_num, start_at, end_at, total_duration
-                FROM assessments
-                WHERE end_at >= NOW() ORDER BY start_at ASC
-            """)
-            rows = cur.fetchall()
-            for r in rows:
-                if r["start_at"]: r["start_at"] = r["start_at"].isoformat()
-                if r["end_at"]: r["end_at"] = r["end_at"].isoformat()
-
-            with _cache_lock:
-                _active_cache = {"data": rows, "expiry": now + timedelta(minutes=3)}
+        cur.execute("""
+            SELECT id, title, type, seq_num, start_at, end_at, total_duration
+            FROM assessments
+            WHERE end_at >= NOW() ORDER BY start_at ASC
+        """)
+        rows = cur.fetchall()
+        for r in rows:
+            if r["start_at"]: r["start_at"] = r["start_at"].isoformat()
+            if r["end_at"]: r["end_at"] = r["end_at"].isoformat()
 
         cur.execute("SELECT assessment_id FROM student_submissions WHERE user_id=%s", (uid,))
         submitted = {r["assessment_id"] for r in cur.fetchall()}
