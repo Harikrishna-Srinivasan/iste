@@ -11,7 +11,6 @@ from datetime import datetime, timedelta, timezone
 from functools import wraps
 from threading import Thread, Lock
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
 from apscheduler.schedulers.background import BackgroundScheduler
 from dbutils.pooled_db import PooledDB
 from dotenv import load_dotenv
@@ -200,7 +199,7 @@ def admin_login():
 
     try:
         ph.verify(ADMIN_PASSWORD_HASH, password)
-    except VerifyMismatchError:
+    except Exception:
         record_failed_attempt(identifier)
         return jsonify({"error": "Invalid credentials"}), 401
 
@@ -233,9 +232,13 @@ def logout():
 def upload_excel():
     if "file" not in request.files:
         return jsonify({"error": "No file"}), 400
+
     file = request.files["file"]
     try:
-        df = pd.read_csv(file) if file.filename.lower().endswith(".csv") else pd.read_excel(file)
+        if filename.lower().strip().endswith(".csv"):
+            df = pd.read_csv(file, keep_default_na=False)
+        else:
+            df = pd.read_excel(file, keep_default_na=False)
     except Exception as e:
         return jsonify({"error": f"Invalid file: {str(e)}"}), 400
 
@@ -257,7 +260,14 @@ def upload_excel():
             return default
 
     for _, row in df.iterrows():
-        q_type = str(row.get(col_map.get("type", ""), "MCQ")).strip().upper()
+        # 1. Default to "MCQ" if type column is empty or missing
+        type_col = col_map.get("type")
+        raw_type = row.get(type_col, "MCQ") if type_col else "MCQ"
+        if pd.isna(raw_type) or str(raw_type).strip() == "":
+            q_type = "MCQ"
+        else:
+            q_type = str(raw_type).strip().upper()
+            
         if q_type not in ("MCQ", "MSQ", "INT", "NUM"): continue
         question_text = str(row.get(col_map.get("question", ""), "")).strip()
         if not question_text or question_text.lower() == "nan": continue
@@ -273,12 +283,16 @@ def upload_excel():
             for c in df.columns:
                 if len(str(c).strip()) == 1 and str(c).strip().isalpha():
                     val = row.get(c)
-                    if pd.notna(val):
-                        if isinstance(val, (int, float)) and val == int(val):
-                            options.append(str(int(val)))
-                        else:
-                            s = str(val).strip()
-                            if s and s != "nan": options.append(s)
+                    # 2. Allow the string "None" as a valid option (don't treat as empty/NaN)
+                    s = str(val).strip()
+                    if s.lower() in ["nan", ""]:
+                        continue
+                    
+                    if isinstance(val, (int, float)) and val == int(val) and s.lower() != "none":
+                        options.append(str(int(val)))
+                    else:
+                        options.append(s)
+                        
             if len(options) < 2: continue
             ans_dict["options"] = options
 
@@ -320,16 +334,32 @@ def upload_excel():
                 try: ans_dict["value"] = float(correct_raw)
                 except: continue
 
+        # 3. Strict duplicate check (Question, Type, Marks, Neg Marks, and Options must ALL match)
         q_norm = " ".join(question_text.lower().split())
-        cur.execute("SELECT id FROM questions WHERE type=%s", (q_type,))
+        cur.execute("SELECT id, question, mark, negative_mark, answer FROM questions WHERE type=%s", (q_type,))
         existing = cur.fetchall()
         dup_id = None
+        
         for eq in existing:
-            cur.execute("SELECT question FROM questions WHERE id=%s", (eq["id"],))
-            eq_text = cur.fetchone()["question"]
-            if " ".join(eq_text.lower().split()) == q_norm:
-                dup_id = eq["id"]
-                break
+            if " ".join(eq["question"].lower().split()) != q_norm: continue
+            if eq["mark"] != mark or eq["negative_mark"] != neg_mark: continue
+            
+            if q_type in ("MCQ", "MSQ"):
+                try:
+                    eq_ans = json.loads(eq["answer"]) if isinstance(eq["answer"], str) else eq["answer"]
+                    eq_options = eq_ans.get("options", [])
+                except:
+                    eq_options = []
+                
+                # Normalize options for comparison (case-insensitive and stripped)
+                norm_opts = [str(o).strip().lower() for o in options]
+                norm_eq_opts = [str(o).strip().lower() for o in eq_options]
+                if norm_opts != norm_eq_opts:
+                    continue
+            
+            dup_id = eq["id"]
+            break
+
         if dup_id:
             all_ids.append(dup_id)
         else:
@@ -348,7 +378,11 @@ def upload_excel():
 @admin_required
 def add_question():
     data = request.json
+    
+    # Default to "MCQ" if type is empty or missing
     q_type = data.get("type", "MCQ").upper()
+    if not q_type or q_type == "NAN": q_type = "MCQ"
+    
     text = data.get("question", "").strip()
     mark = int(data.get("marks", 1))
     neg = int(data.get("negative_marks", 0))
@@ -368,14 +402,36 @@ def add_question():
             ans["value"] = float(data.get("value", 0))
 
     conn = get_admin_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT id, question FROM questions WHERE type=%s", (q_type,))
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    
+    # Strict duplicate check
+    cur.execute("SELECT id, question, mark, negative_mark, answer FROM questions WHERE type=%s", (q_type,))
     existing = cur.fetchall()
     text_norm = " ".join(text.lower().split())
-    for eid, eq_text in existing:
-        if " ".join(eq_text.lower().split()) == text_norm:
-            cur.close(); conn.close()
-            return jsonify({"status": "duplicate", "id": eid})
+    
+    dup_id = None
+    for eq in existing:
+        if " ".join(eq["question"].lower().split()) != text_norm: continue
+        if eq["mark"] != mark or eq["negative_mark"] != neg: continue
+        
+        if q_type in ("MCQ", "MSQ"):
+            try:
+                eq_ans = json.loads(eq["answer"]) if isinstance(eq["answer"], str) else eq["answer"]
+                eq_options = eq_ans.get("options", [])
+            except:
+                eq_options = []
+            
+            norm_opts = [str(o).strip().lower() for o in ans.get("options", [])]
+            norm_eq_opts = [str(o).strip().lower() for o in eq_options]
+            if norm_opts != norm_eq_opts:
+                continue
+        
+        dup_id = eq["id"]
+        break
+
+    if dup_id:
+        cur.close(); conn.close()
+        return jsonify({"status": "duplicate", "id": dup_id})
 
     cur.execute("""
         INSERT INTO questions (type, question, answer, mark, negative_mark)

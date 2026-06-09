@@ -400,6 +400,19 @@
                 Open and Close. Once they join, their specific question timers begin.</p>
         </section>
 
+        <section class="card full" style="border-top: 5px solid #1565c0;">
+            <h3 style="color: #1565c0;">Send Message to Students</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Schedule a push notification to be delivered to all registered students.</p>
+            <label for="msg-title">Notification Title</label>
+            <input type="text" id="msg-title" placeholder="e.g. Important Announcement">
+            <label for="msg-body">Message Body</label>
+            <textarea id="msg-body" rows="3" placeholder="Type your message here..."></textarea>
+            <label for="msg-schedule">Schedule For (leave empty to send now)</label>
+            <input type="datetime-local" id="msg-schedule">
+            <button class="btn-action" style="background: #1565c0;" onclick="scheduleMessage()">Schedule Message</button>
+            <div id="msg-status" class="status-msg" aria-live="polite"></div>
+        </section>
+
         <section class="card">
             <h3>📝 Draft Assessment Preview</h3>
             <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Review the questions currently staged for this
@@ -464,19 +477,6 @@
 
             <button class="btn-action" onclick="submitManualQuestion()">Add to Question Bank</button>
             <div id="man-status" class="status-msg" aria-live="polite"></div>
-        </section>
-
-        <section class="card full" style="border-top: 5px solid #1565c0;">
-            <h3 style="color: #1565c0;">Send Message to Students</h3>
-            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Schedule a push notification to be delivered to all registered students.</p>
-            <label for="msg-title">Notification Title</label>
-            <input type="text" id="msg-title" placeholder="e.g. Important Announcement">
-            <label for="msg-body">Message Body</label>
-            <textarea id="msg-body" rows="3" placeholder="Type your message here..."></textarea>
-            <label for="msg-schedule">Schedule For (leave empty to send now)</label>
-            <input type="datetime-local" id="msg-schedule">
-            <button class="btn-action" style="background: #1565c0;" onclick="scheduleMessage()">Schedule Message</button>
-            <div id="msg-status" class="status-msg" aria-live="polite"></div>
         </section>
 
         <section class="card full" style="border-top: 5px solid #e65100;">

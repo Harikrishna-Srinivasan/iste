@@ -22,25 +22,21 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="30203d0d-67d5-46f1-8bfd-f565fc8872bb" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../admin.html" beforeDir="false" afterPath="$PROJECT_DIR$/../admin.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../admin_login.html" beforeDir="false" afterPath="$PROJECT_DIR$/../admin_login.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../admin.py" beforeDir="false" afterPath="$PROJECT_DIR$/../admin.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/file-system.probe" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/file-system.probe" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/release/app-release.apk" beforeDir="false" afterPath="$PROJECT_DIR$/app/release/app-release.apk" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/release/baselineProfiles/0/app-release.dm" beforeDir="false" afterPath="$PROJECT_DIR$/app/release/baselineProfiles/0/app-release.dm" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/release/baselineProfiles/1/app-release.dm" beforeDir="false" afterPath="$PROJECT_DIR$/app/release/baselineProfiles/1/app-release.dm" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/admin.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/assets/public/admin.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/admin_login.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/assets/public/admin_login.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/assets/public/dashboard.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/assets/public/index.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/test.html" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/assets/public/test.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/../dashboard.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../index.html" beforeDir="false" afterPath="$PROJECT_DIR$/../index.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../student.py" beforeDir="false" afterPath="$PROJECT_DIR$/../student.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../test.html" beforeDir="false" afterPath="$PROJECT_DIR$/../test.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../www/admin.html" beforeDir="false" afterPath="$PROJECT_DIR$/../www/admin.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../www/admin_login.html" beforeDir="false" afterPath="$PROJECT_DIR$/../www/admin_login.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../www/dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/../www/dashboard.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../www/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/../www/index.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../www/test.html" beforeDir="false" afterPath="$PROJECT_DIR$/../www/test.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -51,7 +47,7 @@
   <component name="ClangdSettings">
     <option name="formatViaClangd" value="false" />
   </component>
-  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[PhysicalDevice::serial=103223137C113842]" />
+  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[]" />
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
       <ProjectState />
@@ -95,7 +91,7 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ASKED_SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "AnalyzeApkAction.lastApkPath": "/home/dell/iste/android/app/build/outputs/apk/release/app-release-unsigned.apk",
+    "AnalyzeApkAction.lastApkPath": "/home/dell/iste/android/app/build/outputs/apk/debug/app-debug.apk",
     "Android App.app.executor": "Run",
     "ApkExportedModule": "android.app",
     "BundleExportedModule": "android.app",
@@ -117,7 +113,7 @@
     "com.google.services.firebase.aqiPopupShown": "true",
     "git-widget-placeholder": "master",
     "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/home/dell/iste/iste.jks",
+    "last_opened_file_path": "/home/dell/iste/android/app/build/outputs/apk/debug/app-debug.apk",
     "memory.settings.postsync.last.time.stamp": "1780968081571",
     "project.structure.last.edited": "Modules",
     "project.structure.proportion": "0.17",

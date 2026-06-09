@@ -6,15 +6,18 @@ import os
 import pymysql
 import pytz
 import random
+import secrets
+import smtplib
+import ssl
 import string
 import time
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from dbutils.pooled_db import PooledDB
 from dotenv import load_dotenv
+from email.mime.text import MIMEText
 from flask import Flask, request, jsonify, render_template, make_response, session, redirect
 from flask_cors import CORS
 from threading import Lock
@@ -93,6 +96,14 @@ JWT_ALGO = "HS256"
 failed_attempts = defaultdict(list)
 rate_lock = Lock()
 
+otp_store = defaultdict(dict)
+otp_lock = Lock()
+
+SMTP_EMAIL = os.environ.get("smtp_email", "")
+SMTP_PASSWORD = os.environ.get("smtp_password", "")
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+
 def check_rate_limit(identifier, max_attempts=5, base_block_sec=240):
     with rate_lock:
         now = time.time()
@@ -126,6 +137,73 @@ def reset_failed_attempts(identifier):
     with rate_lock:
         if identifier in failed_attempts:
             del failed_attempts[identifier]
+
+def generate_otp():
+    return ''.join(secrets.choice(string.digits) for _ in range(6))
+
+def send_otp_email(user_id, otp):
+    email = f"{user_id}@sastra.ac.in"
+    msg = MIMEText(
+        f"Your OTP for password reset is: {otp}\n\n"
+        f"This OTP will expire in 10 minutes.\n"
+        f"If you did not request this, please ignore this email."
+    )
+    msg["Subject"] = "ISTE Portal - Password Reset OTP"
+    msg["From"] = SMTP_EMAIL
+    msg["To"] = email
+    try:
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls(context=ctx)
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, email, msg.as_string())
+        return True
+    except Exception as e:
+        app.logger.error(f"Failed to send OTP email: {str(e)}")
+        return False
+
+def check_otp_rate_limit(user_id, max_requests=5, window_sec=3600):
+    with otp_lock:
+        key = f"otp_req_{user_id}"
+        now = time.time()
+        requests = otp_store.get(key, [])
+        requests = [t for t in requests if now - t < window_sec]
+        otp_store[key] = requests
+        if len(requests) >= max_requests:
+            return False
+        requests.append(now)
+        return True
+
+def verify_otp(user_id, otp):
+    with otp_lock:
+        key = f"otp_{user_id}"
+        stored = otp_store.get(key, {})
+        if not stored:
+            return False
+        if time.time() > stored.get("expires_at", 0):
+            del otp_store[key]
+            return False
+        if stored.get("otp") == otp:
+            del otp_store[key]
+            return True
+        return False
+
+def make_reset_token(user_id):
+    payload = {
+        "user_id": user_id,
+        "purpose": "password_reset",
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=5)
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
+
+def verify_reset_token(token):
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
+        if payload.get("purpose") != "password_reset":
+            return None
+        return payload
+    except:
+        return None
 
 def make_token(uid, is_admin=False, expiry_days=14):
     payload = {
@@ -317,7 +395,7 @@ def student_login():
 
         try:
             ph.verify(user["password"], password)
-        except VerifyMismatchError:
+        except Exception:
             record_failed_attempt(identifier)
             if is_form:
                 return render_template("index.html", error="Invalid credentials")
@@ -355,6 +433,80 @@ def logout():
     resp = make_response(jsonify({"status": "Logged out"}))
     resp.delete_cookie("token")
     return resp
+
+@app.route("/student/forgot-password", methods=["POST"])
+def forgot_password():
+    body = request.json
+    user_id = body.get("user_id")
+    if not user_id:
+        return jsonify({"error": "Registration ID is required"}), 400
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid Registration ID"}), 400
+    if not check_otp_rate_limit(user_id):
+        return jsonify({"error": "Too many OTP requests. Try again later."}), 429
+    conn = get_student_conn()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cur.execute("SELECT user_id FROM users WHERE user_id=%s", (user_id,))
+        if not cur.fetchone():
+            return jsonify({"error": "Registration ID not found"}), 404
+    finally:
+        cur.close()
+        conn.close()
+    otp = generate_otp()
+    with otp_lock:
+        otp_store[f"otp_{user_id}"] = {
+            "otp": otp,
+            "expires_at": time.time() + 600
+        }
+    if not send_otp_email(user_id, otp):
+        return jsonify({"error": "Failed to send OTP. Please try again."}), 500
+    return jsonify({"status": "OTP sent successfully", "email": f"{user_id}@sastra.ac.in"})
+
+@app.route("/student/verify-otp", methods=["POST"])
+def verify_otp_route():
+    body = request.json
+    user_id = body.get("user_id")
+    otp = body.get("otp")
+    if not user_id or not otp:
+        return jsonify({"error": "Registration ID and OTP are required"}), 400
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid Registration ID"}), 400
+    if not verify_otp(user_id, otp):
+        return jsonify({"error": "Invalid or expired OTP"}), 401
+    reset_token = make_reset_token(user_id)
+    return jsonify({"status": "OTP verified", "reset_token": reset_token})
+
+@app.route("/student/reset-password", methods=["POST"])
+def reset_password():
+    body = request.json
+    reset_token = body.get("reset_token")
+    new_password = body.get("new_password")
+    confirm_password = body.get("confirm_password")
+    if not reset_token or not new_password or not confirm_password:
+        return jsonify({"error": "All fields are required"}), 400
+    if new_password != confirm_password:
+        return jsonify({"error": "Passwords do not match"}), 400
+    if len(new_password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters"}), 400
+    payload = verify_reset_token(reset_token)
+    if not payload:
+        return jsonify({"error": "Invalid or expired reset token"}), 401
+    user_id = payload.get("user_id")
+    hashed = ph.hash(new_password)
+    conn = get_student_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE users SET password=%s WHERE user_id=%s", (hashed, user_id))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+    return jsonify({"status": "Password reset successful"})
 
 @app.route("/student/register_device", methods=["POST"])
 @token_required
