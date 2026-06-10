@@ -269,6 +269,14 @@ Once your questions are in the bank, you can create a test:
 3. Click **"Export XLSX"**
 4. An Excel file will download with all student scores and details
 
+### Download Student List
+
+1. Go to **"All Registered Students"** section
+2. Click **"Load Student List"** to view all registered students
+3. Click **"Download XLSX"** to export the list as an Excel file with columns: Reg. ID, Name, Year, Degree, Stream
+
+> **Note:** Assessments conducted before a student registered will show as **"Missing"** with a score of **0** in the student's history. This is expected — the student was not yet registered when those assessments took place.
+
 ---
 
 ## Step 5: Send Notifications to Students
@@ -306,6 +314,9 @@ A: Results appear automatically after the test window closes + the test duration
 **Q: Can I create a test with questions from different topics?**
 A: Yes! Just add all questions to the question bank first, then select the specific ones you want for each test.
 
+**Q: What does "Missing" mean in a student's results?**
+A: Assessments conducted before a student registered show as "Missing" with a score of 0. This is expected — the student wasn't in the system yet or the student didn't attend that test.
+
 ---
 
 # For Students
@@ -314,15 +325,19 @@ A: Yes! Just add all questions to the question bank first, then select the speci
 
 1. Open the portal: **[iste-ws2k.onrender.com](https://iste-ws2k.onrender.com)**
 2. Click **"Register"** tab
-3. Fill in:
-   - **Registration ID** — your SASTRA register number (e.g. `22803001`)
+3. Enter your **Registration ID** and click **"Send OTP"**
+4. Check your SASTRA email (`{your-id}@sastra.ac.in`) for the 6-digit OTP
+5. Enter the OTP and click **"Verify OTP"**
+6. Fill in your details:
    - **Name** — your full name
    - **Year** — select your current year (1st / 2nd / 3rd / 4th)
    - **Degree** — e.g. `B.Tech`
-   - **Stream** — e.g. `Computer Science & Engineering` (As per you ID card, do not abbreviate)
+   - **Stream** — e.g. `CSE`
    - **Password** — choose a password (minimum 6 characters)
    - **Confirm Password** — type the same password again
-4. Click **"Create Account"**
+7. Click **"Create Account"**
+
+> **OTP Limit:** Each Registration ID can request a maximum of **4 OTPs per day** (across both registration and password reset). If you exceed this, wait 24 hours and try again.
 
 > You're all set! Log in with your Register Number and Your Password.
 
@@ -732,7 +747,9 @@ Vary: Cookie
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
 | `/student/login` | POST | None | Login |
-| `/student/register` | POST | None | Register |
+| `/student/register` | POST | None | Register (requires registration_token from OTP verification) |
+| `/student/send-registration-otp` | POST | None | Send OTP for registration |
+| `/student/verify-registration-otp` | POST | None | Verify registration OTP, returns registration_token |
 | `/student/me` | GET | JWT/Session | Current user info |
 | `/student/active` | GET | JWT/Session | Active assessments |
 | `/student/questions/<aid>` | GET | JWT/Session | Fetch questions |

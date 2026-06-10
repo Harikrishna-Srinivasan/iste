@@ -1,9 +1,0 @@
-{
-  "appId": "com.iste.app",
-  "appName": "ISTE",
-  "webDir": "www",
-  "server": {
-    "url": "https://iste-ws2k.onrender.com",
-    "allowNavigation": ["iste-ws2k.onrender.com", "app.local"]
-  }
-}

@@ -143,7 +143,7 @@
         <form onsubmit="event.preventDefault(); startLoginFlow();">
             <input type="text" id="user" placeholder="Admin Username" autocomplete="username">
             <input type="password" id="pass" placeholder="Admin Password" autocomplete="current-password">
-            <button type="submit">Authenticate</button>
+            <button type="submit">Log In</button>
         </form>
         <div id="err" class="error">Access Denied. Internal Credentials Error.</div>
     </div>
@@ -154,7 +154,7 @@
             <p style="font-size:12px;color:#666;margin-top:5px;">Type the characters from the image</p>
             <canvas id="captchaCanvas" width="200" height="70" onclick="generateCaptcha()"></canvas>
             <input type="text" id="captchaInput" class="captcha-input" autocomplete="off">
-            <button onclick="validateAndLogin()" style="width:100%;padding:12px;background:var(--admin);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">Verify & Login</button>
+            <button onclick="validateAndLogin()" style="width:100%;padding:12px;background:var(--admin);color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">Verify Captcha</button>
             <p style="font-size:11px;margin-top:15px;color:var(--admin);cursor:pointer;" onclick="generateCaptcha()">Refresh Image</p>
         </div>
     </div>

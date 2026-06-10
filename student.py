@@ -103,6 +103,40 @@ SMTP_EMAIL = os.environ.get("smtp_email", "")
 SMTP_PASSWORD = os.environ.get("smtp_password", "")
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
+SMTP_TIMEOUT = 10
+
+smtp_lock = Lock()
+_smtp_conn = None
+
+def _get_smtp():
+    global _smtp_conn
+    if _smtp_conn:
+        try:
+            _smtp_conn.noop()
+            return _smtp_conn
+        except Exception:
+            _smtp_conn = None
+    ctx = ssl.create_default_context()
+    server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=SMTP_TIMEOUT)
+    server.starttls(context=ctx)
+    server.login(SMTP_EMAIL, SMTP_PASSWORD)
+    _smtp_conn = server
+    return _smtp_conn
+
+def _send_email(to_addr, subject, body):
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = SMTP_EMAIL
+    msg["To"] = to_addr
+    with smtp_lock:
+        try:
+            srv = _get_smtp()
+            srv.sendmail(SMTP_EMAIL, to_addr, msg.as_string())
+        except Exception:
+            global _smtp_conn
+            _smtp_conn = None
+            srv = _get_smtp()
+            srv.sendmail(SMTP_EMAIL, to_addr, msg.as_string())
 
 def check_rate_limit(identifier, max_attempts=5, base_block_sec=240):
     with rate_lock:
@@ -143,26 +177,19 @@ def generate_otp():
 
 def send_otp_email(user_id, otp):
     email = f"{user_id}@sastra.ac.in"
-    msg = MIMEText(
+    body = (
         f"Your OTP for password reset is: {otp}\n\n"
         f"This OTP will expire in 10 minutes.\n"
         f"If you did not request this, please ignore this email."
     )
-    msg["Subject"] = "ISTE Portal - Password Reset OTP"
-    msg["From"] = SMTP_EMAIL
-    msg["To"] = email
     try:
-        ctx = ssl.create_default_context()
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls(context=ctx)
-            server.login(SMTP_EMAIL, SMTP_PASSWORD)
-            server.sendmail(SMTP_EMAIL, email, msg.as_string())
+        _send_email(email, "ISTE Portal - Password Reset OTP", body)
         return True
     except Exception as e:
         app.logger.error(f"Failed to send OTP email: {str(e)}")
         return False
 
-def check_otp_rate_limit(user_id, max_requests=5, window_sec=3600):
+def check_otp_rate_limit(user_id, max_requests=4, window_sec=86400):
     with otp_lock:
         key = f"otp_req_{user_id}"
         now = time.time()
@@ -316,9 +343,96 @@ def route_get_my_info():
     if "error" in info: return jsonify(info), 401
     return jsonify(info)
 
+def make_registration_token(user_id):
+    payload = {
+        "user_id": user_id,
+        "purpose": "registration",
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=5)
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
+
+def verify_registration_token(token):
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
+        return payload.get("purpose") == "registration" and payload.get("user_id")
+    except:
+        return None
+
+@app.route("/student/send-registration-otp", methods=["POST"])
+def send_registration_otp():
+    data = request.json
+    user_id = data.get("user_id", "").strip()
+    if not user_id:
+        return jsonify({"error": "Enter your Registration ID"}), 400
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid Registration ID"}), 400
+
+    conn, cur = None, None
+    try:
+        conn = get_student_conn()
+        cur = conn.cursor(pymysql.cursors.DictCursor)
+        cur.execute("SELECT user_id FROM users WHERE user_id=%s", (user_id,))
+        if cur.fetchone():
+            return jsonify({"error": "Registration ID already exists"}), 409
+
+        if not check_otp_rate_limit(user_id):
+            return jsonify({"error": "Too many OTP requests. Try again after 24 hours."}), 429
+
+        otp = generate_otp()
+        with otp_lock:
+            otp_store[f"otp_{user_id}"] = {
+                "otp": otp,
+                "expires_at": time.time() + 600,
+                "purpose": "registration"
+            }
+
+        email = f"{user_id}@sastra.ac.in"
+        body = (
+            f"Your OTP for ISTE Portal registration is: {otp}\n\n"
+            f"This OTP will expire in 10 minutes.\n"
+            f"If you did not request this, please ignore this email."
+        )
+        _send_email(email, "ISTE Portal - Registration OTP", body)
+
+        return jsonify({"status": f"OTP sent to {email}"})
+    except Exception as e:
+        app.logger.error(f"Registration OTP error: {str(e)}")
+        return jsonify({"error": "Failed to send OTP. Try again later."}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+@app.route("/student/verify-registration-otp", methods=["POST"])
+def verify_registration_otp():
+    data = request.json
+    user_id = data.get("user_id", "").strip()
+    otp_input = data.get("otp", "").strip()
+
+    with otp_lock:
+        key = f"otp_{user_id}"
+        stored = otp_store.get(key, {})
+        if not stored or stored.get("purpose") != "registration":
+            return jsonify({"error": "No OTP request found. Try again."}), 400
+        if time.time() > stored.get("expires_at", 0):
+            del otp_store[key]
+            return jsonify({"error": "OTP expired. Request a new one."}), 400
+        if stored.get("otp") != otp_input:
+            return jsonify({"error": "Invalid OTP"}), 400
+        del otp_store[key]
+
+    token = make_registration_token(user_id)
+    return jsonify({"status": "OTP verified", "registration_token": token})
+
 @app.route("/student/register", methods=["POST"])
 def student_register():
     body = request.json
+    reg_token = body.get("registration_token", "")
+    token_user = verify_registration_token(reg_token)
+    if not token_user:
+        return jsonify({"error": "OTP verification required. Please verify OTP first."}), 403
+
     user_id = body.get("user_id")
     password = body.get("password")
     name = body.get("name", "").strip()
@@ -329,14 +443,21 @@ def student_register():
     if not user_id or not password or not name or not year or not degree:
         return jsonify({"error": "All required fields must be filled"}), 400
 
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid Registration ID"}), 400
+
+    if str(user_id) != str(token_user):
+        return jsonify({"error": "Registration ID does not match the verified OTP"}), 400
+
     if len(password) < 6:
         return jsonify({"error": "Password must be at least 6 characters"}), 400
 
     try:
-        user_id = int(user_id)
         year = int(year)
     except (ValueError, TypeError):
-        return jsonify({"error": "Invalid user_id or year"}), 400
+        return jsonify({"error": "Invalid year"}), 400
 
     if year < 1 or year > 4:
         return jsonify({"error": "Year must be between 1 and 4"}), 400

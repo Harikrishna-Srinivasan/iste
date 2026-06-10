@@ -483,8 +483,9 @@
             <h3 style="color: #e65100;">All Registered Students</h3>
             <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Complete list of all students registered in the system.</p>
             <div id="students-status" class="status-msg" aria-live="polite"></div>
-            <div style="margin-bottom: 15px;">
+            <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="btn-action" style="background: #e65100; padding: 10px 20px; width: auto; display: inline-block;" onclick="fetchStudents()">Load Student List</button>
+                <button class="btn-action" id="download-students-btn" style="background: #2e7d32; padding: 10px 20px; width: auto; display: none;" onclick="downloadStudentsXLSX()">📥 Download XLSX</button>
             </div>
             <div id="students-container" style="margin-top: 10px;">
                 <div style="text-align:center; padding: 20px; color: #666;">Click "Load Student List" to view all registered students.</div>
@@ -1212,6 +1213,8 @@
             }
         }
 
+        let studentsData = [];
+
         async function fetchStudents() {
             const statusEl = document.getElementById('students-status');
             const container = document.getElementById('students-container');
@@ -1228,8 +1231,12 @@
                 if (data.length === 0) {
                     container.innerHTML = "<div style='text-align:center; padding: 20px; color: #666;'>No students registered yet.</div>";
                     showStatus(statusEl, "No students found.", "info");
+                    document.getElementById('download-students-btn').style.display = 'none';
                     return;
                 }
+
+                studentsData = data;
+                document.getElementById('download-students-btn').style.display = 'inline-block';
 
                 let html = `
                 <div class="table-responsive">
@@ -1262,6 +1269,22 @@
             } catch (err) {
                 showStatus(statusEl, "Network Error.", "error");
             }
+        }
+
+        function downloadStudentsXLSX() {
+            if (!studentsData.length) return;
+            const rows = studentsData.map(s => ({
+                "Reg. ID": s.user_id,
+                "Name": s.name,
+                "Year": {1:'I', 2:'II', 3:'III', 4:'IV'}[s.year] || s.year,
+                "Degree": s.degree,
+                "Stream": s.stream || ''
+            }));
+            const ws = XLSX.utils.json_to_sheet(rows);
+            ws['!cols'] = [{wch:12}, {wch:25}, {wch:8}, {wch:15}, {wch:15}];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Students");
+            XLSX.writeFile(wb, `ISTE_Students_${new Date().toISOString().slice(0,10)}.xlsx`);
         }
 
         window.onclick = function (event) {

@@ -345,7 +345,7 @@
             <h2 style="text-align: center; margin-bottom: 30px; font-size: 24px; color: var(--primary-blue);">Student Login</h2>
             <form id="login-form" method="POST" action="/student/login" onsubmit="event.preventDefault(); startLoginFlow();">
                 <div class="form-group">
-                    <label>Registration ID</label>
+                    <label>Register ID</label>
                     <input type="text" id="user_id" name="user_id" placeholder="Enter the register no" autocomplete="username">
                 </div>
                 <div class="form-group">
@@ -353,7 +353,7 @@
                     <input type="password" id="password" name="password" placeholder="Enter the password" autocomplete="current-password">
                     <span class="pwd-toggle" onclick="togglePwd('password', this)">SHOW</span>
                 </div>
-                <button type="submit" class="btn" id="login-btn">Authenticate & Login</button>
+                <button type="submit" class="btn" id="login-btn">Login</button>
                 <div class="forgot-link">
                     <a onclick="showTab('forgot')">Forgot Password?</a>
                 </div>
@@ -364,55 +364,92 @@
 
         <!-- Register Form -->
         <div id="register-view">
-            <h2 style="text-align: center; margin-bottom: 25px; font-size: 24px; color: var(--primary-blue);">Student Registration</h2>
-            <div class="form-group">
-                <label>Full Name</label>
-                <input type="text" id="reg-name" placeholder="Enter your full name">
+            <!-- Step 1: Enter Reg ID -->
+            <div id="reg-step1">
+                <h2 style="text-align: center; margin-bottom: 10px; font-size: 22px; color: var(--primary-blue);">Student Registration</h2>
+                <p style="text-align: center; font-size: 13px; color: #666; margin-bottom: 25px;">Enter your Register ID. An OTP will be sent to your SASTRA email.</p>
+                <div class="form-group">
+                    <label>Register ID</label>
+                    <input type="text" id="reg-userid" placeholder="Enter registration number">
+                </div>
+                <button class="btn" id="reg-send-btn" onclick="regSendOTP()">Send OTP</button>
+                <div id="reg-error1" class="error"></div>
+                <div class="back-link">
+                    <a onclick="showTab('login')">Back to Login</a>
+                </div>
             </div>
-            <div class="form-group">
-                <label>Registration ID</label>
-                <input type="text" id="reg-userid" placeholder="Enter registration number">
+
+            <!-- Step 2: Enter OTP -->
+            <div id="reg-step2" style="display:none;">
+                <h2 style="text-align: center; margin-bottom: 10px; font-size: 22px; color: var(--primary-blue);">Enter OTP</h2>
+                <p class="otp-info">A 6-digit code was sent to <strong id="reg-email-display"></strong></p>
+                <div class="otp-inputs">
+                    <input type="text" maxlength="1" class="reg-otp-digit" data-index="0" inputmode="numeric">
+                    <input type="text" maxlength="1" class="reg-otp-digit" data-index="1" inputmode="numeric">
+                    <input type="text" maxlength="1" class="reg-otp-digit" data-index="2" inputmode="numeric">
+                    <input type="text" maxlength="1" class="reg-otp-digit" data-index="3" inputmode="numeric">
+                    <input type="text" maxlength="1" class="reg-otp-digit" data-index="4" inputmode="numeric">
+                    <input type="text" maxlength="1" class="reg-otp-digit" data-index="5" inputmode="numeric">
+                </div>
+                <button class="btn" id="reg-verify-btn" onclick="regVerifyOTP()">Verify OTP</button>
+                <div id="reg-error2" class="error"></div>
+                <div class="back-link">
+                    <a id="reg-resend-link" onclick="regResendOTP()">Resend OTP</a> &nbsp;|&nbsp;
+                    <a onclick="regGoStep(1)">Back</a>
+                </div>
             </div>
-            <div class="form-group select-group">
-                <label>Year</label>
-                <select id="reg-year">
-                    <option value="">Select Year</option>
-                    <option value="1">1st Year</option>
-                    <option value="2">2nd Year</option>
-                    <option value="3">3rd Year</option>
-                    <option value="4">4th Year</option>
-                </select>
+
+            <!-- Step 3: Complete Registration -->
+            <div id="reg-step3" style="display:none;">
+                <h2 style="text-align: center; margin-bottom: 25px; font-size: 22px; color: var(--primary-blue);">Complete Registration</h2>
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="reg-name" placeholder="Enter your full name">
+                </div>
+                <div class="form-group select-group">
+                    <label>Year</label>
+                    <select id="reg-year">
+                        <option value="">Select Year</option>
+                        <option value="1">1st Year</option>
+                        <option value="2">2nd Year</option>
+                        <option value="3">3rd Year</option>
+                        <option value="4">4th Year</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Degree</label>
+                    <input type="text" id="reg-degree" placeholder="e.g. B.Tech">
+                </div>
+                <div class="form-group">
+                    <label>Stream</label>
+                    <input type="text" id="reg-stream" placeholder="e.g. CSE">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="reg-password" placeholder="Min 6 characters">
+                    <span class="pwd-toggle" onclick="togglePwd('reg-password', this)">SHOW</span>
+                </div>
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input type="password" id="reg-confirm" placeholder="Re-enter password">
+                    <span class="pwd-toggle" onclick="togglePwd('reg-confirm', this)">SHOW</span>
+                </div>
+                <button class="btn" id="register-btn" onclick="doRegister()">Create Account</button>
+                <div id="reg-error3" class="error"></div>
+                <div class="back-link">
+                    <a onclick="regGoStep(2)">Back</a>
+                </div>
             </div>
-            <div class="form-group">
-                <label>Degree</label>
-                <input type="text" id="reg-degree" placeholder="e.g. B.Tech">
-            </div>
-            <div class="form-group">
-                <label>Stream</label>
-                <input type="text" id="reg-stream" placeholder="e.g. CSE">
-            </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" id="reg-password" placeholder="Min 6 characters">
-                <span class="pwd-toggle" onclick="togglePwd('reg-password', this)">SHOW</span>
-            </div>
-            <div class="form-group">
-                <label>Confirm Password</label>
-                <input type="password" id="reg-confirm" placeholder="Re-enter password">
-                <span class="pwd-toggle" onclick="togglePwd('reg-confirm', this)">SHOW</span>
-            </div>
-            <button class="btn" id="register-btn" onclick="doRegister()">Create Account</button>
-            <div id="reg-error" class="error"></div>
         </div>
 
         <!-- Forgot Password Views -->
         <div id="forgot-view">
-            <!-- Step 1: Enter Registration ID -->
+            <!-- Step 1: Enter Register ID -->
             <div id="forgot-step1">
                 <h2 style="text-align: center; margin-bottom: 10px; font-size: 22px; color: var(--primary-blue);">Reset Password</h2>
-                <p style="text-align: center; font-size: 13px; color: #666; margin-bottom: 25px;">Enter your Registration ID. An OTP will be sent to your SASTRA email.</p>
+                <p style="text-align: center; font-size: 13px; color: #666; margin-bottom: 25px;">Enter your Register ID. An OTP will be sent to your SASTRA email.</p>
                 <div class="form-group">
-                    <label>Registration ID</label>
+                    <label>Register ID</label>
                     <input type="text" id="fp-userid" placeholder="Enter registration number">
                 </div>
                 <button class="btn" id="fp-send-btn" onclick="sendOTP()">Send OTP</button>
@@ -437,7 +474,7 @@
                 <button class="btn" id="fp-verify-btn" onclick="verifyOTP()">Verify OTP</button>
                 <div id="fp-error2" class="error"></div>
                 <div class="back-link">
-                    <a onclick="resendOTP()">Resend OTP</a> &nbsp;|&nbsp;
+                    <a id="fp-resend-link" onclick="resendOTP()">Resend OTP</a> &nbsp;|&nbsp;
                     <a onclick="showTab('login')">Back to Login</a>
                 </div>
             </div>
@@ -475,7 +512,7 @@
             document.getElementById('tab-login').classList.toggle('active', tab === 'login');
             document.getElementById('tab-register').classList.toggle('active', tab === 'register');
             document.getElementById('error').style.display = 'none';
-            document.getElementById('reg-error').style.display = 'none';
+            if (tab === 'register') regGoStep(1);
             if (tab === 'forgot') {
                 document.getElementById('fp-error1').style.display = 'none';
                 document.getElementById('fp-error2').style.display = 'none';
@@ -488,7 +525,7 @@
             const errDiv = document.getElementById('fp-error1');
             errDiv.style.display = 'none';
             if (!userid) {
-                errDiv.textContent = "Enter your Registration ID.";
+                errDiv.textContent = "Enter your Register ID.";
                 errDiv.style.display = 'block';
                 return;
             }
@@ -565,6 +602,7 @@
             document.querySelectorAll('.otp-digit').forEach(d => d.value = '');
             document.querySelector('.otp-digit[data-index="0"]').focus();
             await sendOTP();
+            startCooldown('fp-resend-link', 'fp');
         }
 
         async function resetPassword() {
@@ -653,6 +691,33 @@
             });
         });
 
+        document.querySelectorAll('.reg-otp-digit').forEach((input, idx, arr) => {
+            input.addEventListener('input', (e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '');
+                e.target.value = val;
+                if (val && idx < arr.length - 1) arr[idx + 1].focus();
+                if (idx === arr.length - 1 && val) {
+                    let otp = '';
+                    arr.forEach(d => otp += d.value);
+                    if (otp.length === 6) regVerifyOTP();
+                }
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+                    arr[idx - 1].focus();
+                }
+            });
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+                for (let i = 0; i < text.length && i < arr.length; i++) {
+                    arr[i].value = text[i];
+                }
+                const focusIdx = Math.min(text.length, arr.length - 1);
+                arr[focusIdx].focus();
+            });
+        });
+
         function togglePwd(inputId, el) {
             const inp = document.getElementById(inputId);
             if (inp.type === 'password') {
@@ -664,19 +729,153 @@
             }
         }
 
+        let regUserId = "", regOtpToken = "";
+        let regCooldownTimer = null;
+        let fpCooldownTimer = null;
+
+        function regGoStep(step) {
+            document.getElementById('reg-step1').style.display = step === 1 ? '' : 'none';
+            document.getElementById('reg-step2').style.display = step === 2 ? '' : 'none';
+            document.getElementById('reg-step3').style.display = step === 3 ? '' : 'none';
+            ['reg-error1','reg-error2','reg-error3'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+            if (step === 1) {
+                document.querySelectorAll('.reg-otp-digit').forEach(d => d.value = '');
+            }
+        }
+
+        function startCooldown(linkId, timerVar) {
+            const link = document.getElementById(linkId);
+            let sec = 60;
+            link.style.pointerEvents = 'none';
+            link.style.opacity = '0.5';
+            link.textContent = `Resend OTP (${sec}s)`;
+            if (timerVar === 'reg') {
+                if (regCooldownTimer) clearInterval(regCooldownTimer);
+                regCooldownTimer = setInterval(() => {
+                    sec--;
+                    if (sec <= 0) {
+                        clearInterval(regCooldownTimer);
+                        regCooldownTimer = null;
+                        link.style.pointerEvents = '';
+                        link.style.opacity = '';
+                        link.textContent = 'Resend OTP';
+                    } else {
+                        link.textContent = `Resend OTP (${sec}s)`;
+                    }
+                }, 1000);
+            } else {
+                if (fpCooldownTimer) clearInterval(fpCooldownTimer);
+                fpCooldownTimer = setInterval(() => {
+                    sec--;
+                    if (sec <= 0) {
+                        clearInterval(fpCooldownTimer);
+                        fpCooldownTimer = null;
+                        link.style.pointerEvents = '';
+                        link.style.opacity = '';
+                        link.textContent = 'Resend OTP';
+                    } else {
+                        link.textContent = `Resend OTP (${sec}s)`;
+                    }
+                }, 1000);
+            }
+        }
+
+        async function regSendOTP() {
+            const userid = document.getElementById('reg-userid').value.trim();
+            const errDiv = document.getElementById('reg-error1');
+            errDiv.style.display = 'none';
+            if (!userid) {
+                errDiv.textContent = "Enter your Registration ID.";
+                errDiv.style.display = 'block';
+                return;
+            }
+            const btn = document.getElementById('reg-send-btn');
+            btn.disabled = true;
+            btn.textContent = "Sending...";
+            try {
+                const res = await fetch(`${BASE}/student/send-registration-otp`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ user_id: userid })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    regUserId = userid;
+                    document.getElementById('reg-email-display').textContent = `${userid}@sastra.ac.in`;
+                    document.getElementById('reg-step1').style.display = 'none';
+                    document.getElementById('reg-step2').style.display = '';
+                    document.querySelector('.reg-otp-digit[data-index="0"]').focus();
+                    startCooldown('reg-resend-link', 'reg');
+                } else {
+                    errDiv.textContent = data.error || "Failed to send OTP.";
+                    errDiv.style.display = 'block';
+                }
+            } catch (e) {
+                errDiv.textContent = "Network error. Please check connection.";
+                errDiv.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Send OTP";
+            }
+        }
+
+        async function regResendOTP() {
+            document.querySelectorAll('.reg-otp-digit').forEach(d => d.value = '');
+            await regSendOTP();
+        }
+
+        async function regVerifyOTP() {
+            const errDiv = document.getElementById('reg-error2');
+            errDiv.style.display = 'none';
+            const digits = document.querySelectorAll('.reg-otp-digit');
+            let otp = '';
+            digits.forEach(d => otp += d.value);
+            if (otp.length !== 6) {
+                errDiv.textContent = "Enter the complete 6-digit OTP.";
+                errDiv.style.display = 'block';
+                return;
+            }
+            const btn = document.getElementById('reg-verify-btn');
+            btn.disabled = true;
+            btn.textContent = "Verifying...";
+            try {
+                const res = await fetch(`${BASE}/student/verify-registration-otp`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ user_id: regUserId, otp })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    window._regToken = data.registration_token;
+                    regGoStep(3);
+                } else {
+                    errDiv.textContent = data.error || "Invalid OTP.";
+                    errDiv.style.display = 'block';
+                }
+            } catch (e) {
+                errDiv.textContent = "Network error. Please check connection.";
+                errDiv.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Verify OTP";
+            }
+        }
+
         async function doRegister() {
-            const errDiv = document.getElementById('reg-error');
+            const errDiv = document.getElementById('reg-error3');
             errDiv.style.display = 'none';
 
             const name = document.getElementById('reg-name').value.trim();
-            const user_id = document.getElementById('reg-userid').value.trim();
             const year = document.getElementById('reg-year').value;
             const degree = document.getElementById('reg-degree').value.trim();
             const stream = document.getElementById('reg-stream').value.trim();
             const password = document.getElementById('reg-password').value;
             const confirm = document.getElementById('reg-confirm').value;
 
-            if (!name || !user_id || !year || !degree || !password) {
+            if (!name || !year || !degree || !password) {
                 errDiv.textContent = "All required fields must be filled.";
                 errDiv.style.display = 'block';
                 return;
@@ -700,7 +899,11 @@
                 const res = await fetch(`${BASE}/student/register`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name, user_id, year, degree, stream, password })
+                    body: JSON.stringify({
+                        user_id: regUserId,
+                        name, year, degree, stream, password,
+                        registration_token: window._regToken
+                    })
                 });
                 const data = await res.json();
 
@@ -709,7 +912,6 @@
                     errDiv.className = 'error info';
                     errDiv.style.display = 'block';
                     document.getElementById('reg-name').value = '';
-                    document.getElementById('reg-userid').value = '';
                     document.getElementById('reg-year').value = '';
                     document.getElementById('reg-degree').value = '';
                     document.getElementById('reg-stream').value = '';
