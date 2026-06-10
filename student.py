@@ -93,9 +93,6 @@ ph = PasswordHasher()
 JWT_SECRET = os.environ["jwt_secret"]
 JWT_ALGO = "HS256"
 
-failed_attempts = defaultdict(list)
-rate_lock = Lock()
-
 otp_store = defaultdict(dict)
 otp_lock = Lock()
 
@@ -105,101 +102,19 @@ SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SMTP_TIMEOUT = 10
 
-smtp_lock = Lock()
-_smtp_conn = None
-
-def _get_smtp():
-    global _smtp_conn
-    if _smtp_conn:
-        try:
-            _smtp_conn.noop()
-            return _smtp_conn
-        except Exception:
-            _smtp_conn = None
-    ctx = ssl.create_default_context()
-    server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=SMTP_TIMEOUT)
-    server.starttls(context=ctx)
-    server.login(SMTP_EMAIL, SMTP_PASSWORD)
-    _smtp_conn = server
-    return _smtp_conn
-
 def _send_email(to_addr, subject, body):
     msg = MIMEText(body)
     msg["Subject"] = subject
     msg["From"] = SMTP_EMAIL
     msg["To"] = to_addr
-    with smtp_lock:
-        try:
-            srv = _get_smtp()
-            srv.sendmail(SMTP_EMAIL, to_addr, msg.as_string())
-        except Exception:
-            global _smtp_conn
-            _smtp_conn = None
-            srv = _get_smtp()
-            srv.sendmail(SMTP_EMAIL, to_addr, msg.as_string())
-
-def check_rate_limit(identifier, max_attempts=5, base_block_sec=240):
-    with rate_lock:
-        now = time.time()
-        attempts = failed_attempts.get(identifier, [])
-        attempts = [t for t in attempts if now - t < 86400]
-        failed_attempts[identifier] = attempts
-        count = len(attempts)
-        if count == 0: return False, 0
-        if count < max_attempts: return False, 0
-        last_attempt = attempts[-1]
-        extra_attempts = count - max_attempts
-        block_sec = base_block_sec * (2 ** (extra_attempts // 4))
-        if now - last_attempt < block_sec:
-            return True, block_sec - (now - last_attempt)
-        else:
-            cutoff = now - block_sec
-            recents = [t for t in attempts if t > cutoff]
-            if len(recents) == 0:
-                failed_attempts[identifier] = attempts[:max_attempts]
-            else:
-                failed_attempts[identifier] = recents
-            return False, 0
-
-def record_failed_attempt(identifier):
-    with rate_lock:
-        failed_attempts[identifier].append(time.time())
-        if len(failed_attempts[identifier]) > 100:
-            failed_attempts[identifier] = failed_attempts[identifier][-100:]
-
-def reset_failed_attempts(identifier):
-    with rate_lock:
-        if identifier in failed_attempts:
-            del failed_attempts[identifier]
+    ctx = ssl.create_default_context()
+    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=SMTP_TIMEOUT) as server:
+        server.starttls(context=ctx)
+        server.login(SMTP_EMAIL, SMTP_PASSWORD)
+        server.sendmail(SMTP_EMAIL, to_addr, msg.as_string())
 
 def generate_otp():
-    return ''.join(secrets.choice(string.digits) for _ in range(6))
-
-def send_otp_email(user_id, otp):
-    email = f"{user_id}@sastra.ac.in"
-    body = (
-        f"Your OTP for password reset is: {otp}\n\n"
-        f"This OTP will expire in 10 minutes.\n"
-        f"If you did not request this, please ignore this email."
-    )
-    try:
-        _send_email(email, "ISTE Portal - Password Reset OTP", body)
-        return True
-    except Exception as e:
-        app.logger.error(f"Failed to send OTP email: {str(e)}")
-        return False
-
-def check_otp_rate_limit(user_id, max_requests=4, window_sec=86400):
-    with otp_lock:
-        key = f"otp_req_{user_id}"
-        now = time.time()
-        requests = otp_store.get(key, [])
-        requests = [t for t in requests if now - t < window_sec]
-        otp_store[key] = requests
-        if len(requests) >= max_requests:
-            return False
-        requests.append(now)
-        return True
+    return ''.join(random.choices(string.digits, k=6))
 
 def verify_otp(user_id, otp):
     with otp_lock:
@@ -377,9 +292,6 @@ def send_registration_otp():
         if cur.fetchone():
             return jsonify({"error": "Registration ID already exists"}), 409
 
-        if not check_otp_rate_limit(user_id):
-            return jsonify({"error": "Too many OTP requests. Try again after 24 hours."}), 429
-
         otp = generate_otp()
         with otp_lock:
             otp_store[f"otp_{user_id}"] = {
@@ -492,15 +404,6 @@ def student_login():
     password = body.get("password")
     if not user_id or not password: return jsonify({"error": "Missing credentials"}), 400
 
-    identifier = f"student_{user_id}"
-    blocked, wait = check_rate_limit(identifier)
-
-    if blocked:
-        w = (wait + 59) // 60
-        if is_form:
-            return render_template("index.html", error=f"Too many attempts. Try again in {w} minute{'s' if w != 1 else ''}.")
-        return jsonify({"error": f"Too many attempts. Try again in {w} minute{'s' if w != 1 else ''}.","blocked": True,"wait_seconds": wait}), 429
-
     conn, cur = None, None
     try:
         conn = get_student_conn()
@@ -509,7 +412,6 @@ def student_login():
         user = cur.fetchone()
 
         if not user:
-            record_failed_attempt(identifier)
             if is_form:
                 return render_template("index.html", error="Invalid credentials")
             return jsonify({"error": "Invalid credentials"}), 401
@@ -517,12 +419,10 @@ def student_login():
         try:
             ph.verify(user["password"], password)
         except Exception:
-            record_failed_attempt(identifier)
             if is_form:
                 return render_template("index.html", error="Invalid credentials")
             return jsonify({"error": "Invalid credentials"}), 401
 
-        reset_failed_attempts(identifier)
         token = make_token(user["user_id"], is_admin=False, expiry_days=1)
         session["user_id"] = user["user_id"]
         session["is_admin"] = False
@@ -565,8 +465,6 @@ def forgot_password():
         user_id = int(user_id)
     except (ValueError, TypeError):
         return jsonify({"error": "Invalid Registration ID"}), 400
-    if not check_otp_rate_limit(user_id):
-        return jsonify({"error": "Too many OTP requests. Try again later."}), 429
     conn = get_student_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
