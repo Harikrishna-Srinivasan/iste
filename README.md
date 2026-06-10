@@ -566,6 +566,10 @@ admin_password=<argon2-hash>
 
 # Firebase
 firebase_json=iste-xxxxx-firebase-adminsdk-xxxxx.json
+
+# Gmail Apps Script relay
+gmail_relay_url=<your-web-app-url>
+gmail_relay_key=<shared-secret>
 ```
 
 ### 4. Run
