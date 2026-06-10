@@ -43,7 +43,7 @@ That's it. Students will see the test on their dashboard and can start writing.
 
 ## Step 1: Log In
 
-1. Open your browser and go to ISTE admin site
+1. Open your browser and go to [https://iste-s3dr.onrender.com/](https://iste-s3dr.onrender.com/)
 2. Enter the **Admin Username** and **Admin Password**, then click **Log In**
 3. You will see a **CAPTCHA** (twisted letters/numbers in a picture)
 4. Type the letters exactly as shown (it is case-sensitive — `A` and `a` are **NOT** the same)
