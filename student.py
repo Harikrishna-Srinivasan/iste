@@ -99,7 +99,7 @@ otp_lock = Lock()
 SMTP_EMAIL = os.environ.get("smtp_email", "")
 SMTP_PASSWORD = os.environ.get("smtp_password", "")
 SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
+SMTP_PORT = 465
 SMTP_TIMEOUT = 10
 
 def _send_email(to_addr, subject, body):
@@ -108,8 +108,7 @@ def _send_email(to_addr, subject, body):
     msg["From"] = SMTP_EMAIL
     msg["To"] = to_addr
     ctx = ssl.create_default_context()
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=SMTP_TIMEOUT) as server:
-        server.starttls(context=ctx)
+    with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=SMTP_TIMEOUT, context=ctx) as server:
         server.login(SMTP_EMAIL, SMTP_PASSWORD)
         server.sendmail(SMTP_EMAIL, to_addr, msg.as_string())
 
