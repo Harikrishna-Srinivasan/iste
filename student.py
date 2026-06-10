@@ -102,6 +102,19 @@ SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 465
 SMTP_TIMEOUT = 10
 
+_orig_getaddrinfo = None
+
+def _force_ipv4():
+    import socket
+    global _orig_getaddrinfo
+    if _orig_getaddrinfo is None:
+        _orig_getaddrinfo = socket.getaddrinfo
+        def _ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+            return _orig_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+        socket.getaddrinfo = _ipv4_only
+
+_force_ipv4()
+
 def _send_email(to_addr, subject, body):
     msg = MIMEText(body)
     msg["Subject"] = subject
