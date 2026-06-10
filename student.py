@@ -7,8 +7,6 @@ import pymysql
 import pytz
 import random
 import secrets
-import smtplib
-import ssl
 import string
 import time
 
@@ -17,7 +15,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from dbutils.pooled_db import PooledDB
 from dotenv import load_dotenv
-from email.mime.text import MIMEText
 from flask import Flask, request, jsonify, render_template, make_response, session, redirect
 from flask_cors import CORS
 from threading import Lock
@@ -96,21 +93,25 @@ JWT_ALGO = "HS256"
 otp_store = defaultdict(dict)
 otp_lock = Lock()
 
-SMTP_EMAIL = os.environ.get("smtp_email", "")
-SMTP_PASSWORD = os.environ.get("smtp_password", "")
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 465
-SMTP_TIMEOUT = 20
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+RESEND_FROM = os.environ.get("RESEND_FROM", "ISTE Portal <onboarding@resend.dev>")
+
+import socket as _socket
+_orig_getaddrinfo = _socket.getaddrinfo
+def _ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+    return _orig_getaddrinfo(host, port, _socket.AF_INET, type, proto, flags)
+_socket.getaddrinfo = _ipv4_only
 
 def _send_email(to_addr, subject, body):
-    msg = MIMEText(body)
-    msg["Subject"] = subject
-    msg["From"] = SMTP_EMAIL
-    msg["To"] = to_addr
-    ctx = ssl.create_default_context()
-    with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, timeout=SMTP_TIMEOUT, context=ctx) as server:
-        server.login(SMTP_EMAIL, SMTP_PASSWORD)
-        server.sendmail(SMTP_EMAIL, to_addr, msg.as_string())
+    import requests as _req
+    resp = _req.post(
+        "https://api.resend.com/emails",
+        headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+        json={"from": RESEND_FROM, "to": [to_addr], "subject": subject, "text": body},
+        timeout=15,
+    )
+    if resp.status_code >= 400:
+        raise Exception(f"Resend API error {resp.status_code}: {resp.text}")
 
 def generate_otp():
     return ''.join(random.choices(string.digits, k=6))
