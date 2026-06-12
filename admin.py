@@ -235,7 +235,7 @@ def upload_excel():
 
     file = request.files["file"]
     try:
-        if filename.lower().strip().endswith(".csv"):
+        if file.filename.lower().strip().endswith(".csv"):
             df = pd.read_csv(file, keep_default_na=False)
         else:
             df = pd.read_excel(file, keep_default_na=False)
