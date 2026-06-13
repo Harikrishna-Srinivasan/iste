@@ -549,7 +549,7 @@ def register_device():
 @app.route("/student/firebase-config")
 def firebase_config():
     return jsonify({
-        "apiKey": "AIzaSyAjHejasNdREgaeIUoPF7tD11KF57L-h8I",
+        "apiKey": os.environ.get("firebase_api_key"),
         "authDomain": "iste-888e2.firebaseapp.com",
         "projectId": "iste-888e2",
         "storageBucket": "iste-888e2.firebasestorage.app",
