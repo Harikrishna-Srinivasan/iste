@@ -217,8 +217,9 @@ def upload_excel():
             df = pd.read_csv(file, keep_default_na=False)
         else:
             df = pd.read_excel(file, keep_default_na=False)
-    except Exception as e:
-        return jsonify({"error": f"Invalid file: {str(e)}"}), 400
+    except Exception:
+        app.logger.exception("Invalid file upload in /admin/upload_excel")
+        return jsonify({"error": "Invalid file format or content"}), 400
 
     col_map = {str(c).strip().lower(): str(c) for c in df.columns}
     conn = get_admin_conn()
