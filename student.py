@@ -218,8 +218,8 @@ def health_check():
         conn = get_student_conn()
         conn.close()
         return jsonify({"status": "healthy", "timestamp": datetime.now(IST).isoformat()}), 200
-    except Exception as e:
-        return jsonify({"status": "unhealthy", "error": str(e)}), 503
+    except Exception:
+        return jsonify({"status": "unhealthy", "error": "Internal server error"}), 503
 
 def get_my_info():
     try:
