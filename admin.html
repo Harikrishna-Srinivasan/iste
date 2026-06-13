@@ -1,357 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description"
-        content="Administration Dashboard for managing assessments, question banks, and candidate performances.">
+    <meta name="description" content="Administration Dashboard for assessments and student performance.">
     <title>Administration Dashboard</title>
     <link rel="icon" type="image/png" href="/iste.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         :root {
-            --admin: #5E35B1;
-            --bg: #f5f7fa;
-            --card: #fff;
-            --text: #333;
-            --border: #ddd;
-            --iste-green: #2E7D32;
+            --admin: #5e35b1;
+            --admin-dark: #4527a0;
+            --bg: #fafafa;
+            --card: #ffffff;
+            --text: #1d1d1f;
+            --muted: #86868b;
+            --border: #e5e5e7;
+            --green: #30a046;
+            --red: #ff453a;
+            --blue: #0071e3;
+            --orange: #ff9f0a;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.08);
         }
-
-        html,
-        body {
-            max-width: 100vw;
-            overflow-x: hidden;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding-bottom: 50px;
-        }
-
-        *,
-        *:before,
-        *:after {
-            box-sizing: inherit;
-        }
-
-        .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; overflow-x: hidden; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+        body { padding-bottom: 36px; }
         .nav {
-            background: #ffffff;
-            color: var(--text-main);
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            position: sticky; top: 0; z-index: 100;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 24px; background: rgba(255, 255, 255, 0.95); backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 1px solid var(--border); box-shadow: var(--shadow);
         }
-
-        .nav h1 {
-            margin: 0;
-            font-size: 22px;
-            font-weight: 600;
+        .nav-left { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1; }
+        .nav-logo-lg { width: 60px; height: 50px; object-fit: contain; flex: 0 0 auto; }
+        .nav-brand-text { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+        .nav-brand-title { font-weight: 700; font-size: 14px; color: var(--text); letter-spacing: -0.01em; line-height: 1.2; white-space: nowrap; }
+        .nav-brand-sub { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; line-height: 1.3; white-space: nowrap; }
+        .nav-right { display: flex; align-items: center; gap: 22px; flex: 0 0 auto; }
+        .nav-logo-sm { width: 40px; height: 40px; object-fit: contain; flex: 0 0 auto; }
+        .nav-portal-label { font-weight: 700; font-size: 16px; color: var(--admin); letter-spacing: -0.01em; white-space: nowrap; }
+        .logout-btn { border: none; border-radius: 8px; padding: 8px 18px; background: var(--text); color: #fff; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.2s, transform 0.1s; }
+        .logout-btn:hover { background: #3a3a3c; }
+        .logout-btn:active { transform: scale(0.98); }
+        @media (max-width: 720px) {
+            .nav { flex-direction: column; gap: 8px; align-items: stretch; }
+            .nav-left { flex: none; justify-content: center; }
+            .nav-right { flex: none; justify-content: center; gap: 14px; }
+            .nav-brand-title { font-size: 12px; }
+            .nav-brand-sub { font-size: 9px; }
+            .nav-portal-label { font-size: 14px; }
         }
-
-        .nav button {
-            background: none;
-            border: 2px solid black;
-            color: black;
-            padding: 8px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: 0.3s;
+        main { max-width: 1400px; margin: 24px auto 0; padding: 0 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); padding: 24px; overflow: hidden; }
+        .card.full { grid-column: 1 / -1; }
+        h3 { margin: 0 0 14px; font-size: 18px; color: var(--admin); }
+        p { margin: 0 0 12px; color: var(--muted); }
+        label { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: #344054; }
+        input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+            width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: #fff; color: var(--text); font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
-
-        main.container {
-            max-width: 1200px;
-            margin: 40px auto;
-            padding: 0 20px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
+        input:not([type="checkbox"]):not([type="radio"]):focus, select:focus, textarea:focus {
+            outline: none; border-color: var(--admin); box-shadow: 0 0 0 3px rgba(94, 53, 177, 0.15);
         }
-
-        section.card {
-            background: var(--card);
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.05);
-            border: 1px solid var(--border);
-            position: relative;
-            overflow: visible;
-            width: 100%;
-        }
-
-        section.card::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 5px;
-            background: var(--admin);
-        }
-
-        h3 {
-            color: var(--admin);
-            border-bottom: 2px solid #eee;
-            padding-bottom: 15px;
-            margin-bottom: 25px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 18px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 10px;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        input,
-        select,
-        textarea {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 14px;
-            margin-bottom: 20px;
-        }
-
-        .btn-action {
-            width: 100%;
-            padding: 15px;
-            background: var(--admin);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.3s;
-            font-size: 15px;
-        }
-
-        .btn-action:hover {
-            filter: brightness(1.1);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(94, 53, 177, 0.3);
-        }
-
-        .btn-like {
-            display: inline-block;
-            padding: 4px 10px;
-            margin: 2px;
-            background-color: #ddeeff;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: default;
-        }
-
-        .excel-guide {
-            background: #f0f4f8;
-            padding: 20px;
-            border-radius: 8px;
-            font-size: 13px;
-            color: #555;
-            line-height: 1.6;
-        }
-
-        .excel-guide th {
-            text-align: left;
-            background: #e2e8f0;
-            padding: 5px 10px;
-        }
-
-        .excel-guide td {
-            padding: 5px 10px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .full {
-            grid-column: span 2;
-        }
-
-        .responsive-grid-3 {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 15px;
-        }
-
-        .responsive-grid-2 {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-
-        .status-msg {
-            margin-top: 15px;
-            font-weight: 500;
-            padding: 12px;
-            border-radius: 6px;
-            display: none;
-            text-align: center;
-        }
-
-        .status-error {
-            background: #ffebee;
-            color: #c62828;
-            display: block;
-            border: 1px solid #ffcdd2;
-        }
-
-        .status-success {
-            background: #e8f5e9;
-            color: #2e7d32;
-            display: block;
-            border: 1px solid #c8e6c9;
-        }
-
-        .status-info {
-            background: #e3f2fd;
-            color: #1565c0;
-            display: block;
-            border: 1px solid #bbdefb;
-        }
-
-        @media screen and (max-width: 768px) {
-            main.container {
-                grid-template-columns: 1fr;
-                padding: 10px;
-            }
-
-            section.card {
-                margin: 0 0 20px 0;
-                border-radius: 8px;
-                padding: 15px;
-                overflow-x: auto;
-            }
-
-            .full {
-                grid-column: 1 / -1;
-            }
-
-            .nav {
-                position: sticky;
-                top: 0;
-                z-index: 100;
-                flex-direction: column;
-                text-align: center;
-                gap: 15px;
-            }
-
-            .perf-table-wrapper, .students-table-wrapper {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-            }
-
-            h3 {
-                font-size: 16px;
-            }
-
-            input, select, textarea {
-                font-size: 13px;
-            }
-
-            .btn-action {
-                padding: 8px 12px;
-                font-size: 11px;
-            }
-        }
+        textarea { min-height: 92px; resize: vertical; }
+        input[type="file"] { padding: 8px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+        .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+        .controls { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+        .btn { border: none; border-radius: 12px; padding: 14px 20px; font-weight: 600; font-size: 14px; cursor: pointer; color: #fff; background: var(--admin); transition: transform 0.1s, box-shadow 0.2s; }
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(94, 53, 177, 0.3); }
+        .btn:active { transform: translateY(0); }
+        .btn.secondary { background: var(--blue); }
+        .btn.secondary:hover { box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3); }
+        .btn.green { background: var(--green); }
+        .btn.green:hover { box-shadow: 0 4px 12px rgba(48, 160, 70, 0.3); }
+        .btn.orange { background: var(--orange); }
+        .btn.orange:hover { box-shadow: 0 4px 12px rgba(255, 159, 10, 0.3); }
+        .btn.red { background: var(--red); }
+        .btn.red:hover { box-shadow: 0 4px 12px rgba(255, 69, 58, 0.3); }
+        .btn.outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+        .btn.outline:hover { background: #f5f5f7; }
+        .btn.small { padding: 10px 14px; font-size: 13px; border-radius: 10px; }
+        .status-msg { margin-top: 12px; padding: 12px 14px; border-radius: 12px; display: none; font-size: 13px; font-weight: 600; }
+        .status-success { display: block; background: #e8f5e9; color: var(--green); border: 1px solid #c8e6c9; }
+        .status-error { display: block; background: #ffebee; color: var(--red); border: 1px solid #ffcdd2; }
+        .status-info { display: block; background: #e3f2fd; color: var(--blue); border: 1px solid #bbdefb; }
+        .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; }
+        table { width: 100%; border-collapse: collapse; min-width: 720px; background: #fff; }
+        thead th { background: #f2f5fb; color: #344054; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+        tbody td { padding: 12px 14px; border-bottom: 1px solid #edf0f5; vertical-align: top; }
+        tbody tr.row-hover { cursor: pointer; }
+        tbody tr.row-hover:hover { background: #fafcff; }
+        .muted { color: var(--muted); }
+        .badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+        .badge.green { background: #e8f5e9; color: var(--green); }
+        .badge.orange { background: #fff3e0; color: var(--orange); }
+        .badge.blue { background: #e3f2fd; color: var(--blue); }
+        .badge.gray { background: #f2f4f7; color: #475467; }
+        .detail-row td { background: #fbfcfe; }
+        .detail-card { border: 1px solid var(--border); border-radius: 14px; padding: 14px; background: #fff; }
+        .split { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .analysis-list { display: grid; gap: 10px; margin-top: 12px; }
+        .analysis-item { border: 1px solid var(--border); border-radius: 14px; padding: 12px; background: #fff; }
+        .analysis-item.good { border-left: 5px solid var(--green); }
+        .analysis-item.bad { border-left: 5px solid var(--red); }
+        .analysis-item.neutral { border-left: 5px solid #9e9e9e; }
+        .analysis-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .analysis-q { margin-top: 8px; color: #344054; }
+        .answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+        .answers div { background: #f8fafc; border: 1px solid #edf0f5; border-radius: 12px; padding: 10px; }
+        .hidden { display: none !important; }
+        .small { font-size: 12px; }
+        .q-list { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
+        .question-card { background: #f8fafc; border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+        .q-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .q-text { width: 100%; min-height: 52px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: #fff; resize: vertical; }
+        .q-text:focus { outline: none; border-color: var(--admin); box-shadow: 0 0 0 3px rgba(94, 53, 177, 0.15); }
+        .q-text:disabled { background: #f2f4f7; color: #475467; }
+        .q-opts-wrap { margin-top: 8px; }
+        .q-opts-label { font-size: 12px; font-weight: 700; color: #344054; display: block; margin-bottom: 4px; }
+        .opt-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .opt-row input[type="radio"], .opt-row input[type="checkbox"] { width: auto; margin: 0; }
+        .opt-row input[type="text"] { flex: 1; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: #fff; }
+        .opt-row input[type="text"]:focus { outline: none; border-color: var(--admin); box-shadow: 0 0 0 3px rgba(94, 53, 177, 0.15); }
+        .opt-row input[type="text"]:disabled { background: #f2f4f7; color: #475467; }
+        .opt-row label { margin: 0; font-size: 12px; }
+        .q-num-val, .q-num-from, .q-num-to { width: 120px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: #fff; }
+        .q-num-val:focus, .q-num-from:focus, .q-num-to:focus { outline: none; border-color: var(--admin); box-shadow: 0 0 0 3px rgba(94, 53, 177, 0.15); }
+        .q-num-val:disabled, .q-num-from:disabled, .q-num-to:disabled { background: #f2f4f7; color: #475467; }
+        .q-marks { display: flex; gap: 16px; margin-top: 10px; }
+        .q-marks label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #344054; margin: 0; }
+        .q-marks input[type="number"] { width: 80px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: #fff; }
+        .q-marks input[type="number"]:focus { outline: none; border-color: var(--admin); box-shadow: 0 0 0 3px rgba(94, 53, 177, 0.15); }
+        .q-marks input[type="number"]:disabled { background: #f2f4f7; color: #475467; }
+        .q-list-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+        .q-list-2col .question-card { margin: 0; }
+        .qa-grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .date-wrap { position: relative; display: flex; align-items: center; cursor: pointer; }
+        .date-wrap input[type="text"] { width: 100%; padding-right: 40px; cursor: pointer; }
+        .date-wrap input[type="date"] { position: fixed; left: -9999px; top: 0; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+        .date-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; font-size: 16px; line-height: 1; }
+        .rank-emoji { font-size: 18px; line-height: 1; display: inline-block; }
+        .rank-cell { display: flex; align-items: center; gap: 6px; }
+        .ass-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; cursor: pointer; }
+        .ass-counts { display: flex; align-items: center; gap: 8px; }
+        .ass-counts .badge { font-size: 12px; padding: 4px 10px; cursor: pointer; transition: transform 0.1s; }
+        .ass-counts .badge:hover { transform: scale(1.05); }
+        @media (max-width: 720px) { .q-list-2col { grid-template-columns: 1fr; } .qa-grid-2col { grid-template-columns: 1fr; } }
+        @media (max-width: 1100px) { main { grid-template-columns: 1fr; } .card.full { grid-column: auto; } }
+        @media (max-width: 720px) { .grid-2, .grid-3, .answers { grid-template-columns: 1fr; } table { min-width: 620px; } }
     </style>
 </head>
-
 <body>
     <nav class="nav">
-        <div style="display:flex; align-items:center; gap:8px;">
-            <img src="sastra.png" alt="SASTRA Logo" style="display:block; width:40px; height:40px; object-fit:contain;">
-            <img src="iste.png" alt="ISTE Logo" style="display:block; width:40px; height:40px;">
+        <div class="nav-left">
+            <img src="/sastra.png" class="nav-logo-lg">
+            <div class="nav-brand-text">
+                <div class="nav-brand-title">SASTRA DEEMED TO BE UNIVERSITY</div>
+                <div class="nav-brand-sub">Srinivasa Ramanujan Centre, Kumbakonam</div>
+            </div>
         </div>
-        <h1>Administration Dashboard</h1>
-        <button onclick="logout()" aria-label="Logout from Administration">Logout</button>
+        <div class="nav-right">
+            <img src="/iste.png" class="nav-logo-sm">
+            <span class="nav-portal-label">ISTE ADMIN PORTAL</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
     </nav>
 
-    <main class="container">
+    <main>
         <section class="card">
-            <h3>Question Importer (Excel)</h3>
-            <label for="excel-file">Select Template File (.xlsx)</label>
-            <input type="file" id="excel-file" accept=".xlsx,.xls">
-            <button class="btn-action" onclick="uploadData()">Import Question Set</button>
-            <div id="upload-status" class="status-msg" aria-live="polite"></div>
-
-            <div class="excel-guide" style="margin-top: 25px;">
-                <strong>Dynamic Template Columns:</strong>
-                <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
-                    <tr>
-                        <th scope="col">Column</th>
-                        <th scope="col">Required</th>
-                        <th scope="col">Description / Format</th>
-                    </tr>
-                    <tr>
-                        <td>Type</td>
-                        <td>Yes</td>
-                        <td>MCQ, MSQ, INT, NUM</td>
-                    </tr>
-                    <tr>
-                        <td>Question</td>
-                        <td>Yes</td>
-                        <td>The full text of your question</td>
-                    </tr>
-                    <tr>
-                        <td>A, B, C, D...</td>
-                        <td>MCQ/MSQ</td>
-                        <td>Dynamic options (Any single letter column)</td>
-                    </tr>
-                    <tr>
-                        <td>Correct</td>
-                        <td>Yes</td>
-                        <td>
-                            <span class="btn-like">MCQ: A</span>
-                            <span class="btn-like">MSQ: A, B, D</span>
-                            <span class="btn-like">INT: 25</span>
-                            <span class="btn-like">NUM: 3.14 or 24.5</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Tolerance</td>
-                        <td>Optional</td>
-                        <td>For NUM types without a range (Default 0.1)</td>
-                    </tr>
-                    <tr>
-                        <td>Duration</td>
-                        <td>Optional</td>
-                        <td>Timer in seconds (Default 60)</td>
-                    </tr>
-                    <tr>
-                        <td>Marks</td>
-                        <td>Optional</td>
-                        <td>Value of question (Default 1)</td>
-                    </tr>
-                    <tr>
-                        <td>Negative_Marks</td>
-                        <td>Optional</td>
-                        <td>Penalty (Default 0)</td>
-                    </tr>
-                </table>
-                <p style="font-size: 11px; margin-top: 10px; color: #d32f2f;">Admin and Student sessions expire after 6 hours of inactivity.</p>
-                <p style="font-size: 12px; margin-top: 5px; color: #555;">The system automatically skips duplicate questions to avoid cluttering.</p>
+            <h3>Post Assessment</h3>
+            <label>Import Questions (Excel)</label>
+            <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-bottom: 12px;">
+                <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" style="flex: 1;">
+                <button class="btn orange" onclick="uploadQuestions()">Import Questions</button>
+                <div id="upload-status" class="status-msg"></div>
             </div>
-        </section>
 
-        <section class="card">
-            <h3>Live Event Scheduler</h3>
-            <div class="responsive-grid-3">
+            <div class="grid-3" style="margin-bottom:4px;">
                 <div>
                     <label for="ass_type">Assessment Type</label>
                     <select id="ass_type">
@@ -361,961 +189,947 @@
                     </select>
                 </div>
                 <div>
-                    <label for="seq_num">Sequence ID (No.)</label>
-                    <input type="number" id="seq_num">
+                    <label for="series_no">Series No.</label>
+                    <input type="number" id="series_no" min="1" placeholder="e.g. 5">
                 </div>
                 <div>
-                    <label for="total_duration">Total Duration (Mins)</label>
-                    <input type="number" id="total_duration" placeholder="# of question mins">
+                    <label for="total_duration">Total Duration (mins)</label>
+                    <input type="number" id="total_duration" min="1" value="60">
                 </div>
             </div>
-
-            <label for="test-title">Public Title</label>
+            <div style="margin-top:12px;"><label for="test-title">Title</label></div>
             <input type="text" id="test-title" placeholder="e.g. Logical Reasoning">
-
-            <div class="responsive-grid-2">
+            <div class="grid-2" style="margin-top:12px;">
                 <div>
-                    <label for="start_at">Entry Opens (Start)</label>
-                    <input type="datetime-local" id="start_at">
+                    <label for="start_date_hidden">Start Date</label>
+                    <div class="date-wrap" onclick="showDatePicker('start_date_hidden')">
+                        <input type="text" id="start_date" placeholder="dd-Month-yyyy" maxlength="15" autocomplete="off" readonly>
+                        <input type="date" id="start_date_hidden" onchange="syncDateDisplay('start_date', this.value)">
+                    </div>
                 </div>
                 <div>
-                    <label for="end_at">Entry Closes (Deadline to Join)</label>
-                    <input type="datetime-local" id="end_at">
+                    <label for="start_time">Start Time</label>
+                    <input type="time" id="start_time" step="300">
                 </div>
             </div>
-
-            <label>Reminder Intervals (Advanced Alerts)</label>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+            <div class="grid-2">
+                <div>
+                    <label for="end_date_hidden">Entry Close Date</label>
+                    <div class="date-wrap" onclick="showDatePicker('end_date_hidden')">
+                        <input type="text" id="end_date" placeholder="dd-Month-yyyy" maxlength="15" autocomplete="off" readonly>
+                        <input type="date" id="end_date_hidden" onchange="syncDateDisplay('end_date', this.value)">
+                    </div>
+                </div>
+                <div>
+                    <label for="end_time">Entry Close Time</label>
+                    <input type="time" id="end_time" step="300">
+                </div>
+            </div>
+            <label>Reminder Intervals</label>
+            <div class="controls" style="margin-bottom: 12px;">
                 <label style="font-weight: normal;"><input type="checkbox" name="rem" value="1d"> 1 Day</label>
                 <label style="font-weight: normal;"><input type="checkbox" name="rem" value="2h"> 2 Hrs</label>
                 <label style="font-weight: normal;"><input type="checkbox" name="rem" value="1h"> 1 Hr</label>
                 <label style="font-weight: normal;"><input type="checkbox" name="rem" value="15m"> 15 Min</label>
                 <label style="font-weight: normal;"><input type="checkbox" name="rem" value="5m"> 5 Min</label>
             </div>
-
-            <button class="btn-action" onclick="scheduleEvent()">Publish Assessment & Notify Students</button>
+            <div class="controls">
+                <button class="btn green" onclick="scheduleEvent()">Publish Assessment</button>
+            </div>
             <div id="publish-status" class="status-msg" aria-live="polite"></div>
-
-            <p style="font-size: 11px; color: #777; margin-top: 15px;">Note: Students can join the exam any time between
-                Open and Close. Once they join, their specific question timers begin.</p>
         </section>
 
-        <section class="card full" style="border-top: 5px solid #1565c0;">
-            <h3 style="color: #1565c0;">Send Message to Students</h3>
-            <p style="font-size: 13px; color: #666; margin-bottom: 15px;">Schedule a push notification to be delivered to all registered students.</p>
-            <label for="msg-title">Notification Title</label>
+        <section class="card">
+            <h3>Send Message to Students</h3>
+            <div><label for="msg-title">Notification Title</label></div>
             <input type="text" id="msg-title" placeholder="e.g. Important Announcement">
-            <label for="msg-body">Message Body</label>
-            <textarea id="msg-body" rows="3" placeholder="Type your message here..."></textarea>
-            <label for="msg-schedule">Schedule For (leave empty to send now)</label>
-            <input type="datetime-local" id="msg-schedule">
-            <button class="btn-action" style="background: #1565c0;" onclick="scheduleMessage()">Schedule Message</button>
-            <div id="msg-status" class="status-msg" aria-live="polite"></div>
-        </section>
-
-        <section class="card">
-            <h3>📝 Draft Assessment Preview</h3>
-            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Review the questions currently staged for this
-                assessment. Remove any you do not want before publishing.</p>
-            <div id="draft-container">
-                <div style="text-align:center; padding: 20px; color: #666;">Draft is empty. Upload an Excel file or add
-                    from the bank below.</div>
-            </div>
-        </section>
-
-        <section class="card">
-            <h3>✍️ Manual Question Builder</h3>
-            <label for="man-q-type">Question Type</label>
-            <select id="man-q-type" onchange="toggleManualQFields()">
-                <option value="MCQ" selected>Single Choice (MCQ)</option>
-                <option value="MSQ">Multiple Select (MSQ)</option>
-                <option value="INT">Integer (INT)</option>
-                <option value="NUM">Numeric/Decimal (NUM)</option>
-            </select>
-
-            <label for="man-q-text">Question Text</label>
-            <textarea id="man-q-text" rows="3" placeholder="Enter the full question..."></textarea>
-
-            <div id="man-options-container">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <label style="margin: 0;">Options</label>
-                    <span style="color: var(--admin); font-size: 12px; font-weight: bold; cursor: pointer;"
-                        onclick="addOption()" aria-label="Add a new option to the question">+ Add Option</span>
+            <div style="margin-top:12px;"><label for="msg-body">Message Body</label></div>
+            <textarea id="msg-body" placeholder="Type the message here"></textarea>
+            <div style="margin-top:12px;"><label for="msg-date-hidden">Schedule Date (optional)</label></div>
+            <div class="grid-2" style="gap: 10px;">
+                <div class="date-wrap" onclick="showDatePicker('msg-date-hidden')">
+                    <input type="text" id="msg-date" placeholder="dd-Month-yyyy" readonly>
+                    <input type="date" id="msg-date-hidden" onchange="syncDateDisplay('msg-date', this.value)">
                 </div>
-                <div id="options-list">
-                    <input type="text" id="man-opt-0" placeholder="Option A" aria-label="Option A">
-                    <input type="text" id="man-opt-1" placeholder="Option B" aria-label="Option B">
-                    <input type="text" id="man-opt-2" placeholder="Option C" aria-label="Option C">
-                    <input type="text" id="man-opt-3" placeholder="Option D" aria-label="Option D">
-                </div>
+                <input type="time" id="msg-time" step="300">
             </div>
-
-            <div id="man-answer-container">
-                <label for="man-correct-mcq">Correct Answer(s)</label>
-                <select id="man-correct-mcq">
-                    <option value="0">Option A</option>
-                    <option value="1">Option B</option>
-                    <option value="2">Option C</option>
-                    <option value="3">Option D</option>
-                </select>
-                <input type="text" id="man-correct-msq" placeholder="E.g. A, C (or 0, 2)" style="display:none;"
-                    aria-label="Correct MSQ Answers">
-                <input type="text" id="man-correct-num" placeholder="Exact value or Range (E.g. 24.5 OR 24, 26)"
-                    style="display:none;" aria-label="Correct Numerical Answers">
+            <div class="controls" style="margin-top:12px;">
+                <button class="btn secondary" onclick="scheduleMessage()">Schedule Message</button>
             </div>
-
-            <div id="man-tolerance-container" style="display:none;">
-                <label for="man-tolerance">Tolerance (Optional for NUM)</label>
-                <input type="number" step="0.01" id="man-tolerance" placeholder="Default: 0.1">
-            </div>
-
-            <div class="responsive-grid-3">
-                <div><label for="man-marks">Marks</label><input type="number" id="man-marks" value="1"></div>
-                <div><label for="man-neg">Negative</label><input type="number" id="man-neg" value="0"></div>
-                <div><label for="man-dur">Time (s)</label><input type="number" id="man-dur" value="60"></div>
-            </div>
-
-            <button class="btn-action" onclick="submitManualQuestion()">Add to Question Bank</button>
-            <div id="man-status" class="status-msg" aria-live="polite"></div>
-        </section>
-
-        <section class="card full" style="border-top: 5px solid #e65100;">
-            <h3 style="color: #e65100;">All Registered Students</h3>
-            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Complete list of all students registered in the system.</p>
-            <div id="students-status" class="status-msg" aria-live="polite"></div>
-            <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
-                <button class="btn-action" style="background: #e65100; padding: 10px 20px; width: auto; display: inline-block;" onclick="fetchStudents()">Load Student List</button>
-                <button class="btn-action" id="download-students-btn" style="background: #2e7d32; padding: 10px 20px; width: auto; display: none;" onclick="downloadStudentsXLSX()">📥 Download XLSX</button>
-            </div>
-            <div id="students-container" style="margin-top: 10px;">
-                <div style="text-align:center; padding: 20px; color: #666;">Click "Load Student List" to view all registered students.</div>
-            </div>
+            <div id="msg-status" class="status-msg"></div>
         </section>
 
         <section class="card full">
-            <h3>📊 Student Performance Logs</h3>
-            <div
-                style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px; background: #f9f9f9; padding: 15px; border-radius: 8px; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 150px;">
-                    <label for="search-uid" style="margin-bottom: 5px; font-size: 12px;">Student ID (Optional)</label>
-                    <input type="text" id="search-uid" placeholder="Leave empty for all" style="margin-bottom: 0;">
-                </div>
-                <div
-                    style="display: flex; flex-direction: column; align-items: center; border: 1px solid var(--border); padding: 5px; border-radius: 6px; background: white;">
-                    <canvas id="adminCaptcha" width="140" height="40" style="cursor:pointer;"
-                        onclick="drawAdminCaptcha('adminCaptcha')" role="img" aria-label="Security Captcha"></canvas>
-                    <span style="font-size:10px; color:var(--admin); cursor:pointer;"
-                        onclick="drawAdminCaptcha('adminCaptcha')" aria-label="Refresh Captcha">↺ Refresh Image</span>
-                </div>
-                <div style="flex: 1; min-width: 120px;">
-                    <label for="admin-captcha-in" style="margin-bottom: 5px; font-size: 12px;">Security Captcha</label>
-                    <input type="text" id="admin-captcha-in"
-                        style="margin-bottom: 0; text-align:center; font-weight: bold; letter-spacing: 2px;">
-                </div>
-                <div style="flex: 1; min-width: 150px; align-self: flex-end;">
-                    <button class="btn-action" style="padding: 12px 25px; margin-bottom: 0;"
-                        onclick="fetchPerformances()">Fetch</button>
-                </div>
+            <h3>All Registered Students</h3>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
+                <input type="text" id="search-reg" placeholder="Search by Reg No." oninput="filterStudents()" style="max-width:200px;">
+                <button class="btn orange" onclick="loadStudents()">Load Student List</button>
+                <button class="btn green" id="download-students-btn" onclick="downloadStudentsXLSX()" style="display:none;">Download XLSX</button>
+                <div id="students-status" class="status-msg" style="margin:0;"></div>
             </div>
-
-            <div id="perf-status" class="status-msg" aria-live="polite"></div>
-
-            <div
-                style="overflow-x: auto; background: white; border: 1px solid var(--border); border-radius: 8px; margin-top: 15px;">
-                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+            <div class="table-wrap" id="students-wrap">
+                <table>
                     <thead>
-                        <tr style="background: #f0f4f8; border-bottom: 2px solid var(--border);">
-                            <th scope="col" style="padding: 12px 15px;">Student</th>
-                            <th scope="col" style="padding: 12px 15px;">Assessment</th>
-                            <th scope="col" style="padding: 12px 15px;">Attended</th>
-                            <th scope="col" style="padding: 12px 15px;">Score</th>
-                            <th scope="col" style="padding: 12px 15px;">Time Taken</th>
-                            <th scope="col" style="padding: 12px 15px;">Action</th>
+                        <tr>
+                            <th>Reg. No</th><th>Name</th><th>Year</th><th>Degree</th><th>Stream</th>
                         </tr>
                     </thead>
-                    <tbody id="perf-table-body" style="contain: layout;">
-                        <tr>
-                            <td colspan="6" style="padding:20px; text-align:center; color:#777;">Click 'Fetch' to
-                                load student data.</td>
-                        </tr>
+                    <tbody id="students-table-body">
+                        <tr><td colspan="5" class="muted" style="text-align:center; padding: 20px;">Click "Load Student List" to view all registered students.</td></tr>
                     </tbody>
                 </table>
             </div>
         </section>
 
-        <section class="card full" style="margin-top: 30px; border-top: 5px solid var(--iste-green);">
-            <h3>Export Published Assessments</h3>
-            <div id="assessments-status" class="status-msg" aria-live="polite"></div>
-            <div id="assessments-container" style="margin-top: 15px;">
-                <div style="text-align:center; padding: 20px; color: #666;">Loading assessments...</div>
-            </div>
-        </section>
-
         <section class="card full">
-            <h3>Global Question Bank</h3>
-            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Manually add older questions to your draft.
-            </p>
-            <div id="qb-container">
-                <div style="text-align:center; padding: 20px; color: #666;">Fetching active questions...</div>
+            <h3>Published Assessments</h3>
+            <div id="assessments-status" class="status-msg"></div>
+            <div id="assessments-container" class="analysis-list">
+                <div class="muted" style="text-align:center; padding: 18px;">Loading assessments...</div>
             </div>
         </section>
     </main>
-
-    <div id="perfModal"
-        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;"
-        aria-modal="true" role="dialog">
-        <div
-            style="background:#fff; width:90%; max-width:800px; max-height:90vh; border-radius:10px; overflow:hidden; display:flex; flex-direction:column; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
-            <div
-                style="padding:15px 20px; background:var(--admin); color:white; display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="margin:0; color:white; border:none; padding:0; font-size:18px;">Detailed Question Analysis
-                </h3>
-                <button onclick="document.getElementById('perfModal').style.display='none'"
-                    style="background:transparent; border:none; color:white; font-size:24px; cursor:pointer;"
-                    aria-label="Close Modal">&times;</button>
-            </div>
-            <div id="perfModalBody" style="padding:20px; overflow-y:auto; flex:1; background: #f9f9f9;">
-                Loading...
-            </div>
-        </div>
-    </div>
-
     <script>
-        let adminCaptchaCode = "";
-        let allQuestions = [];
-        let draftIds = [];
-        let optCount = 4;
+        let studentsData = [];
+        let studentAttemptsCache = new Map();
+        let assessmentCache = new Map();
 
-        function showStatus(element, message, type) {
-            if (!element) return;
-            element.innerText = message;
-            element.className = 'status-msg status-' + type;
-            setTimeout(() => { element.className = 'status-msg'; }, 6000);
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
         }
 
-        function drawAdminCaptcha(canvasId) {
+        function filterStudents() {
+            const q = document.getElementById('search-reg').value.trim().toLowerCase();
+            const rows = document.querySelectorAll('#students-table-body tr[data-student-row]');
+            rows.forEach(row => {
+                const reg = row.querySelector('td:first-child')?.textContent?.toLowerCase() || '';
+                row.style.display = !q || reg.includes(q) ? '' : 'none';
+                const detail = document.getElementById(`student-detail-row-${row.dataset.studentRow}`);
+                if (detail) detail.style.display = row.style.display === 'none' ? 'none' : '';
+            });
+        }
+
+        function showStatus(el, message, type) {
+            if (!el) return;
+            el.className = `status-msg status-${type}`;
+            el.textContent = message;
+            setTimeout(() => { el.className = 'status-msg'; el.textContent = ''; }, 5000);
+        }
+
+        function clearStatus(el) {
+            if (!el) return;
+            el.className = 'status-msg';
+            el.textContent = '';
+        }
+
+        let uploadedQuestionIds = [];
+
+        const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+        function fmtDateStr(s) {
+            if (!s) return '';
+            const d = new Date(s);
+            if (isNaN(d.getTime())) return '';
+            return `${String(d.getDate()).padStart(2,'0')}-${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
+        }
+        function fmtTimeStr(s) {
+            if (!s) return '';
+            const d = new Date(s);
+            if (isNaN(d.getTime())) return '';
+            const h = d.getHours(), m = String(d.getMinutes()).padStart(2, '0');
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const h12 = h % 12 || 12;
+            return `${h12}:${m} ${ampm}`;
+        }
+
+        function showDatePicker(hiddenId) {
+            const el = document.getElementById(hiddenId);
+            if (el?.showPicker) el.showPicker();
+            else if (el) { el.style.position = 'fixed'; el.style.left = '0'; el.style.top = '0'; el.style.width = '100%'; el.style.height = '100%'; el.style.opacity = '0.01'; el.style.pointerEvents = 'auto'; el.focus(); setTimeout(() => { el.style.position = 'fixed'; el.style.left = '-9999px'; el.style.width = '1px'; el.style.height = '1px'; el.style.opacity = '0'; el.style.pointerEvents = 'none'; }, 200); }
+        }
+
+        function syncDateDisplay(textId, isoValue) {
+            if (!isoValue) return;
+            const parts = isoValue.split('-');
+            if (parts.length === 3) {
+                const m = parseInt(parts[1], 10);
+                document.getElementById(textId).value = `${parts[2]}-${MONTHS[m - 1]}-${parts[0]}`;
+            }
+        }
+
+        function toISODate(ddmmyyyy) {
+            if (!ddmmyyyy) return '';
+            const m = ddmmyyyy.match(/^(\d{1,2})-([A-Z][a-z]+)-(\d{4})$/);
+            if (m) {
+                const idx = MONTHS.indexOf(m[2]);
+                if (idx !== -1) {
+                    const dd = String(m[1]).padStart(2, '0');
+                    const mm = String(idx + 1).padStart(2, '0');
+                    return `${m[3]}-${mm}-${dd}`;
+                }
+            }
+            return '';
+        }
+
+        function combineDateTime(dateId, timeId) {
+            const date = document.getElementById(dateId).value;
+            const time = document.getElementById(timeId).value;
+            if (!date || !time) return '';
+            const iso = toISODate(date);
+            if (!iso) return '';
+            return `${iso}T${time}`;
+        }
+
+        function yearRoman(year) {
+            return {1:'I', 2:'II', 3:'III', 4:'IV'}[year] || year || '-';
+        }
+
+        function formatMinutes(sec) {
+            sec = Math.max(0, Math.round(Number(sec) || 0));
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            return `${m}m ${s}s`;
+        }
+
+        function rankEmoji(rank, pct) {
+            if (pct === 100) return '👑 💯';
+            if (rank === 1) return '👑';
+            if (rank === 2) return '⭐';
+            if (rank === 3) return '🥉';
+            if (rank === 4) return '📈';
+            if (rank === 5) return '💡';
+            return `#${rank}`;
+        }
+
+        function formatLocal(dt) {
+            if (!dt) return '-';
+            const d = new Date(dt);
+            return d.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function resultsTime(endAt, duration) {
+            if (!endAt) return '-';
+            const d = new Date(new Date(endAt).getTime() + (duration || 0) * 60000);
+            return d.toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatAssessmentName(a) {
+            const type = a.type || 'Assessment';
+            return a.series_no ? `${type} ${a.series_no}: ${a.title}` : `${type}: ${a.title}`;
+        }
+
+        function prefillStart() {
+            const today = new Date();
+            const dd = String(today.getDate()).padStart(2, '0');
+            const monthName = MONTHS[today.getMonth()];
+            const yyyy = today.getFullYear();
+            const todayStr = `${dd}-${monthName}-${yyyy}`;
+
+            document.getElementById('start_date').value = todayStr;
+            document.getElementById('start_time').value = '20:00';
+            document.getElementById('end_date').value = todayStr;
+            document.getElementById('end_time').value = '20:05';
+        }
+
+        async function uploadQuestions() {
+            const statusEl = document.getElementById('upload-status');
+            const file = document.getElementById('excel-file').files[0];
+            if (!file) return showStatus(statusEl, 'Select a file first.', 'error');
+
+            const formData = new FormData();
+            formData.append('file', file);
+            showStatus(statusEl, 'Importing questions...', 'info');
+
+            try {
+                const res = await fetch('/admin/upload_excel', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Import failed');
+                uploadedQuestionIds = data.ids || [];
+                document.getElementById('total_duration').value = uploadedQuestionIds.length || 30;
+                showStatus(statusEl, `Imported ${uploadedQuestionIds.length} questions. Duration set to ${uploadedQuestionIds.length} min.`, 'success');
+            } catch (err) {
+                showStatus(statusEl, err.message || 'Network error.', 'error');
+            }
+        }
+
+        function scheduleEvent() {
+            const statusEl = document.getElementById('publish-status');
+            const title = document.getElementById('test-title').value.trim();
+            const startAt = combineDateTime('start_date', 'start_time');
+            const endAt = combineDateTime('end_date', 'end_time');
+            const seriesNo = document.getElementById('series_no').value.trim();
+
+            if (!title) return showStatus(statusEl, 'Title is required.', 'error');
+            if (!startAt) return showStatus(statusEl, 'Start date and time are required.', 'error');
+            if (!uploadedQuestionIds.length) return showStatus(statusEl, 'Import questions first.', 'error');
+            if (endAt && endAt <= startAt) return showStatus(statusEl, 'Entry close time must be after start time.', 'error');
+
+            const reminders = Array.from(document.querySelectorAll('input[name="rem"]:checked')).map(cb => cb.value);
+            showStatus(statusEl, 'Publishing assessment...', 'info');
+
+            fetch('/admin/create_assessment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title,
+                    type: document.getElementById('ass_type').value,
+                    series_no: seriesNo ? parseInt(seriesNo, 10) : null,
+                    duration: parseInt(document.getElementById('total_duration').value, 10) || uploadedQuestionIds.length,
+                    start_at: startAt,
+                    end_at: endAt || null,
+                    question_ids: uploadedQuestionIds,
+                    reminders
+                })
+            })
+            .then(async res => ({ res, data: await res.json() }))
+            .then(({ res, data }) => {
+                if (!res.ok) throw new Error(data.error || 'Failed to publish');
+                showStatus(statusEl, 'Assessment published successfully.', 'success');
+                document.getElementById('test-title').value = '';
+                document.getElementById('series_no').value = '';
+                document.getElementById('excel-file').value = '';
+                prefillStart();
+                uploadedQuestionIds = [];
+                document.getElementById('total_duration').value = '30';
+                fetchAssessmentsList();
+            })
+            .catch(err => showStatus(statusEl, err.message || 'Network error.', 'error'));
+        }
+
+        function drawCaptcha(canvasId, code) {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
-
-            const chars = "ABCDEFGHJKLMNPRSTUVWXYZ23456789";
-            const fonts = ["'Courier New'", "Arial", "Georgia", "Impact", "Tahoma"];
-            let code = "";
-
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#F8F9FA";
+            ctx.fillStyle = '#F8F9FA';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            ctx.lineWidth = 1;
-            for (let x = 0; x < canvas.width; x += 15) {
-                ctx.beginPath(); ctx.moveTo(x + (Math.random() * 4 - 2), 0); ctx.lineTo(x + (Math.random() * 4 - 2), canvas.height);
-                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.05 + 0.02})`; ctx.stroke();
-            }
-            for (let y = 0; y < canvas.height; y += 15) {
-                ctx.beginPath(); ctx.moveTo(0, y + (Math.random() * 4 - 2)); ctx.lineTo(canvas.width, y + (Math.random() * 4 - 2));
-                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.05 + 0.02})`; ctx.stroke();
-            }
-
-            for (let i = 0; i < 20; i++) {
-                ctx.beginPath();
-                let x = Math.random() * canvas.width, y = Math.random() * canvas.height;
-                ctx.moveTo(x, y); ctx.lineTo(x + Math.random() * 15 - 7, y + Math.random() * 15 - 7);
-                ctx.strokeStyle = `rgba(0,0,0,${Math.random() * 0.3})`; ctx.lineWidth = Math.random() * 1.5 + 0.5; ctx.stroke();
-            }
-
-            ctx.textBaseline = 'middle';
-            const charCount = 5;
-            const stepX = canvas.width / (charCount + 1);
-
-            for (let i = 0; i < charCount; i++) {
-                const char = chars.charAt(Math.floor(Math.random() * chars.length));
-                code += char;
-                ctx.save();
-
-                ctx.translate((i + 1) * stepX + (Math.random() * 10 - 5), canvas.height / 2 + (Math.random() * 8 - 4));
-                ctx.rotate((Math.random() - 0.5) * 0.8);
-                ctx.transform(1, 0, Math.random() * 0.4 - 0.2, 1, 0, 0);
-
-                ctx.font = `${Math.floor(canvas.height * 0.5 + Math.random() * (canvas.height * 0.25))}px ${fonts[Math.floor(Math.random() * fonts.length)]}`;
-                const r = Math.floor(Math.random() * 120), g = Math.floor(Math.random() * 120), b = Math.floor(Math.random() * 150 + 50);
-                ctx.fillStyle = `rgb(${r},${g},${b})`;
-
-                ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowOffsetX = 1.5; ctx.shadowOffsetY = 1.5; ctx.shadowBlur = 2;
-                ctx.fillText(char, -ctx.measureText(char).width / 2, 0);
-                ctx.shadowColor = 'transparent';
-
-                if (Math.random() > 0.2) {
-                    ctx.beginPath(); ctx.moveTo(-15, (Math.random() - 0.5) * 15); ctx.lineTo(15, (Math.random() - 0.5) * 15);
-                    ctx.strokeStyle = `rgba(${r},${g},${b},${Math.random() * 0.6 + 0.3})`; ctx.lineWidth = Math.random() * 2 + 1; ctx.stroke();
-                }
-                ctx.restore();
-            }
-
-            for (let i = 0; i < 90; i++) {
-                const x = Math.random() * canvas.width, y = Math.random() * canvas.height;
-                ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.35})`;
-                ctx.beginPath(); ctx.arc(x, y, Math.random() * 2.2, 0, 2 * Math.PI); ctx.fill();
-                if (Math.random() > 0.75) {
-                    for (let j = 0; j < 3; j++) {
-                        ctx.beginPath(); ctx.arc(x + Math.random() * 6 - 3, y + Math.random() * 6 - 3, Math.random() * 1.2, 0, 2 * Math.PI); ctx.fill();
-                    }
-                }
-            }
-            adminCaptchaCode = code;
+            ctx.font = 'bold 28px monospace';
+            ctx.fillStyle = '#5e35b1';
+            ctx.fillText(code, 12, 36);
         }
 
-        async function scheduleEvent() {
-            const statusEl = document.getElementById('publish-status');
-
-            if (draftIds.length === 0) {
-                showStatus(statusEl, "Add at least one question to the Draft Preview to publish.", "error");
-                return;
-            }
-
-            const titleVal = document.getElementById('test-title').value.trim();
-            if (!titleVal) {
-                showStatus(statusEl, "Please enter a Public Title for the Assessment.", "error");
-                return;
-            }
-
-            let startAtVal = document.getElementById('start_at').value;
-            let endAtVal = document.getElementById('end_at').value;
-
-            if (startAtVal && !endAtVal) {
-                let stDate = new Date(startAtVal);
-                stDate.setMinutes(stDate.getMinutes() + 1);
-
-                const yyyy = stDate.getFullYear();
-                const mm = String(stDate.getMonth() + 1).padStart(2, '0');
-                const dd = String(stDate.getDate()).padStart(2, '0');
-                const hh = String(stDate.getHours()).padStart(2, '0');
-                const mins = String(stDate.getMinutes()).padStart(2, '0');
-
-                endAtVal = `${yyyy}-${mm}-${dd}T${hh}:${mins}`;
-                document.getElementById('end_at').value = endAtVal;
-            }
-
-            const seqVal = document.getElementById('seq_num').value.trim();
-            const durVal = document.getElementById('total_duration').value.trim();
-            const reminders = Array.from(document.querySelectorAll('input[name="rem"]:checked')).map(cb => cb.value);
-            const payload = {
-                seq_num: seqVal === "" ? null : parseInt(seqVal),
-                title: titleVal,
-                type: document.getElementById('ass_type').value,
-                duration: durVal === "" ? 30 : parseInt(durVal),
-                start_at: startAtVal || null,
-                end_at: endAtVal || null,
-                question_ids: draftIds,
-                reminders: reminders
-            };
-
-            showStatus(statusEl, "Publishing Assessment...", "info");
-
+        async function loadStudents() {
+            const statusEl = document.getElementById('students-status');
+            const q = document.getElementById('search-reg').value.trim();
+            showStatus(statusEl, 'Loading student list...', 'info');
             try {
-                const res = await fetch("/admin/create_assessment", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
-                });
-
+                const url = q ? `/admin/students?q=${encodeURIComponent(q)}` : '/admin/students';
+                const res = await fetch(url);
                 const data = await res.json();
-                if (res.ok) {
-                    showStatus(statusEl, "Assessment Published Successfully!", "success");
-                    draftIds = [];
-                    renderQuestionTables();
-                    fetchAssessmentsList();
-
-                    document.getElementById('seq_num').value = "";
-                    document.getElementById('test-title').value = "";
-                    document.getElementById('total_duration').value = "";
-                } else {
-                    showStatus(statusEl, `Error: ${data.error}`, "error");
+                if (!res.ok) throw new Error(data.error || 'Failed to load students');
+                studentsData = data || [];
+                document.getElementById('download-students-btn').style.display = studentsData.length ? 'inline-flex' : 'none';
+                const body = document.getElementById('students-table-body');
+                if (!studentsData.length) {
+                    body.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center; padding: 20px;">No students registered yet.</td></tr>';
+                    showStatus(statusEl, 'No students found.', 'info');
+                    return;
                 }
-            } catch (err) {
-                showStatus(statusEl, "Network Error.", "error");
-            }
-        }
-
-        async function fetchQuestions() {
-            try {
-                const res = await fetch("/admin/questions");
-                if (!res.ok) throw new Error("Backend returned an error.");
-
-                const data = await res.json();
-                if (data.error) throw new Error(data.error);
-
-                allQuestions = data;
-                renderQuestionTables();
-            } catch (err) {
-                document.getElementById('qb-container').innerHTML = `<div style="color:#c62828; text-align:center; padding: 20px;">Failed to load questions: ${err.message}</div>`;
-            }
-        }
-
-        function renderQuestionTables() {
-            const bankQs = allQuestions.filter(q => !draftIds.includes(q.id));
-            const draftQs = allQuestions.filter(q => draftIds.includes(q.id));
-
-            document.getElementById('qb-container').innerHTML = buildTableHtml(bankQs, false) || "<div style='text-align:center; padding: 20px;'>No questions in bank.</div>";
-            document.getElementById('draft-container').innerHTML = buildTableHtml(draftQs, true) || "<div style='text-align:center; padding: 20px; color:#666;'>Draft is empty.</div>";
-        }
-
-        function buildTableHtml(qs, isDraft) {
-            if (!qs.length) return "";
-            let html = `
-            <div class="table-responsive">
-                <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 500px;">
-                    <thead>
-                        <tr style="background: var(--admin); color: white;">
-                            <th scope="col" style="padding: 10px; width: 80px;">Type</th>
-                            <th scope="col" style="padding: 10px;">Preview</th>
-                            <th scope="col" style="padding: 10px; width: 80px;">Marks</th>
-                            <th scope="col" style="padding: 10px; width: 100px;">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            qs.forEach(q => {
-                const btn = isDraft
-                    ? `<button onclick="removeFromDraft(${q.id})" style="background:#D32F2F; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; width:100%;" aria-label="Remove question from draft">Remove</button>`
-                    : `<button onclick="addToDraft(${q.id})" style="background:var(--iste-green); color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; width:100%;" aria-label="Add question to draft">Add</button>`;
-
-                html += `
-                    <tr style="border-bottom: 1px solid var(--border);">
-                        <td style="padding: 10px; font-weight: bold;">${q.type}</td>
-                        <td style="padding: 10px;">${q.question.substring(0, 60)}...</td>
-                        <td style="padding: 10px; color: green; font-weight: bold;">+${q.mark}</td>
-                        <td style="padding: 10px;">${btn}</td>
+                body.innerHTML = studentsData.map(s => `
+                    <tr class="row-hover" data-student-row="${s.user_id}" onclick="toggleStudentDetail(${s.user_id})">
+                        <td><strong>${escapeHtml(s.user_id)}</strong></td>
+                        <td>${escapeHtml(s.name || '-')}</td>
+                        <td>${escapeHtml(yearRoman(s.year))}</td>
+                        <td>${escapeHtml(s.degree || '-')}</td>
+                        <td>${escapeHtml(s.stream || '-')}</td>
                     </tr>
+                    <tr id="student-detail-row-${s.user_id}" class="detail-row hidden"><td colspan="5" id="student-detail-${s.user_id}"></td></tr>
+                `).join('');
+                showStatus(statusEl, `Loaded ${studentsData.length} student${studentsData.length > 1 ? 's': ''}. Click a row for test summaries.`, 'success');
+            } catch (err) {
+                showStatus(statusEl, err.message || 'Network error.', 'error');
+            }
+        }
+
+        async function toggleStudentDetail(uid) {
+            const row = document.getElementById(`student-detail-row-${uid}`);
+            const body = document.getElementById(`student-detail-${uid}`);
+            if (!row || !body) return;
+            const hidden = row.classList.contains('hidden');
+            if (!hidden) {
+                row.classList.add('hidden');
+                return;
+            }
+            row.classList.remove('hidden');
+            if (studentAttemptsCache.has(uid)) {
+                body.innerHTML = renderStudentAttempts(uid, studentAttemptsCache.get(uid));
+                return;
+            }
+            body.innerHTML = '<div class="muted">Loading test summaries...</div>';
+            try {
+                const res = await fetch(`/admin/attempts?user_id=${uid}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to load attempts');
+                studentAttemptsCache.set(uid, data || []);
+                body.innerHTML = renderStudentAttempts(uid, data || []);
+            } catch (err) {
+                body.innerHTML = `<div class="muted" style="color: var(--red);">${escapeHtml(err.message || 'Network error')}</div>`;
+            }
+        }
+
+        function renderStudentAttempts(uid, attempts) {
+            if (!attempts.length) return '<div class="muted">No submitted assessments for this student.</div>';
+            return attempts.map(a => {
+                const pct = Number(a.percentage ?? (Number(a.max_marks) ? (Number(a.total_score) / Number(a.max_marks)) * 100 : 0));
+                const sd = a.start_at ? fmtDateStr(a.start_at) + ' ' + fmtTimeStr(a.start_at) : '';
+                const ed = a.end_at ? fmtDateStr(a.end_at) + ' ' + fmtTimeStr(a.end_at) : '';
+                const tm = a.total_time_taken_sec ? formatMinutes(a.total_time_taken_sec) : '-';
+                const ra = a.results_available;
+                const rankStr = ra && (a.rank_pos || a.rank) ? `<span class="rank-emoji">${rankEmoji(a.rank_pos || a.rank, pct)}</span> | ` : '';
+                const qaId = `std-qa-${uid}-${a.assessment_id}`;
+                return `
+                    <div class="detail-card" style="margin-bottom: 10px; cursor:pointer;" onclick="toggleAttemptQA('${qaId}', ${uid}, ${a.assessment_id})">
+                        <div class="split" style="justify-content: space-between;">
+                            <div>
+                                <div style="font-weight:800;">${escapeHtml(formatAssessmentName(a))}</div>
+                                <div class="small muted">${sd} – ${ed}</div>
+                                <div class="small muted">${rankStr}Attended ${a.attended || 0}/${a.total_questions || 0} | Time ${tm}</div>
+                            </div>
+                            <div class="badge green">${escapeHtml(Number(a.total_score || 0))} / ${escapeHtml(Number(a.max_marks || 0))} (${escapeHtml(pct.toFixed(2))}%)</div>
+                        </div>
+                        <div id="${qaId}" class="hidden" style="margin-top:10px;"></div>
+                    </div>
                 `;
-            });
-            return html + `</tbody></table></div>`;
+            }).join('');
         }
 
-        function addToDraft(id) { draftIds.push(id); renderQuestionTables(); }
-        function removeFromDraft(id) { draftIds = draftIds.filter(x => x !== id); renderQuestionTables(); }
-
-        const cleanNum = (num) => Number(parseFloat(num).toFixed(2));
-
-        function toggleManualQFields() {
-            const type = document.getElementById('man-q-type').value;
-            const optCont = document.getElementById('man-options-container');
-            const mcqAns = document.getElementById('man-correct-mcq');
-            const msqAns = document.getElementById('man-correct-msq');
-            const numAns = document.getElementById('man-correct-num');
-            const tolCont = document.getElementById('man-tolerance-container');
-
-            optCont.style.display = (type === 'MCQ' || type === 'MSQ') ? 'block' : 'none';
-            mcqAns.style.display = type === 'MCQ' ? 'block' : 'none';
-            msqAns.style.display = type === 'MSQ' ? 'block' : 'none';
-            numAns.style.display = (type === 'INT' || type === 'NUM') ? 'block' : 'none';
-            tolCont.style.display = type === 'NUM' ? 'block' : 'none';
-        }
-
-        function addOption() {
-            const letter = String.fromCharCode(65 + optCount);
-
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.id = `man-opt-${optCount}`;
-            input.placeholder = `Option ${letter}`;
-            input.setAttribute('aria-label', `Option ${letter}`);
-            document.getElementById('options-list').appendChild(input);
-
-            const select = document.getElementById('man-correct-mcq');
-            const option = document.createElement('option');
-            option.value = optCount;
-            option.text = `Option ${letter}`;
-            select.appendChild(option);
-
-            optCount++;
-        }
-
-        async function uploadData() {
-            const statusEl = document.getElementById('upload-status');
-            const file = document.getElementById('excel-file').files[0];
-
-            if (!file) {
-                showStatus(statusEl, "Select a file first.", "error");
-                return;
-            }
-
-            let formData = new FormData();
-            formData.append("file", file);
-
-            showStatus(statusEl, "Processing File...", "info");
-
+        async function toggleAttemptQA(containerId, uid, aid) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            const hidden = el.classList.contains('hidden');
+            if (!hidden) { el.classList.add('hidden'); return; }
+            el.classList.remove('hidden');
+            el.innerHTML = '<div class="muted">Loading question analysis...</div>';
             try {
-                const res = await fetch("/admin/upload_excel", { method: "POST", body: formData });
+                const res = await fetch(`/admin/attempt_details/${uid}/${aid}`);
                 const data = await res.json();
-
-                if (res.ok) {
-                    let addedCount = 0;
-                    let dupCount = 0;
-
-                    if (data.ids && data.ids.length > 0) {
-                        data.ids.forEach(id => {
-                            if (!draftIds.includes(id)) {
-                                draftIds.push(id);
-                                addedCount++;
-                            } else {
-                                dupCount++;
-                            }
-                        });
-                    }
-
-                    let msg = `Saved ${data.count} new questions to Bank. Added ${addedCount} to Draft.`;
-                    if (dupCount > 0) {
-                        msg += ` (⚠️ ${dupCount} exact duplicates already in draft were skipped)`;
-                        showStatus(statusEl, msg, "info");
-                    } else {
-                        showStatus(statusEl, msg, "success");
-                    }
-
-                    fetchQuestions();
-                } else {
-                    showStatus(statusEl, `Error: ${data.error}`, "error");
-                }
-            } catch (err) {
-                showStatus(statusEl, "Network Error.", "error");
-            }
-        }
-
-        async function submitManualQuestion() {
-            const statusEl = document.getElementById('man-status');
-            const type = document.getElementById('man-q-type').value;
-            const text = document.getElementById('man-q-text').value.trim();
-            const rawMarks = document.getElementById('man-marks').value;
-            const rawNeg = document.getElementById('man-neg').value;
-            const rawDur = document.getElementById('man-dur').value;
-
-            if (!text) {
-                showStatus(statusEl, "Question text is required.", "error");
-                return;
-            }
-
-            let payload = {
-                type: type,
-                question: text,
-                marks: Math.max(1, parseInt(rawMarks) || 1),
-                negative_marks: Math.max(0, parseInt(rawNeg) || 0),
-                duration: Math.max(10, parseInt(rawDur) || 60)
-            };
-
-            if (type === 'MCQ' || type === 'MSQ') {
-                let options = [];
-                for (let i = 0; i < optCount; i++) {
-                    const val = document.getElementById(`man-opt-${i}`).value.trim();
-                    if (val) options.push(val);
-                }
-                if (options.length < 2) {
-                    showStatus(statusEl, "Enter at least 2 options.", "error");
-                    return;
-                }
-                payload.options = options;
-
-                if (type === 'MCQ') {
-                    payload.correct_id = parseInt(document.getElementById('man-correct-mcq').value);
-                } else {
-                    const rawMsq = document.getElementById('man-correct-msq').value.trim();
-                    if (!rawMsq) {
-                        showStatus(statusEl, "Enter correct MSQ options.", "error");
-                        return;
-                    }
-
-                    let ids = rawMsq.split(/[ ,]+/).map(v => {
-                        let val = v.trim().toLowerCase();
-                        if (val.length === 1 && val >= 'a' && val <= 'z') return val.charCodeAt(0) - 97;
-                        return parseInt(val);
-                    }).filter(n => !isNaN(n));
-
-                    if (ids.length === 0) {
-                        showStatus(statusEl, "Invalid MSQ answer format.", "error");
-                        return;
-                    }
-                    payload.correct_ids = ids;
-                }
-            } else {
-                const rawNum = document.getElementById('man-correct-num').value.trim();
-                if (!rawNum) {
-                    showStatus(statusEl, "Enter correct numerical answer.", "error");
-                    return;
-                }
-
-                if (rawNum.includes(',')) {
-                    payload.range = rawNum.split(',').map(n => parseFloat(n.trim()));
-                } else {
-                    payload.value = parseFloat(rawNum);
-                    if (type === 'NUM') {
-                        const tol = document.getElementById('man-tolerance').value;
-                        if (tol) payload.tolerance = parseFloat(tol);
-                    }
-                }
-            }
-
-            showStatus(statusEl, "Adding question...", "info");
-
-            try {
-                const res = await fetch("/admin/add_question", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-
-                if (res.ok) {
-                    if (data.status === 'duplicate') {
-                        // Throw error if it's already in draft, otherwise just draft it from Bank
-                        if (draftIds.includes(data.id)) {
-                            showStatus(statusEl, "Error: This exact question is already staged in your Draft Preview!", "error");
-                            return;
-                        } else {
-                            showStatus(statusEl, "Question exists in Bank. Staged to Draft Preview!", "info");
-                            draftIds.push(data.id);
-                        }
-                    } else {
-                        showStatus(statusEl, "Question Successfully Added & Staged!", "success");
-                        if (data.id && !draftIds.includes(data.id)) draftIds.push(data.id);
-                    }
-
-                    document.getElementById('man-q-text').value = '';
-                    fetchQuestions();
-                } else {
-                    showStatus(statusEl, `Error: ${data.error}`, "error");
-                }
-            } catch (err) {
-                showStatus(statusEl, "Network Error.", "error");
-            }
-        }
-
-        async function fetchPerformances() {
-            const statusEl = document.getElementById('perf-status');
-            const capIn = document.getElementById('admin-captcha-in').value.toUpperCase();
-
-            if (capIn !== adminCaptchaCode) {
-                showStatus(statusEl, "Incorrect Security Code.", "error");
-                drawAdminCaptcha('adminCaptcha');
-                document.getElementById('admin-captcha-in').value = "";
-                return;
-            }
-
-            const uid = document.getElementById('search-uid').value.trim();
-                document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='6' style='text-align:center; padding: 20px;'>Loading Logs...</td></tr>";
-
-            try {
-                const res = await fetch(`/admin/attempts${uid ? '?user_id=' + uid : ''}`);
-                const data = await res.json();
-
-                if (data.error) {
-                    showStatus(statusEl, data.error, "error");
-                    document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='6'></td></tr>";
-                    return;
-                }
-
-                if (data.length === 0) {
-                    document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='6' style='text-align:center; padding: 20px; color: #666;'>No attempts found.</td></tr>";
-                    return;
-                }
-
-                let html = "";
-                data.forEach(r => {
-                    const mTotal = Math.floor(r.total_time_taken_sec / 60);
-                    const sTotal = r.total_time_taken_sec % 60;
-
-                    html += `
-                        <tr style="border-bottom: 1px solid var(--border);">
-                            <td style="padding: 12px;"><b>${r.name}</b><br><span style="font-size: 11px; color: #666;">ID: ${r.user_id}</span></td>
-                            <td style="padding: 12px; font-weight: 500;">${r.type}: ${r.title}</td>
-                            <td style="padding: 12px; font-weight: bold;">${r.attended || 0} / ${r.total_questions}</td>
-                            <td style="padding: 12px; font-weight: bold; color: ${r.total_score >= 0 ? 'var(--iste-green)' : '#c62828'};">${r.total_score} / ${r.max_marks || 0}</td>
-                            <td style="padding: 12px;">${mTotal}m ${sTotal}s</td>
-                            <td style="padding: 12px;">
-                                <button class="btn-action" style="padding: 6px 12px; font-size: 12px;" onclick="viewAttemptDetails(${r.user_id}, ${r.assessment_id})" aria-label="View Analysis for ${r.name}">View Analysis</button>
-                            </td>
-                        </tr>
-                    `;
-                });
-
-                document.getElementById('perf-table-body').innerHTML = html;
-                document.getElementById('admin-captcha-in').value = "";
-                drawAdminCaptcha('adminCaptcha');
-                showStatus(statusEl, "Data fetched successfully.", "success");
-            } catch (err) {
-                showStatus(statusEl, "Network Error.", "error");
-                document.getElementById('perf-table-body').innerHTML = "<tr><td colspan='6'></td></tr>";
-            }
-        }
-
-        async function viewAttemptDetails(uid, aid) {
-            const modal = document.getElementById('perfModal');
-            const body = document.getElementById('perfModalBody');
-
-            modal.style.display = 'flex';
-            body.innerHTML = '<div style="text-align:center; padding: 40px; color:#666;">Loading detailed question breakdown...</div>';
-
-            const res = await fetch(`/admin/attempt_details/${uid}/${aid}`);
-            if (res.ok) {
-                const data = await res.json();
-
-                body.innerHTML = data.map((q, i) => {
-                    const score = cleanNum(q.score || 0);
-                    const time = parseInt(q.time_taken_sec) || 0;
-                    const isCorrect = score > 0;
-                    const isNegative = score < 0;
-
-                    let markColor = '#666';
-                    if (isCorrect) markColor = '#2e7d32';
-                    else if (isNegative) markColor = '#c62828';
-
-                    let studentAns = "Skipped / Unattempted";
-                    let correctAns = "---";
-
-                    let sResp = q.student_response;
-                    if (typeof sResp === 'string') {
-                        try { sResp = JSON.parse(sResp); } catch (e) { sResp = {}; }
-                    }
-                    sResp = sResp || {};
-
+                if (!res.ok) throw new Error(data.error || 'Failed');
+                if (!data.length) { el.innerHTML = '<div class="muted">No details.</div>'; return; }
+                el.innerHTML = '<div class="qa-grid-2col">' + data.map((q, idx) => {
+                    const score = Number(q.score || 0);
+                    const good = score > 0, bad = score < 0;
+                    let sResp = q.student_response || {};
+                    if (typeof sResp === 'string') try { sResp = JSON.parse(sResp); } catch { sResp = {}; }
+                    let studentAns = 'Skipped', correctAns = '---';
                     if (q.type === 'MCQ' || q.type === 'MSQ') {
+                        const opts = q.correct_answer?.options || [];
                         const sIds = sResp.selected_ids || (sResp.selected_id !== undefined ? [sResp.selected_id] : []);
                         const cIds = q.correct_answer.correct_ids || [q.correct_answer.correct_id];
-
-                        if (sIds.length > 0) studentAns = sIds.map(id => q.correct_answer.options[id]).join(', ');
-                        correctAns = cIds.map(id => q.correct_answer.options[id]).join(', ');
+                        if (sIds.length) studentAns = sIds.map(id => opts[id]).filter(Boolean).join(', ');
+                        correctAns = cIds.map(id => opts[id]).filter(Boolean).join(', ');
                     } else {
-                        if (sResp.value !== undefined && sResp.value !== "") studentAns = sResp.value;
-                        correctAns = q.correct_answer.value !== undefined ? q.correct_answer.value : (q.correct_answer.range ? `${q.correct_answer.range[0]} to ${q.correct_answer.range[1]}` : "N/A");
+                        if (sResp.value !== undefined && sResp.value !== '') studentAns = sResp.value;
+                        correctAns = q.correct_answer?.value !== undefined ? q.correct_answer.value : (q.correct_answer?.range ? `${q.correct_answer.range[0]} to ${q.correct_answer.range[1]}` : 'N/A');
                     }
-
-                    return `
-                    <div style="background: white; border: 1px solid var(--border); padding: 15px; border-radius: 8px; margin-bottom: 12px; font-size: 13px;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:8px; border-bottom:1px solid #eee; padding-bottom:5px;">
-                            <strong style="color:var(--admin);">Q${i + 1} (${q.type})</strong>
-                            <div style="font-weight:bold; color:${markColor};">${score > 0 ? '+' : ''}${score} Points &nbsp;|&nbsp; 🕒 ${time}s</div>
+                    return `<div class="analysis-item ${good ? 'good' : bad ? 'bad' : 'neutral'}">
+                        <div class="analysis-head">
+                            <strong>Q${idx+1} (${escapeHtml(q.type)})</strong>
+                            <div class="badge ${good ? 'green' : bad ? 'orange' : 'gray'}">${score > 0 ? '+' : ''}${escapeHtml(score)}</div>
                         </div>
-                        <div style="margin-bottom: 10px; color:#333;">${q.question}</div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; background:#f0f4f8; padding:10px; border-radius:5px;">
-                            <div><strong style="font-size:11px; color:#666;">STUDENT RESPONSE</strong><br><span style="color:${isCorrect ? '#2e7d32' : (isNegative ? '#c62828' : '#666')}; font-weight:500;">${studentAns}</span></div>
-                            <div><strong style="font-size:11px; color:#666;">CORRECT ANSWER</strong><br><span style="color:#2e7d32; font-weight:500;">${correctAns}</span></div>
+                        <div class="analysis-q">${escapeHtml(q.question)}</div>
+                        <div class="answers">
+                            <div><span class="small muted">You</span><div>${escapeHtml(studentAns)}</div></div>
+                            <div><span class="small muted">Correct</span><div>${escapeHtml(correctAns)}</div></div>
+                        </div>
+                    </div>`;
+                }).join('') + '</div>';
+            } catch (err) {
+                el.innerHTML = `<div class="muted" style="color:var(--red);">${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        function downloadStudentsXLSX() {
+            if (!studentsData.length || typeof XLSX === 'undefined') return;
+            const rows = studentsData.map(s => ({
+                'Reg. No': s.user_id,
+                'Name': s.name,
+                'Year': yearRoman(s.year),
+                'Degree': s.degree,
+                'Stream': s.stream || ''
+            }));
+            const ws = XLSX.utils.json_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Students');
+            XLSX.writeFile(wb, `ISTE_Students_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        }
+
+        function renderEditPanel(a) {
+            const editable = !!a.editable;
+            const questions = a.questions || [];
+            const qHtml = questions.map((q, idx) => {
+                const ans = typeof q.answer === 'object' && q.answer !== null ? q.answer : {};
+                const opts = ans.options || [];
+                const correctId = ans.correct_id;
+                const correctIds = ans.correct_ids || [];
+                const val = ans.value;
+                const rng = ans.range;
+
+                let answerInput = '';
+                if (q.type === 'MCQ') {
+                    answerInput = opts.map((opt, oi) => `
+                        <div class="opt-row">
+                            <input type="radio" name="q-ans-${a.id}-${q.id}" value="${oi}" ${oi === correctId ? 'checked' : ''} ${editable ? '' : 'disabled'}>
+                            <input type="text" class="q-opt" value="${escapeHtml(opt)}" data-qid="${q.id}" data-oidx="${oi}" ${editable ? '' : 'disabled'}>
+                        </div>
+                    `).join('');
+                } else if (q.type === 'MSQ') {
+                    answerInput = opts.map((opt, oi) => `
+                        <div class="opt-row">
+                            <input type="checkbox" value="${oi}" ${correctIds.includes(oi) ? 'checked' : ''} ${editable ? '' : 'disabled'}>
+                            <input type="text" class="q-opt" value="${escapeHtml(opt)}" data-qid="${q.id}" data-oidx="${oi}" ${editable ? '' : 'disabled'}>
+                        </div>
+                    `).join('');
+                } else if (q.type === 'INT' || q.type === 'NUM') {
+                    if (rng && rng.length === 2) {
+                        answerInput = `<div class="opt-row">
+                            <label style="font-size:12px;">From</label>
+                            <input type="number" class="q-num-from" value="${escapeHtml(rng[0])}" step="any" ${editable ? '' : 'disabled'}>
+                            <label style="font-size:12px;">To</label>
+                            <input type="number" class="q-num-to" value="${escapeHtml(rng[1])}" step="any" ${editable ? '' : 'disabled'}>
+                        </div>`;
+                    } else {
+                        answerInput = `<input type="number" class="q-num-val" value="${escapeHtml(val ?? '')}" step="any" ${editable ? '' : 'disabled'}>`;
+                    }
+                }
+                return `<div class="question-card">
+                    <div class="q-head"><strong>Q${idx+1}</strong><span class="badge gray">${escapeHtml(q.type)}</span></div>
+                    <textarea class="q-text" data-qid="${q.id}" ${editable ? '' : 'disabled'}>${escapeHtml(q.question)}</textarea>
+                    ${opts.length ? `<div class="q-opts-wrap"><label class="q-opts-label">Options</label>${answerInput}</div>` : `<div class="q-opts-wrap">${answerInput}</div>`}
+                    <div class="q-marks">
+                        <label>Mark <input type="number" class="q-mark" value="${escapeHtml(q.mark ?? 1)}" step="any" ${editable ? '' : 'disabled'}></label>
+                        <label>Neg Mark <input type="number" class="q-neg" value="${escapeHtml(q.negative_mark ?? 0)}" step="any" ${editable ? '' : 'disabled'}></label>
+                    </div>
+                </div>`;
+            }).join('');
+
+            const s = a.start_at ? new Date(a.start_at) : null;
+            const e = a.end_at ? new Date(a.end_at) : null;
+            const fmtDate = d => d ? `${String(d.getDate()).padStart(2,'0')}-${MONTHS[d.getMonth()]}-${d.getFullYear()}` : '';
+            const fmtTime24 = d => d ? `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` : '';
+            const fmtTimeAMPM = d => {
+                if (!d) return '';
+                const h = d.getHours(), m = String(d.getMinutes()).padStart(2, '0');
+                return `${h % 12 || 12}:${m} ${h >= 12 ? 'PM' : 'AM'}`;
+            };
+
+            return `
+                <div class="grid-2">
+                    <div class="detail-card">
+                        <div class="badge ${editable ? 'green' : 'orange'}">${editable ? 'Editable' : 'Locked'}</div>
+                        <div class="grid-2" style="margin-top:12px;">
+                            <div><label>Title <input id="ass-title-${a.id}" value="${escapeHtml(a.title || '')}" ${editable ? '' : 'disabled'}></label></div>
+                            <div><label>Series No. <input id="ass-series-${a.id}" type="number" value="${escapeHtml(a.series_no || '')}" ${editable ? '' : 'disabled'}></label></div>
+                            <div><label>Duration (mins) <input id="ass-duration-${a.id}" type="number" value="${escapeHtml(a.total_duration || 0)}" ${editable ? '' : 'disabled'}></label></div>
+                        </div>
+                        <div class="grid-2" style="margin-top:12px;">
+                            <div><label for="ass-start-date-hidden-${a.id}">Start Date</label><div class="date-wrap" onclick="showDatePicker('ass-start-date-hidden-${a.id}')">
+                                <input type="text" id="ass-start-date-${a.id}" placeholder="dd-Month-yyyy" maxlength="15" readonly value="${fmtDate(s)}">
+                                <input type="date" id="ass-start-date-hidden-${a.id}" onchange="syncDateDisplay('ass-start-date-${a.id}', this.value)">
+                                <span class="date-icon">📅</span>
+                            </div></div>
+                            <div><label for="ass-start-time-${a.id}">Start Time</label><input type="time" id="ass-start-time-${a.id}" value="${fmtTime24(s)}" step="300" ${editable ? '' : 'disabled'}></div>
+                            <div><label for="ass-end-date-hidden-${a.id}">End Date</label><div class="date-wrap" onclick="showDatePicker('ass-end-date-hidden-${a.id}')">
+                                <input type="text" id="ass-end-date-${a.id}" placeholder="dd-Month-yyyy" maxlength="15" readonly value="${fmtDate(e)}">
+                                <input type="date" id="ass-end-date-hidden-${a.id}" onchange="syncDateDisplay('ass-end-date-${a.id}', this.value)">
+                                <span class="date-icon">📅</span>
+                            </div></div>
+                            <div><label for="ass-end-time-${a.id}">End Time</label><input type="time" id="ass-end-time-${a.id}" value="${fmtTime24(e)}" step="300" ${editable ? '' : 'disabled'}></div>
+                        </div>
+                        <div class="controls" style="margin-top:12px;">
+                            <button class="btn green" ${editable ? '' : 'disabled'} onclick="saveAssessmentMeta(${a.id})">Save Changes</button>
+                            <button class="btn red" ${editable ? '' : 'disabled'} onclick="deleteAssessment(${a.id})">Delete Assessment</button>
                         </div>
                     </div>
-                    `;
-                }).join('');
-            } else {
-                body.innerHTML = '<div style="color:#c62828; text-align:center;">Error fetching details.</div>';
+                    <div class="detail-card">
+                        <strong>Questions</strong>
+                        ${questions.length ? `<div class="q-list-2col">${qHtml}</div>
+                            <div class="controls" style="margin-top:12px;">
+                                <button class="btn green small" ${editable ? '' : 'disabled'} onclick="saveAssessmentQuestions(${a.id})">Save Questions</button>
+                            </div>` : '<div class="muted" style="margin-top:10px;">No questions.</div>'}
+                    </div>
+                </div>`;
+        }
+
+        async function toggleEditPanel(aid) {
+            const panel = document.getElementById(`ass-edit-panel-${aid}`);
+            if (!panel) return;
+            const isHidden = panel.classList.contains('hidden');
+            if (!isHidden) { panel.classList.add('hidden'); return; }
+            if (assessmentCache.has(aid)) {
+                panel.innerHTML = renderEditPanel(assessmentCache.get(aid));
+                panel.classList.remove('hidden');
+                return;
+            }
+            panel.innerHTML = '<div class="muted">Loading...</div>';
+            panel.classList.remove('hidden');
+            try {
+                const res = await fetch(`/admin/assessment/${aid}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed');
+                assessmentCache.set(aid, data);
+                panel.innerHTML = renderEditPanel(data);
+            } catch (err) {
+                panel.innerHTML = `<div class="muted" style="color:var(--red);">${escapeHtml(err.message)}</div>`;
             }
         }
 
         async function fetchAssessmentsList() {
+            const container = document.getElementById('assessments-container');
             try {
-                const res = await fetch("/admin/assessments");
+                const res = await fetch('/admin/assessments');
                 const data = await res.json();
-
-                let html = `
-                <div class="table-responsive">
-                    <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 500px;">
-                        <thead>
-                            <tr style="background: var(--admin); color: white;">
-                                <th scope="col" style="padding: 10px;">Date Posted</th>
-                                <th scope="col" style="padding: 10px;">Assessment</th>
-                                <th scope="col" style="padding: 10px;">Duration</th>
-                                <th scope="col" style="padding: 10px;">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-                data.forEach(a => {
-                    const titleStr = a.seq_num ? `${a.type} ${a.seq_num}: ${a.title}` : `${a.type}: ${a.title}`;
-                    const dateStr = new Date(a.start_at).toLocaleString({ hour12: true });
-                    html += `
-                        <tr style="border-bottom: 1px solid var(--border);">
-                            <td style="padding: 10px;">${dateStr}</td>
-                            <td style="padding: 10px; font-weight: bold;">${titleStr}</td>
-                            <td style="padding: 10px;">${a.total_duration} min</td>
-                            <td style="padding: 10px;">
-                                <button onclick="exportToExcel(${a.id}, '${titleStr.replace(/'/g, "\\'")}')" style="background:var(--iste-green); color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;" aria-label="Export ${titleStr} to Excel">Export XLSX</button>
-                            </td>
-                        </tr>
-                    `;
-                });
-                document.getElementById('assessments-container').innerHTML = html + `</tbody></table></div>`;
+                if (!res.ok) throw new Error(data.error || 'Failed to load assessments');
+                if (!data.length) {
+                    container.innerHTML = '<div class="muted" style="text-align:center; padding: 18px;">No assessments found.</div>';
+                    return;
+                }
+                container.innerHTML = data.map(a => {
+                    const now = new Date();
+                    const endPassed = a.end_at && new Date(a.end_at) < now;
+                    const dc = endPassed ? (a.submission_count || 0) : (a.entry_count || 0);
+                    const cl = endPassed ? 'submitted' : 'entered';
+                    return `
+                    <div class="detail-card">
+                        <div class="ass-head">
+                            <div style="flex:1; min-width:0; cursor:pointer;" onclick="event.stopPropagation(); toggleStudentList(${a.id})">
+                                <strong>${escapeHtml(formatAssessmentName(a))}</strong>
+                                <div style="font-size:11px; color:#555; margin-top:2px;">${escapeHtml(fmtDateStr(a.start_at))} – ${escapeHtml(fmtDateStr(a.end_at))}</div>
+                            </div>
+                            <div style="white-space:nowrap; font-size:13px; color:#475467;">${escapeHtml(fmtTimeStr(a.start_at))} – ${escapeHtml(fmtTimeStr(a.end_at))}</div>
+                            <div class="ass-counts" onclick="event.stopPropagation(); toggleStudentList(${a.id})">
+                                <span class="badge ${dc > 0 ? 'blue' : 'gray'}">${dc} ${cl}</span>
+                            </div>
+                            <div class="split" style="flex:0 0 auto;">
+                                <span class="badge ${a.editable ? 'green' : 'orange'}">${a.editable ? 'Editable' : 'Locked'}</span>
+                                ${a.editable ? `<button class="btn small outline" onclick="event.stopPropagation(); toggleEditPanel(${a.id})">Edit</button>` : ''}
+                                <button class="btn small outline" onclick="event.stopPropagation(); exportToExcel(${a.id})">Export</button>
+                            </div>
+                        </div>
+                        <div id="ass-student-list-${a.id}" class="hidden" style="margin-top:12px;"></div>
+                        <div id="ass-edit-panel-${a.id}" class="hidden" style="margin-top:12px;"></div>
+                    </div>
+                `}).join('');
             } catch (err) {
-                document.getElementById('assessments-container').innerHTML = `<div style="color:#c62828; text-align:center;">Error loading assessments.</div>`;
+                container.innerHTML = `<div style="color: var(--red); text-align:center; padding: 18px;">${escapeHtml(err.message || 'Error loading assessments')}</div>`;
             }
         }
 
-        async function exportToExcel(aid, title) {
-            const statusEl = document.getElementById('assessments-status');
-            const res = await fetch(`/admin/export_assessment/${aid}`);
-            const data = await res.json();
+        async function toggleStudentList(aid) {
+            const panel = document.getElementById(`ass-student-list-${aid}`);
+            if (!panel) return;
+            const isHidden = panel.classList.contains('hidden');
+            if (!isHidden) { panel.classList.add('hidden'); return; }
 
-            if (!data || data.length === 0) {
-                showStatus(statusEl, "No students have submitted this assessment yet.", "error");
+            if (assessmentCache.has(aid)) {
+                panel.innerHTML = renderStudentTable(assessmentCache.get(aid));
+                panel.classList.remove('hidden');
                 return;
             }
-
-            const sheetData = data.map(r => ({
-                "Register No": r.user_id,
-                "Name": r.name,
-                "Total": r.total_score,
-                "Questions Attended": r.attended || 0,
-                "Time Taken (Sec)": r.total_time_sec
-            }));
-
-            const worksheet = XLSX.utils.json_to_sheet(sheetData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Results");
-
-            const fileName = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_response.xlsx`;
-            XLSX.writeFile(workbook, fileName);
-            showStatus(statusEl, "Export successful.", "success");
+            panel.innerHTML = '<div class="muted">Loading...</div>';
+            panel.classList.remove('hidden');
+            try {
+                const res = await fetch(`/admin/assessment/${aid}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed');
+                assessmentCache.set(aid, data);
+                panel.innerHTML = renderStudentTable(data);
+            } catch (err) {
+                panel.innerHTML = `<div class="muted" style="color:var(--red);">${escapeHtml(err.message)}</div>`;
+            }
         }
 
-        async function logout() {
-            await fetch("/logout");
-            window.location.href = "/admin";
+        function renderStudentTable(a) {
+            const students = a.students || [];
+            const ra = a.results_available;
+            if (!students.length) return '<div class="muted" style="padding:10px;">No student activity yet.</div>';
+            const cols = ra ? 10 : 7;
+            return `
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr>
+                            <th>Reg. No</th><th>Name</th>
+                            ${ra ? '<th>Rank</th><th>Attended</th><th>Score</th><th>Pct</th><th>Time</th>'
+                                 : '<th>Status</th><th>Attended</th><th>Time</th>'}
+                            <th>Start</th><th>End</th>
+                            ${ra ? '<th></th>' : ''}
+                        </tr></thead>
+                        <tbody>
+                            ${students.map(s => {
+                                const common = `
+                                    <td>${escapeHtml(s.user_id)}</td>
+                                    <td>${escapeHtml(s.name || '-')}</td>`;
+                                if (!s.submitted_at) return `<tr>${common}
+                                    <td><span class="badge orange">In Progress</span></td>
+                                    <td>${escapeHtml(s.attended || 0)} / ${escapeHtml(s.total_questions || 0)}</td>
+                                    <td>${escapeHtml(formatMinutes(s.total_time_taken_sec))}</td>
+                                    <td>${escapeHtml(formatLocal(s.attempt_start_at))}</td><td>-</td>
+                                </tr>`;
+                                const rank = s.rank_pos || s.rank;
+                                const pct = Number(s.percentage || 0);
+                                if (ra) return `<tr class="row-hover" onclick="toggleStudentQA(${s.user_id}, ${s.assessment_id}, 'qa-${s.user_id}-${s.assessment_id}')">${common}
+                                    <td><span class="rank-cell"><span class="rank-emoji">${rankEmoji(rank, pct)}</span></span></td>
+                                    <td>${escapeHtml(s.attended || 0)} / ${escapeHtml(s.total_questions || 0)}</td>
+                                    <td>${escapeHtml(s.total_score || 0)} / ${escapeHtml(s.max_marks || 0)}</td>
+                                    <td>${escapeHtml(pct.toFixed(2))}</td>
+                                    <td>${escapeHtml(formatMinutes(s.total_time_taken_sec))}</td>
+                                    <td>${escapeHtml(formatLocal(s.attempt_start_at))}</td>
+                                    <td>${escapeHtml(formatLocal(s.submitted_at))}</td>
+                                    <td><span style="font-size:12px;">▼</span></td>
+                                </tr>
+                                <tr id="qa-${s.user_id}-${s.assessment_id}" class="hidden"><td colspan="${cols}" style="padding:0;"></td></tr>`;
+                                return `<tr class="row-hover" onclick="toggleStudentQA(${s.user_id}, ${s.assessment_id}, 'qa-${s.user_id}-${s.assessment_id}')">${common}
+                                    <td><span class="badge blue">Submitted</span></td>
+                                    <td>${escapeHtml(s.attended || 0)} / ${escapeHtml(s.total_questions || 0)}</td>
+                                    <td>${escapeHtml(formatMinutes(s.total_time_taken_sec))}</td>
+                                    <td>${escapeHtml(formatLocal(s.attempt_start_at))}</td>
+                                    <td>${escapeHtml(formatLocal(s.submitted_at))}</td>
+                                </tr>
+                                <tr id="qa-${s.user_id}-${s.assessment_id}" class="hidden"><td colspan="${cols}" style="padding:0;"></td></tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        async function toggleStudentQA(uid, aid, rowId) {
+            const row = document.getElementById(rowId);
+            if (!row) return;
+            const isHidden = row.classList.contains('hidden');
+            if (!isHidden) { row.classList.add('hidden'); return; }
+            row.classList.remove('hidden');
+            const td = row.querySelector('td');
+            td.innerHTML = '<div class="muted" style="padding:10px;">Loading question analysis...</div>';
+            try {
+                const res = await fetch(`/admin/attempt_details/${uid}/${aid}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed');
+                if (!data.length) { td.innerHTML = '<div class="muted" style="padding:10px;">No details.</div>'; return; }
+                td.innerHTML = '<div class="qa-grid-2col">' + data.map((q, idx) => {
+                    const score = Number(q.score || 0);
+                    const good = score > 0;
+                    const bad = score < 0;
+                    let sResp = q.student_response || {};
+                    if (typeof sResp === 'string') try { sResp = JSON.parse(sResp); } catch { sResp = {}; }
+                    let studentAns = 'Skipped', correctAns = '---';
+                    if (q.type === 'MCQ' || q.type === 'MSQ') {
+                        const opts = q.correct_answer?.options || [];
+                        const sIds = sResp.selected_ids || (sResp.selected_id !== undefined ? [sResp.selected_id] : []);
+                        const cIds = q.correct_answer.correct_ids || [q.correct_answer.correct_id];
+                        if (sIds.length) studentAns = sIds.map(id => opts[id]).filter(Boolean).join(', ');
+                        correctAns = cIds.map(id => opts[id]).filter(Boolean).join(', ');
+                    } else {
+                        if (sResp.value !== undefined && sResp.value !== '') studentAns = sResp.value;
+                        correctAns = q.correct_answer?.value !== undefined ? q.correct_answer.value : (q.correct_answer?.range ? `${q.correct_answer.range[0]} to ${q.correct_answer.range[1]}` : 'N/A');
+                    }
+                    return `<div class="analysis-item ${good ? 'good' : bad ? 'bad' : 'neutral'}">
+                        <div class="analysis-head">
+                            <strong>Q${idx+1} (${escapeHtml(q.type)})</strong>
+                            <div class="badge ${good ? 'green' : bad ? 'orange' : 'gray'}">${score > 0 ? '+' : ''}${escapeHtml(score)}</div>
+                        </div>
+                        <div class="analysis-q">${escapeHtml(q.question)}</div>
+                        <div class="answers">
+                            <div><span class="small muted">Response</span><div>${escapeHtml(studentAns)}</div></div>
+                            <div><span class="small muted">Correct</span><div>${escapeHtml(correctAns)}</div></div>
+                        </div>
+                    </div>`;
+                }).join('') + '</div>';
+            } catch (err) {
+                td.innerHTML = `<div class="muted" style="padding:10px;color:var(--red);">${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        async function saveAssessmentMeta(aid) {
+            const statusEl = document.getElementById('assessments-status');
+            const data = assessmentCache.get(aid);
+            if (!data || !data.editable) {
+                showStatus(statusEl, 'Assessment cannot be edited after start.', 'error');
+                return;
+            }
+            const payload = {
+                title: document.getElementById(`ass-title-${aid}`).value.trim(),
+                series_no: document.getElementById(`ass-series-${aid}`).value.trim() || null,
+                total_duration: parseInt(document.getElementById(`ass-duration-${aid}`).value, 10) || 30,
+                question_ids: data.question_ids || []
+            };
+            const sa = combineDateTime(`ass-start-date-${aid}`, `ass-start-time-${aid}`);
+            const ea = combineDateTime(`ass-end-date-${aid}`, `ass-end-time-${aid}`);
+            if (sa) payload.start_at = sa;
+            if (ea) payload.end_at = ea;
+            try {
+                const res = await fetch(`/admin/update_assessment/${aid}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const resp = await res.json();
+                if (!res.ok) throw new Error(resp.error || 'Failed to update assessment');
+                showStatus(statusEl, resp.message || 'Changes saved.', 'success');
+                assessmentCache.delete(aid);
+                fetchAssessmentsList();
+            } catch (err) {
+                showStatus(statusEl, err.message || 'Network error.', 'error');
+            }
+        }
+
+        function gatherQuestions(aid) {
+            const card = document.getElementById(`ass-edit-panel-${aid}`);
+            if (!card) return [];
+            const qCards = card.querySelectorAll('.question-card');
+            return Array.from(qCards).map(qc => {
+                const qid = parseInt(qc.querySelector('.q-text')?.dataset?.qid, 10);
+                if (!qid) return null;
+                const question = qc.querySelector('.q-text')?.value?.trim() || '';
+                const mark = parseFloat(qc.querySelector('.q-mark')?.value) || 1;
+                const neg = parseFloat(qc.querySelector('.q-neg')?.value) || 0;
+                const type = qc.querySelector('.badge')?.textContent?.trim() || 'MCQ';
+
+                let answer = {};
+                if (type === 'MCQ' || type === 'MSQ') {
+                    const optInputs = qc.querySelectorAll('.q-opt');
+                    const options = Array.from(optInputs).map(inp => inp.value);
+                    if (type === 'MCQ') {
+                        const checked = qc.querySelector('input[type="radio"]:checked');
+                        if (checked) answer.correct_id = parseInt(checked.value, 10);
+                    } else {
+                        const checked = qc.querySelectorAll('input[type="checkbox"]:checked');
+                        const ids = Array.from(checked).map(cb => parseInt(cb.value, 10));
+                        if (ids.length) answer.correct_ids = ids;
+                    }
+                    answer.options = options;
+                } else if (type === 'INT' || type === 'NUM') {
+                    const fromEl = qc.querySelector('.q-num-from');
+                    const toEl = qc.querySelector('.q-num-to');
+                    const valEl = qc.querySelector('.q-num-val');
+                    if (fromEl && toEl) {
+                        const f = parseFloat(fromEl.value);
+                        const t = parseFloat(toEl.value);
+                        if (!isNaN(f) && !isNaN(t)) answer.range = [f, t];
+                    } else if (valEl) {
+                        const v = parseFloat(valEl.value);
+                        if (!isNaN(v)) answer.value = v;
+                    }
+                }
+                return { id: qid, type, question, mark, negative_mark: neg, answer };
+            }).filter(Boolean);
+        }
+
+        async function saveAssessmentQuestions(aid) {
+            const statusEl = document.getElementById('assessments-status');
+            const questions = gatherQuestions(aid);
+            if (!questions.length) {
+                showStatus(statusEl, 'No questions to save.', 'error');
+                return;
+            }
+            try {
+                const res = await fetch(`/admin/update_assessment_questions/${aid}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ questions })
+                });
+                const resp = await res.json();
+                if (!res.ok) throw new Error(resp.error || 'Failed to save questions');
+                showStatus(statusEl, resp.message || 'Questions saved.', resp.status === 'no_changes' ? 'info' : 'success');
+                assessmentCache.delete(aid);
+                fetchAssessmentsList();
+            } catch (err) {
+                showStatus(statusEl, err.message || 'Network error.', 'error');
+            }
+        }
+
+        async function deleteAssessment(aid) {
+            const statusEl = document.getElementById('assessments-status');
+            if (!confirm('Delete this assessment?')) return;
+            try {
+                const res = await fetch(`/admin/delete_assessment/${aid}`, { method: 'DELETE' });
+                const resp = await res.json();
+                if (!res.ok) throw new Error(resp.error || 'Failed to delete assessment');
+                showStatus(statusEl, 'Assessment deleted.', 'success');
+                assessmentCache.delete(aid);
+                fetchAssessmentsList();
+            } catch (err) {
+                showStatus(statusEl, err.message || 'Network error.', 'error');
+            }
+        }
+
+        async function exportToExcel(aid) {
+            const statusEl = document.getElementById('assessments-status');
+            try {
+                const res = await fetch(`/admin/export_assessment/${aid}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Export failed');
+                if (!data.length) {
+                    showStatus(statusEl, 'No students have submitted this assessment yet.', 'error');
+                    return;
+                }
+                const rows = data.map(r => ({
+                    'Reg. No': r.user_id,
+                    'Name': r.name,
+                    'Rank': r.rank,
+                    'Questions Attended': r.attended,
+                    'Total Score': r.total_score,
+                    'Max Marks': r.max_marks,
+                    'Percentage': r.percentage,
+                    'Time Taken (sec)': r.total_time_sec,
+                    'Attempt Start': r.attempt_start_at,
+                    'Attempt End': r.attempt_end_at,
+                    'Submitted At': r.submitted_at
+                }));
+                const ws = XLSX.utils.json_to_sheet(rows);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Results');
+                XLSX.writeFile(wb, `assessment_${aid}_results.xlsx`);
+                showStatus(statusEl, 'Export successful.', 'success');
+            } catch (err) {
+                showStatus(statusEl, err.message || 'Network error.', 'error');
+            }
         }
 
         async function scheduleMessage() {
             const statusEl = document.getElementById('msg-status');
             const title = document.getElementById('msg-title').value.trim();
             const body = document.getElementById('msg-body').value.trim();
-            const scheduleAt = document.getElementById('msg-schedule').value;
-
-            if (!title || !body) {
-                showStatus(statusEl, "Title and Message Body are required.", "error");
-                return;
-            }
-
-            const payload = { title, body };
-            if (scheduleAt) {
-                payload.schedule_at = scheduleAt.replace('T', ' ') + ':00';
-            }
-
-            showStatus(statusEl, "Scheduling message...", "info");
-
+            const scheduleAt = combineDateTime('msg-date', 'msg-time');
+            if (!title || !body) return showStatus(statusEl, 'Title and Message Body are required.', 'error');
+            if (scheduleAt && new Date(scheduleAt) < new Date())
+                return showStatus(statusEl, 'Schedule date/time is in the past.', 'error');
+            showStatus(statusEl, 'Scheduling message...', 'info');
             try {
-                const res = await fetch("/admin/send_message", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                const payload = { title, body };
+                if (scheduleAt) payload.schedule_at = scheduleAt;
+                const res = await fetch('/admin/send_message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
-                if (res.ok) {
-                    showStatus(statusEl, scheduleAt ? "Message scheduled successfully!" : "Message queued for delivery!", "success");
-                    document.getElementById('msg-title').value = '';
-                    document.getElementById('msg-body').value = '';
-                    document.getElementById('msg-schedule').value = '';
-                } else {
-                    showStatus(statusEl, `Error: ${data.error}`, "error");
-                }
+                if (!res.ok) throw new Error(data.error || 'Failed to queue message');
+                showStatus(statusEl, scheduleAt ? 'Message scheduled successfully.' : 'Message queued for delivery.', 'success');
+                document.getElementById('msg-title').value = '';
+                document.getElementById('msg-body').value = '';
+                document.getElementById('msg-date').value = '';
+                document.getElementById('msg-time').value = '';
             } catch (err) {
-                showStatus(statusEl, "Network Error.", "error");
+                showStatus(statusEl, err.message || 'Network error.', 'error');
             }
         }
 
-        let studentsData = [];
-
-        async function fetchStudents() {
-            const statusEl = document.getElementById('students-status');
-            const container = document.getElementById('students-container');
-            showStatus(statusEl, "Loading student list...", "info");
-
-            try {
-                const res = await fetch("/admin/students");
-                const data = await res.json();
-                if (data.error) {
-                    showStatus(statusEl, data.error, "error");
-                    return;
-                }
-
-                if (data.length === 0) {
-                    container.innerHTML = "<div style='text-align:center; padding: 20px; color: #666;'>No students registered yet.</div>";
-                    showStatus(statusEl, "No students found.", "info");
-                    document.getElementById('download-students-btn').style.display = 'none';
-                    return;
-                }
-
-                studentsData = data;
-                document.getElementById('download-students-btn').style.display = 'inline-block';
-
-                let html = `
-                <div class="table-responsive">
-                    <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 500px;">
-                        <thead>
-                            <tr style="background: #e65100; color: white;">
-                                <th scope="col" style="padding: 10px;">Reg. ID</th>
-                                <th scope="col" style="padding: 10px;">Name</th>
-                                <th scope="col" style="padding: 10px;">Year</th>
-                                <th scope="col" style="padding: 10px;">Degree</th>
-                                <th scope="col" style="padding: 10px;">Stream</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-                data.forEach(s => {
-                    const yearRoman = {1:'I', 2:'II', 3:'III', 4:'IV'}[s.year] || s.year;
-                    html += `
-                        <tr style="border-bottom: 1px solid var(--border);">
-                            <td style="padding: 10px; font-weight: bold;">${s.user_id}</td>
-                            <td style="padding: 10px;">${s.name}</td>
-                            <td style="padding: 10px;">${yearRoman}</td>
-                            <td style="padding: 10px;">${s.degree}</td>
-                            <td style="padding: 10px;">${s.stream || '-'}</td>
-                        </tr>
-                    `;
-                });
-                container.innerHTML = html + `</tbody></table></div>`;
-                showStatus(statusEl, `Loaded ${data.length} registered students.`, "success");
-            } catch (err) {
-                showStatus(statusEl, "Network Error.", "error");
-            }
+        async function logout() {
+            await fetch('/logout');
+            window.location.href = '/';
         }
 
-        function downloadStudentsXLSX() {
-            if (!studentsData.length) return;
-            const rows = studentsData.map(s => ({
-                "Reg. ID": s.user_id,
-                "Name": s.name,
-                "Year": {1:'I', 2:'II', 3:'III', 4:'IV'}[s.year] || s.year,
-                "Degree": s.degree,
-                "Stream": s.stream || ''
-            }));
-            const ws = XLSX.utils.json_to_sheet(rows);
-            ws['!cols'] = [{wch:12}, {wch:25}, {wch:8}, {wch:15}, {wch:15}];
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Students");
-            XLSX.writeFile(wb, `ISTE_Students_${new Date().toISOString().slice(0,10)}.xlsx`);
-        }
-
-        window.onclick = function (event) {
-            const modal = document.getElementById('perfModal');
-            if (event.target === modal) modal.style.display = "none";
-        };
-
-        window.onload = () => {
-            fetchQuestions();
+        function normalizePage() {
+            prefillStart();
             fetchAssessmentsList();
-            drawAdminCaptcha('adminCaptcha');
+        }
 
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = (now.getMonth() + 1).toString().padStart(2, '0');
-            const day = now.getDate().toString().padStart(2, '0');
-            document.getElementById('start_at').value = `${year}-${month}-${day}T20:00`;
-
-            const fields = ['seq_num', 'total_duration', 'test-title', 'start_at', 'end_at'];
-            fields.forEach(fid => {
-                const el = document.getElementById(fid);
-                if (el) el.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') scheduleEvent();
-                });
-            });
-
-            document.getElementById('admin-captcha-in').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') fetchPerformances();
-            });
-        };
+        window.addEventListener('DOMContentLoaded', normalizePage);
     </script>
 </body>
-
 </html>

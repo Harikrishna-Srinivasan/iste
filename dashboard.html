@@ -10,6 +10,7 @@
     <link rel="icon" type="image/png" href="/iste.png">
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+    <link rel="preconnect" href="https://iste-ws2k.onrender.com">
     <style>
         :root {
             --primary-blue: #1976D2;
@@ -23,13 +24,56 @@
             --iste-red: #C62828;
             --overlay: rgba(0, 0, 0, 0.5);
         }
-        html, body { max-width: 100vw; overflow-x: hidden; box-sizing: border-box; }
+        html, body { max-width: 100vw; overflow-x: hidden; box-sizing: border-box; touch-action: manipulation; }
         *, *:before, *:after { box-sizing: inherit; }
-        .card, .container, .sidebar { width: 100%; max-width: 100%; overflow-wrap: break-word; word-wrap: break-word; }
-        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         * { box-sizing: border-box; font-family: 'Inter', 'Segoe UI', sans-serif; margin: 0; padding: 0; }
         body { background-color: var(--bg-body); color: var(--text-main); padding-bottom: 50px; }
-        .app-bar { background: #e8eaed; color: var(--text-main); padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 5px solid var(--thick-yellow); gap: 12px; flex-wrap: wrap; }
+        .app-bar {
+            background: linear-gradient(135deg, #ffffff 0%, #f5f9ff 52%, #fff8ef 100%);
+            color: var(--text-main);
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 4px solid var(--thick-orange);
+            gap: 10px;
+            flex-wrap: wrap;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        }
+        .brand-stack { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+        .brand-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .sastra-logo { width: 42px; height: 32px; object-fit: contain; flex: 0 0 auto; }
+        .iste-logo { width: 32px; height: 32px; object-fit: contain; flex: 0 0 auto; }
+        .brand-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+        .brand-title { font-weight: 800; letter-spacing: 0.2px; font-size: 16px; line-height: 1.1; color: #0f4c81; }
+        .brand-subtitle { font-size: 11px; line-height: 1.2; color: #6a4a00; }
+        .portal-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .portal-title { font-weight: 800; font-size: 18px; line-height: 1.1; color: var(--primary-blue); }
+        .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: 0 0 auto; }
+        .user-nav-info {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            max-width: 100%;
+        }
+        .user-nav-name { font-weight: 800; font-size: 15px; line-height: 1.15; color: #1b1f3a; }
+        .user-nav-course { color: var(--iste-green); font-size: 13px; line-height: 1.2; font-weight: 700; }
+        .logout-btn {
+            background: #1F2937;
+            border: none;
+            color: white;
+            padding: 10px 12px;
+            border-radius: 999px;
+            cursor: pointer;
+            white-space: nowrap;
+            font-weight: 700;
+            font-size: 13px;
+            box-shadow: 0 4px 12px rgba(17, 24, 39, 0.18);
+        }
         .container { max-width: 1000px; margin: 40px auto; padding: 0 20px; }
         .banner { background: var(--bg-card); border-left: 8px solid var(--primary-blue); padding: 25px; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
         .banner h3 { color: var(--primary-blue); margin-bottom: 10px; }
@@ -37,12 +81,12 @@
         .timer-badge { background: #fff3e0; color: #e65100; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 13px; display: inline-block; margin-bottom: 20px; }
         .btn { width: 100%; padding: 15px; background: var(--primary-blue); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: not-allowed; opacity: 0.6; transition: 0.3s; font-size: 16px; }
         .btn.active { cursor: pointer; opacity: 1; box-shadow: 0 4px 10px rgba(25, 118, 210, 0.3); }
-        .btn.active:hover { filter: brightness(1.1); transform: scale(1.01); }
+        .btn.active:hover { filter: brightness(1.1); transform: scale(1.01); will-change: filter, transform; }
         .section-header { margin-top: 50px; margin-bottom: 20px; font-size: 18px; color: #555; border-bottom: 2px solid var(--border); padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-        .refresh-btn { background: var(--bg-card); border: 1px solid var(--primary-blue); color: var(--primary-blue); padding: 8px 18px; border-radius: 40px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; backdrop-filter: blur(2px); }
+        .refresh-btn { background: var(--bg-card); border: 1px solid var(--primary-blue); color: var(--primary-blue); padding: 8px 18px; border-radius: 40px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 5px; backdrop-filter: blur(2px); }
         .refresh-btn:active { transform: scale(0.96); background: #eef2fc; }
         .refresh-btn svg { width: 18px; height: 18px; fill: none; stroke: var(--primary-blue); stroke-width: 2; stroke-linecap: round; }
-        details.history-card { background: var(--bg-card); margin-bottom: 15px; border-radius: 8px; border-left: 8px solid var(--iste-green); padding: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s; content-visibility: auto; contain-intrinsic-size: 0 80px; will-change: transform, box-shadow; transform: translateZ(0); }
+        details.history-card { background: var(--bg-card); margin-bottom: 15px; border-radius: 8px; border-left: 8px solid var(--iste-green); padding: 15px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s; content-visibility: auto; contain-intrinsic-size: 0 80px; will-change: transform, box-shadow; transform: translateZ(0); }
         details.history-card:hover { transform: translateY(-2px) translateZ(0); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08); }
         summary { cursor: pointer; font-weight: bold; list-style: none; display: flex; justify-content: space-between; align-items: center; font-size: 16px; }
         summary::-webkit-details-marker { display: none; }
@@ -71,12 +115,9 @@
         .q-ans-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; font-weight: 500; }
         .badge-mark { font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
         .badge-neutral { background: #f5f5f5; color: #616161; }
-        .badge-right { background: #e8f5e9; color: #2e7d32; }
+        .badge-right { background: #e8f5e9; color: #35b33b; }
         .badge-wrong { background: #ffebee; color: #c62828; }
 
-        .user-nav-info { flex-grow: 1; text-align: right; margin: 0 8px; display: flex; flex-direction: column; justify-content: center; }
-        .user-nav-name { font-weight: bold; font-size: 16px; line-height: 1; margin-bottom: 4px; }
-        .user-nav-course { color: var(--iste-green); font-size: 16px; }
         .spinner-small { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(25, 118, 210, 0.2); border-radius: 50%; border-top-color: var(--primary-blue); animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -87,14 +128,17 @@
         .toast-close { position: absolute; top: 10px; right: 10px; cursor: pointer; color: #999; font-size: 14px; }
 
         @media screen and (max-width: 768px) {
-            .app-bar { flex-direction: column; gap: 4px; text-align: center; align-items: center; padding: 6px 12px; }
-            .app-bar > img { width: 30px; height: 30px; }
-            .app-bar h1 { font-size: 14px; }
-            .user-nav-info { text-align: center; margin: 0; width: 100%; }
-            .user-nav-info .user-nav-name { font-size: 13px; }
-            .user-nav-info .user-nav-course { font-size: 13px; }
-            .app-bar .logout-btn { font-size: 12px; padding: 3px 10px; }
-            .app-bar > div:first-child { justify-content: center; }
+            .app-bar { flex-direction: column; gap: 5px; align-items: stretch; padding: 10px 12px; }
+            .brand-stack { width: 100%; }
+            .brand-row, .portal-row { gap: 5px; }
+            .brand-title { font-size: 13px; }
+            .brand-subtitle { font-size: 10px; }
+            .portal-title { font-size: 15px; }
+            .header-right { width: 100%; flex-direction: row; justify-content: space-between; align-items: center; }
+            .user-nav-info { text-align: left; }
+            .user-nav-name { font-size: 12px; }
+            .user-nav-course { font-size: 11px; }
+            .logout-btn { font-size: 12px; padding: 7px 12px; }
             .container { margin: 20px auto; }
             .section-header { flex-direction: column; align-items: stretch; }
             .refresh-btn { justify-content: center; }
@@ -103,24 +147,52 @@
             .q-num-grid { grid-template-columns: repeat(8, 1fr); }
             .q-main-scroll { height: auto; min-height: 250px; max-height: 350px; }
             #notification-toast { bottom: 15px; right: 15px; width: calc(100vw - 30px); }
-            .app-bar h1 { font-size: 18px; }
             .container { padding: 15px; }
+        }
+
+        @media screen and (max-width: 420px) {
+            .app-bar { padding: 8px 10px; }
+            .brand-title { font-size: 12px; }
+            .brand-subtitle { font-size: 9px; }
+            .portal-title { font-size: 14px; }
+            .user-nav-name { font-size: 11px; }
+            .user-nav-course { font-size: 10px; }
+            .logout-btn { font-size: 11px; }
+            .container { padding: 12px; }
+            .banner { padding: 18px 14px; }
+            .section-header { margin-top: 34px; margin-bottom: 16px; font-size: 15px; }
+            .timer-badge { font-size: 12px; padding: 7px 12px; }
+            .btn { padding: 12px; font-size: 14px; }
+            .refresh-btn { font-size: 12px; padding: 8px 12px; }
+            summary { font-size: 14px; }
+            .res-content, .q-detail-row { font-size: 12px; }
         }
     </style>
 </head>
 <body>
     <header class="app-bar">
-        <div style="display:flex; align-items:center; gap:5px;">
-            <img src="/sastra.png" alt="SASTRA Logo" style="display:block; width:40px; height:40px; object-fit:contain;">
-            <h1 style="font-size: 24px; color: var(--primary-blue);">ISTE Aptitude Portal</h1>
+        <div class="brand-stack">
+            <div class="brand-row">
+                <img src="/sastra.png" alt="SASTRA Logo" class="sastra-logo">
+                <div class="brand-text">
+                    <div class="brand-title">SASTRA DEEMED TO BE UNIVERSITY</div>
+                    <div class="brand-subtitle">Srinivasa Ramanujan Centre, Kumbakonam</div>
+                </div>
+            </div>
+            <div class="portal-row">
+                <img src="/iste.png" alt="ISTE Logo" class="iste-logo" style="margin-left: 4px;">
+                <div class="portal-title" style="margin-left: 6px;">ISTE Aptitude Portal</div>
+            </div>
         </div>
-        {% if user %}
-        <div class="user-nav-info">
-            <div class="user-nav-name"><img src="/iste.png" alt="ISTE Logo" style="width:22px; height:22px; vertical-align:middle; margin-right:6px;">{{ user.name }} ({{ user.reg_no }})</div>
-            <div class="user-nav-course">{{ user.course }}</div>
+        <div class="header-right">
+            {% if user %}
+            <div class="user-nav-info">
+                <div class="user-nav-name">{{ user.name }} ({{ user.reg_no }})</div>
+                <div class="user-nav-course">{{ user.course }}</div>
+            </div>
+            {% endif %}
+            <button onclick="logout()" class="logout-btn">Logout</button>
         </div>
-        {% endif %}
-        <button onclick="logout()" class="logout-btn" style="background:none; border:2px solid black; color:black; padding:5px 15px; border-radius:5px; cursor:pointer; white-space: nowrap;">Logout</button>
     </header>
 
     <div class="container" id="main-view">
@@ -180,14 +252,27 @@
             const s = sec % 60;
             return s > 0 ? m + 'm ' + s + 's' : m + 'm';
         }
+        function rankEmoji(rank, pct) {
+            if (pct === 100) return '👑 💯';
+            if (rank === 1) return '👑';
+            if (rank === 2) return '⭐';
+            if (rank === 3) return '🥉';
+            if (rank === 4) return '📈';
+            if (rank === 5) return '💡';
+            return `#${rank}`;
+        }
         function startGlobalHeartbeat() {
             function tick() {
                 const now = Date.now();
-                let elementsChanged = false;
-
                 assessmentsToTrack.forEach(ass => {
+                    const banner = document.getElementById(`active-banner-${ass.id}`);
                     const btn = document.getElementById(`start-btn-${ass.id}`);
                     const countdownEl = document.getElementById(`countdown-${ass.id}`);
+                    if (!banner) return;
+                    if (now > ass.hidden_at) {
+                        banner.remove();
+                        return;
+                    }
                     if (!btn || !countdownEl) return;
 
                     const startTime = ass.start_at;
@@ -215,13 +300,13 @@
                             btn.innerText = "Access Assessment Environment";
                         }
                     } else {
-                        if (btn.innerText !== "⌛ Window Expired") {
-                            countdownEl.innerText = "⛔ ENTRY WINDOW HAS EXPIRED";
-                            countdownEl.style.background = "#ffebee";
-                            countdownEl.style.color = "#c62828";
+                        if (btn.innerText !== "Entry Closed") {
+                            countdownEl.innerText = "ENTRY WINDOW CLOSED";
+                            countdownEl.style.background = "#eceff1";
+                            countdownEl.style.color = "#455a64";
                             btn.classList.remove('active');
                             btn.disabled = true;
-                            btn.innerText = "⌛ Window Expired";
+                            btn.innerText = "Entry Closed";
                         }
                     }
                 });
@@ -237,7 +322,8 @@
             assessmentsToTrack = assessments.filter(a => !a.is_attempted).map(a => ({
                 id: a.id,
                 start_at: new Date(a.start_at).getTime(),
-                end_at: new Date(a.end_at).getTime()
+                end_at: new Date(a.end_at).getTime(),
+                hidden_at: new Date(a.end_at).getTime() + ((a.total_duration || 60) * 60000)
             }));
 
             if (assessments.length === 0) {
@@ -249,14 +335,14 @@
                 if (a.is_attempted) {
                     return `
                     <div class="banner completed">
-                        <h3>${a.type} ${a.seq_num || ''}: ${a.title}</h3>
+                        <h3>${a.type} ${a.series_no || ''}: ${a.title}</h3>
                         <div class="timer-badge" style="background:#e8f5e9; color:#2e7d32; border:1px solid #c8e6c9;">SUBMITTED & RECORDED</div>
                         <button class="btn" disabled style="background:#9e9e9e; cursor:not-allowed;">Attempt Finished</button>
                     </div>`;
                 }
                 return `
-                <div class="banner">
-                    <h3>${a.type} ${a.seq_num || ''}: ${a.title}</h3>
+                <div class="banner" id="active-banner-${a.id}">
+                    <h3>${a.type} ${a.series_no || ''}: ${a.title}</h3>
                     <p>Entry Window: <span id="test-time-${a.id}">--:--</span> to <span id="until-time-${a.id}">--:--</span></p>
                     <div id="countdown-${a.id}" class="timer-badge">Syncing...</div>
                     <button id="start-btn-${a.id}" class="btn" onclick="startTest(${a.id})">Awaiting Window</button>
@@ -279,13 +365,14 @@
         function renderHistoryCard(h) {
             const maxMarks = h.max_marks || h.total_questions;
             const typeStr = h.type ? (h.type.charAt(0).toUpperCase() + h.type.slice(1).toLowerCase()) : 'Assessment';
-            const displayTitle = h.seq_num ? `${typeStr} ${h.seq_num}: ${h.title}` : `${typeStr}: ${h.title}`;
+            const displayTitle = h.series_no ? `${typeStr} ${h.series_no}: ${h.title}` : `${typeStr}: ${h.title}`;
             let scoreDisplay = '';
             let statusColor = '#999';
             let subStatus = '';
             const untilDate = new Date(h.end_at);
             const deadlineDate = new Date(untilDate.getTime() + (h.total_duration || 60) * 60000);
             const deadlineStr = deadlineDate.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            const pct = maxMarks > 0 ? (h.total_score / maxMarks) * 100 : 0;
 
             if (h.is_attempted == 1) {
                 if (!h.results_available) {
@@ -293,7 +380,7 @@
                     statusColor = '#EF6C00';
                     subStatus = `Results release after: <strong>${deadlineStr}</strong>`;
                 } else {
-                    scoreDisplay = `<span style="color: var(--iste-green); font-weight:bold;">${cleanNum(h.total_score)} / ${cleanNum(maxMarks)}</span>`;
+                    scoreDisplay = `<span style="color: var(--iste-green); font-weight:bold;">${Number(h.total_score || 0)} / ${Number(maxMarks || 0)}</span>`;
                     statusColor = 'var(--iste-green)';
                     subStatus = 'Finalised';
                 }
@@ -305,7 +392,7 @@
 
             return `<details class="history-card" id="history-card-${h.assessment_id}" data-aid="${h.assessment_id}" data-results="${h.results_available ? 'true' : 'false'}" style="border-left-color: ${statusColor}">
                 <summary>
-                    <span><strong style="color:var(--primary-blue)">${displayTitle}</strong></span>
+                    <span><strong style="color:var(--primary-blue)">${displayTitle}</strong> ${h.results_available && h.rank_pos ? `<span style="font-size:18px;">${rankEmoji(h.rank_pos, pct)}</span>` : ''}</span>
                     ${scoreDisplay}
                 </summary>
                 <div class="res-content" id="details-${h.assessment_id}">
@@ -441,12 +528,12 @@
 
                 const summaryHtml = `
                     <div class="summary-stats" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 14px; border: 1px solid #e0e0e0;">
-                        <div><strong>🏆 Total Score:</strong> ${cleanNum(totalScore)} / ${cleanNum(totalMaxMarks)}</div>
-                        <div><strong>👍 Positive Marks:</strong> <span style="color:#2e7d32">+${cleanNum(totalPositive)}</span></div>
-                        <div><strong>👎 Negative Marks:</strong> <span style="color:#c62828">-${cleanNum(totalNegative)}</span></div>
-                        <div><strong>⏱️ Total Time:</strong> ${Math.floor(totalTime / 60)}m ${totalTime % 60}s</div>
-                        <div><strong>⚡ Avg Time / Q:</strong> ${cleanNum(avgTime)}s</div>
-                        <div><strong>📈 Score %:</strong> ${totalMaxMarks > 0 ? cleanNum((totalScore / totalMaxMarks) * 100) : 0}%</div>
+                        <div><strong>📋 Total Score:</strong> ${Number(totalScore || 0)} / ${Number(totalMaxMarks || 0)}</div>
+                        <div><strong>👍 Positive Marks:</strong> <span style="color:#2e7d32">+${Number(totalPositive || 0)}</span></div>
+                        <div><strong>👎 Negative Marks:</strong> <span style="color:#c62828">-${Number(totalNegative || 0)}</span></div>
+                        <div><strong>⏳ Total Time:</strong> ${Math.floor(totalTime / 60)}m ${totalTime % 60}s</div>
+                        <div><strong>⏱ Avg Time/Q:</strong> ${cleanNum(avgTime)}s</div>
+                        <div><strong>📊 Percent:</strong> ${totalMaxMarks > 0 ? cleanNum((totalScore / totalMaxMarks) * 100) : 0}%</div>
                     </div>`;
 
                 container.innerHTML = `
@@ -467,7 +554,7 @@
 
                     const html = chunk.map((q, i) => {
                         const globalIdx = index + i;
-                        const score = cleanNum(q.score || 0);
+                        const score = Number(q.score || 0);
                         const time = parseInt(q.time_taken_sec) || 0;
                         const markClass = (score > 0) ? 'badge-right' : (score < 0 ? 'badge-wrong' : 'badge-neutral');
 
@@ -497,8 +584,8 @@
                             </div>
                             <div style="color: #444; margin-bottom:8px; font-size:14px;">${q.question}</div>
                             <div class="q-ans-box">
-                                <div style="font-size: 14px;">📌 Your Response:<br><span style="color:${score > 0 ? '#2e7d32' : (score < 0 ? '#c62828' : '#757575')}">${studentAns}</span></div>
-                                <div style="font-size: 14px; margin-top:5px;">✅ Correct Answer:<br><span style="color:#2e7d32">${correctAns}</span></div>
+                                <div style="font-size: 14px;">📌 Your Response:<br><span style="color:${score > 0 ? '#35b33b' : (score < 0 ? '#c62828' : '#757575')}">${studentAns}</span></div>
+                                <div style="font-size: 14px; margin-top:5px;">✅ Correct Answer:<br><span style="color:#35b33b">${correctAns}</span></div>
                             </div>
                         </div>`;
                     }).join('');

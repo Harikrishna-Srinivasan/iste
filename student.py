@@ -570,7 +570,7 @@ def get_active_assessments():
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
         cur.execute("""
-            SELECT id, title, type, seq_num, start_at, end_at, total_duration
+            SELECT id, title, type, series_no, start_at, end_at, total_duration
             FROM assessments
             WHERE end_at >= NOW() ORDER BY start_at ASC
         """)
@@ -601,7 +601,7 @@ def upcoming_reminders():
     try:
         now = datetime.now(IST)
         cur.execute("""
-            SELECT a.id, a.title, a.type, a.seq_num, a.start_at, a.reminders
+            SELECT a.id, a.title, a.type, a.series_no, a.start_at, a.reminders
             FROM assessments a
             LEFT JOIN student_submissions sub ON a.id = sub.assessment_id AND sub.user_id = %s
             WHERE sub.assessment_id IS NULL AND a.end_at >= %s
@@ -612,7 +612,7 @@ def upcoming_reminders():
             if not a.get("start_at"): continue
             start = a["start_at"]
             if start.tzinfo is None: start = IST.localize(start)
-            title = f"{a['type']} {a['seq_num']}: {a['title']}" if a.get("seq_num") else a["title"]
+            title = f"{a['type']} {a['series_no']}: {a['title']}" if a.get("series_no") else a["title"]
             for rem_str in json.loads(a.get("reminders") or "[]"):
                 delta = timedelta()
                 for part in rem_str.split():
@@ -702,8 +702,10 @@ def get_questions(aid):
     conn = get_student_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
-        cur.execute("SELECT user_id FROM student_submissions WHERE user_id=%s AND assessment_id=%s", (uid, aid))
+        cur.execute("SELECT user_id FROM student_submissions WHERE user_id=%s AND assessment_id=%s AND submitted_at IS NOT NULL", (uid, aid))
         if cur.fetchone(): return jsonify({"error": "Already submitted"}), 403
+
+        cur.execute("INSERT IGNORE INTO student_submissions (user_id, assessment_id, total_score, total_time_sec, detailed_log, submitted_at) VALUES (%s, %s, 0, 0, '{}', NULL)", (uid, aid))
 
         cur.execute("SELECT q.id, q.type, q.question, q.answer, q.mark, q.negative_mark FROM assessment_questions aq JOIN questions q ON aq.question_id = q.id WHERE aq.assessment_id = %s", (aid,))
         rows = cur.fetchall()
@@ -730,7 +732,7 @@ def submit_test():
     conn = get_student_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
-        cur.execute("SELECT user_id FROM student_submissions WHERE user_id=%s AND assessment_id=%s", (uid, aid))
+        cur.execute("SELECT user_id FROM student_submissions WHERE user_id=%s AND assessment_id=%s AND submitted_at IS NOT NULL", (uid, aid))
         if cur.fetchone(): return jsonify({"error": "Already submitted"}), 403
 
         cur.execute("SELECT q.id, q.type, q.mark, q.negative_mark, q.answer FROM assessment_questions aq JOIN questions q ON aq.question_id = q.id WHERE aq.assessment_id = %s", (aid,))
@@ -758,7 +760,7 @@ def submit_test():
             total_time += time_taken
             detailed_log[qid] = {"score": score, "time": time_taken, "resp": resp if resp else {}}
 
-        cur.execute("INSERT INTO student_submissions (user_id, assessment_id, total_score, total_time_sec, detailed_log, submitted_at) VALUES (%s, %s, %s, %s, %s, %s)", (uid, aid, total_score, total_time, json.dumps(detailed_log), datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")))
+        cur.execute("UPDATE student_submissions SET total_score=%s, total_time_sec=%s, detailed_log=%s, submitted_at=%s WHERE user_id=%s AND assessment_id=%s", (total_score, total_time, json.dumps(detailed_log), datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S"), uid, aid))
         conn.commit()
         return jsonify({"status": "Success"})
     finally:
@@ -772,7 +774,26 @@ def student_history():
     conn = get_student_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
-        cur.execute("SELECT a.title, a.type, a.seq_num, a.start_at, a.end_at, a.total_duration, a.id as assessment_id, IFNULL(sub.total_score, 0) as total_score, IFNULL(sub.total_time_sec, 0) as total_time_taken_sec, IF(sub.user_id IS NOT NULL, 1, 0) as is_attempted, sub.detailed_log, (SELECT COUNT(*) FROM assessment_questions aq WHERE aq.assessment_id = a.id) as total_questions, (SELECT SUM(q2.mark) FROM assessment_questions aq2 JOIN questions q2 ON aq2.question_id = q2.id WHERE aq2.assessment_id = a.id) as max_marks FROM assessments a LEFT JOIN student_submissions sub ON a.id = sub.assessment_id AND sub.user_id = %s WHERE a.start_at <= %s OR sub.user_id IS NOT NULL ORDER BY a.start_at DESC", (uid, datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")))
+        cur.execute("""
+            SELECT a.title, a.type, a.series_no, a.start_at, a.end_at, a.total_duration,
+                   a.id as assessment_id, IFNULL(sub.total_score, 0) as total_score,
+                   IFNULL(sub.total_time_sec, 0) as total_time_taken_sec,
+                   IF(sub.user_id IS NOT NULL AND sub.submitted_at IS NOT NULL, 1, 0) as is_attempted,
+                   sub.detailed_log,
+                   (SELECT COUNT(*) FROM assessment_questions aq WHERE aq.assessment_id = a.id) as total_questions,
+                   (SELECT SUM(q2.mark) FROM assessment_questions aq2 JOIN questions q2 ON aq2.question_id = q2.id WHERE aq2.assessment_id = a.id) as max_marks,
+                    CASE WHEN sub.submitted_at IS NOT NULL THEN 1 + (
+                        SELECT COUNT(DISTINCT sub2.total_score)
+                        FROM student_submissions sub2
+                        WHERE sub2.assessment_id = a.id
+                          AND sub2.submitted_at IS NOT NULL
+                          AND sub2.total_score > sub.total_score
+                    ) ELSE NULL END as rank_pos
+            FROM assessments a
+            LEFT JOIN student_submissions sub ON a.id = sub.assessment_id AND sub.user_id = %s
+            WHERE a.start_at <= %s OR sub.user_id IS NOT NULL
+            ORDER BY a.start_at DESC
+        """, (uid, datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")))
         rows, now = cur.fetchall(), datetime.now(IST)
         for r in rows:
             r["results_available"] = now > IST.localize(r["end_at"] + timedelta(minutes=(r["total_duration"] or 60))) if r["end_at"] else True

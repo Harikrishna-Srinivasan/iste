@@ -249,31 +249,12 @@ Once your questions are in the bank, you can create a test:
 
 ## Step 4: View Student Results
 
-### Quick View
+### Student Results
 
-1. Go to **"Student Performance Logs"** section
-2. Enter the student's **Register ID** (e.g. `22803001`)
-3. Complete the CAPTCHA
-4. Click **"Search"**
-5. You'll see a list of all tests the student has taken
-6. Click **"View Analysis"** to see:
-   - Overall score
-   - Time spent
-   - Question-by-question breakdown (correct / incorrect / unattempted)
-   - Time spent on each question
-
-### Export Results to Excel
-
-1. Go to **"Export Published Assessments"** section
-2. Find the test you want to export
-3. Click **"Export XLSX"**
-4. An Excel file will download with all student scores and details
-
-### Download Student List
-
-1. Go to **"All Registered Students"** section
-2. Click **"Load Student List"** to view all registered students
-3. Click **"Download XLSX"** to export the list as an Excel file with columns: Reg. ID, Name, Year, Degree, Stream
+1. Go to the assessment card and click the **student count** badge to see the inline student list
+2. Click any student row to expand per-question analysis
+3. Or use the **"All Registered Students"** section to browse and export
+4. Click **"Download XLSX"** to export the list as an Excel file with columns: Reg. ID, Name, Year, Degree, Stream
 
 > **Note:** Assessments conducted before a student registered will show as **"Missing"** with a score of **0** in the student's history. This is expected — the student was not yet registered when those assessments took place.
 
@@ -411,7 +392,7 @@ If your browser crashes or you accidentally close the tab, don't worry. When you
 | Scheduler | APScheduler | BackgroundScheduler for timed alerts |
 | Mobile | Capacitor 8 | WebView wrapper → Android APK (`com.iste.app`) |
 | Compression | flask-compress | Gzip |
-| Minification | flask-minify | Auto-minifies HTML/JS/CSS |
+| Minification | Custom Python script (`build.py`) | Minifies HTML/CSS/JS, outputs to `www/` |
 | Excel I/O | Pandas + OpenPyXL (server) / SheetJS (client) | Import questions, export results |
 | Deployment | Render | Auto-deploy from git push |
 
@@ -486,6 +467,7 @@ iste/
 ├── test.html               # Live test environment (anti-cheat)
 ├── admin_login.html        # Admin login (canvas CAPTCHA)
 ├── admin.html              # Admin dashboard (all management tools)
+├── build.py                # Build pipeline (minifies → www/)
 │
 ├── schema.db               # MySQL schema
 ├── sample_question_template.xlsx   # Downloadable Excel template
@@ -494,7 +476,7 @@ iste/
 ├── capacitor.config.json   # Capacitor config
 ├── package.json            # Node.js deps for Capacitor plugins
 ├── android/                # Capacitor Android project
-├── www/                    # Built web assets (copies for Capacitor)
+├── www/                    # Built web assets (minified, for deployment)
 ├── setup_bash.sh           # Capacitor setup (Linux/Mac)
 ├── setup_cap.bat           # Capacitor setup (Windows)
 ├── iste.png

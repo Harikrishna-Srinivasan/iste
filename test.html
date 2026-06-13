@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ISTE Online Test Environment</title>
     <link rel="icon" type="image/png" href="/iste.png">
+    <link rel="preconnect" href="https://iste-ws2k.onrender.com">
     <style>
         :root {
             --primary-blue: #1976D2;
@@ -24,20 +25,10 @@
             max-width: 100vw;
             overflow-x: hidden;
             box-sizing: border-box;
+            touch-action: manipulation;
         }
         *, *:before, *:after {
             box-sizing: inherit;
-        }
-        .card, .container, .sidebar {
-            width: 100%;
-            max-width: 100%;
-            overflow-wrap: break-word;
-            word-wrap: break-word;
-        }
-        .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
         }
         [data-theme="dark"] {
             --bg-body: #1A1C1E;
@@ -78,12 +69,12 @@
             position: sticky; top: 0; z-index: 100; border-bottom: 5px solid var(--thick-yellow);
         }
 
-        .main-layout { display: grid; grid-template-columns: 1fr 300px; height: calc(100vh - 44px - 65px); }
+        .main-layout { display: grid; grid-template-columns: 1fr 300px; height: calc(100vh - 44px - 65px); content-visibility: auto; contain-intrinsic-size: 0 600px; }
 
         .question-scroll { padding: 15px; overflow-y: auto; background: var(--bg-body); }
         .sidebar { background: var(--bg-card); border-left: 1px solid var(--border); padding: 15px; display: flex; flex-direction: column; }
 
-        .q-card { background: var(--bg-card); padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid var(--border); margin-bottom: 80px; }
+        .q-card { background: var(--bg-card); padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid var(--border); margin-bottom: 80px; content-visibility: auto; contain-intrinsic-size: 0 200px; }
 
         .timer-row { display: flex; gap: 10px; margin-bottom: 20px; }
         .timer-chip { flex: 1; padding: 10px; border: 2px solid var(--primary-blue); border-radius: 5px; text-align: center; font-weight: bold; background: var(--bg-card); }
@@ -92,7 +83,7 @@
         .p-item {
             width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
             font-size: 12px; font-weight: bold; border-radius: 4px; background: var(--iste-gray); color: #555;
-            cursor: pointer; transition: 0.2s;
+            cursor: pointer; transition: 0.2s; will-change: transform, box-shadow;
         }
         .p-item.active { border: 2px solid var(--primary-blue); transform: scale(1.1); box-shadow: 0 0 5px var(--primary-blue); }
         .p-item.answered { background: var(--iste-green); color: white; border-radius: 0 0 15px 15px; }

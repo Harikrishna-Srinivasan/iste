@@ -22,9 +22,26 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="30203d0d-67d5-46f1-8bfd-f565fc8872bb" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/../admin.html" beforeDir="false" afterPath="$PROJECT_DIR$/../admin.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../admin.py" beforeDir="false" afterPath="$PROJECT_DIR$/../admin.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/file-system.probe" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/file-system.probe" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/release/app-release.apk" beforeDir="false" afterPath="$PROJECT_DIR$/app/release/app-release.apk" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/release/baselineProfiles/0/app-release.dm" beforeDir="false" afterPath="$PROJECT_DIR$/app/release/baselineProfiles/0/app-release.dm" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/release/baselineProfiles/1/app-release.dm" beforeDir="false" afterPath="$PROJECT_DIR$/app/release/baselineProfiles/1/app-release.dm" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/dashboard.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/index.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/iste.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/assets/public/test.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../dashboard.html" beforeDir="false" afterPath="$PROJECT_DIR$/../dashboard.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../index.html" beforeDir="false" afterPath="$PROJECT_DIR$/../index.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../student.py" beforeDir="false" afterPath="$PROJECT_DIR$/../student.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../test.html" beforeDir="false" afterPath="$PROJECT_DIR$/../test.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../www/dashboard.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../www/index.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../www/iste.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../www/sastra.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../www/test.html" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

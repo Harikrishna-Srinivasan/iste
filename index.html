@@ -8,6 +8,7 @@
         content="Candidate Login for ISTE Performance Portal. Securely access your assessments and tracked performance.">
     <title>ISTE Aptitude Test</title>
     <link rel="icon" type="image/png" href="/iste.png">
+    <link rel="preconnect" href="https://iste-ws2k.onrender.com">
     <style>
         :root {
             --primary-blue: #1976d2;
@@ -25,6 +26,7 @@
             max-width: 100vw;
             overflow-x: hidden;
             box-sizing: border-box;
+            touch-action: manipulation;
         }
 
         *,
@@ -38,15 +40,6 @@
             font-family: "Segoe UI", sans-serif;
             margin: 0;
             padding: 0;
-        }
-
-        .card,
-        .container,
-        .sidebar {
-            width: 100%;
-            max-width: 100%;
-            overflow-wrap: break-word;
-            word-wrap: break-word;
         }
 
         .table-responsive {
@@ -116,6 +109,9 @@
             border-top: 8px solid var(--primary-blue);
             border: 1px solid var(--border);
             animation: slideUp 0.5s ease;
+            content-visibility: auto;
+            contain-intrinsic-size: 0 400px;
+            will-change: transform, opacity;
         }
 
         .login-card img {
@@ -180,6 +176,7 @@
         .btn:hover {
             filter: brightness(1.1);
             transform: scale(1.01);
+            will-change: filter, transform;
         }
 
 
