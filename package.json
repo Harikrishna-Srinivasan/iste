@@ -17,7 +17,7 @@
     "@capacitor/cli": "^8.4.0"
   },
   "overrides": {
-    "tar": "^7.5.15"
+    "tar": "^7.5.16"
   },
   "repository": {
     "type": "git",
