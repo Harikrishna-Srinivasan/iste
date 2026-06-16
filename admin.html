@@ -15,7 +15,7 @@
             --card: #ffffff;
             --text: #1d1d1f;
             --muted: #86868b;
-            --border: #e5e5e7;
+            --border: #c0c0c0;
             --green: #30a046;
             --red: #ff453a;
             --blue: #0071e3;
@@ -140,7 +140,7 @@
         .qa-grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .date-wrap { position: relative; display: flex; align-items: center; cursor: pointer; }
         .date-wrap input[type="text"] { width: 100%; padding-right: 40px; cursor: pointer; }
-        .date-wrap input[type="date"] { position: fixed; left: -9999px; top: 0; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+        .date-wrap input[type="date"] { position: fixed; left: -9999px; top: 0; opacity: 0; width: 1px; height: 1px; pointer-events: none; color-scheme: dark; }
         .date-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; font-size: 16px; line-height: 1; }
         .rank-emoji { font-size: 18px; line-height: 1; display: inline-block; }
         .rank-cell { display: flex; align-items: center; gap: 6px; }
@@ -203,7 +203,7 @@
                 <div>
                     <label for="start_date_hidden">Start Date</label>
                     <div class="date-wrap" onclick="showDatePicker('start_date_hidden')">
-                        <input type="text" id="start_date" placeholder="dd-Month-yyyy" maxlength="15" autocomplete="off" readonly>
+                        <input type="text" id="start_date" placeholder="dd-month-yyyy" maxlength="15" autocomplete="off" readonly>
                         <input type="date" id="start_date_hidden" onchange="syncDateDisplay('start_date', this.value)">
                     </div>
                 </div>
@@ -853,7 +853,7 @@
                     <table>
                         <thead><tr>
                             <th>Reg. No</th><th>Name</th>
-                            ${ra ? '<th>Rank</th><th>Attended</th><th>Score</th><th>Pct</th><th>Time</th>'
+                            ${ra ? '<th>Rank</th><th>Attended</th><th>Score</th><th>Percentage</th><th>Time</th>'
                                  : '<th>Status</th><th>Attended</th><th>Time</th>'}
                             <th>Start</th><th>End</th>
                             ${ra ? '<th></th>' : ''}
@@ -875,7 +875,7 @@
                                     <td><span class="rank-cell"><span class="rank-emoji">${rankEmoji(rank, pct)}</span></span></td>
                                     <td>${escapeHtml(s.attended || 0)} / ${escapeHtml(s.total_questions || 0)}</td>
                                     <td>${escapeHtml(s.total_score || 0)} / ${escapeHtml(s.max_marks || 0)}</td>
-                                    <td>${escapeHtml(pct.toFixed(2))}</td>
+                                    <td>${escapeHtml(pct.toFixed(2))}%</td>
                                     <td>${escapeHtml(formatMinutes(s.total_time_taken_sec))}</td>
                                     <td>${escapeHtml(formatLocal(s.attempt_start_at))}</td>
                                     <td>${escapeHtml(formatLocal(s.submitted_at))}</td>
