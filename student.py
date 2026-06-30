@@ -42,7 +42,7 @@ CORS(app,
      origins=[
          "https://iste-ws2k.onrender.com",
          "capacitor://localhost",
-         "capacitor://app.local", 
+         "capacitor://app.local",
          "https://app.local",
          "http://localhost",
          "http://localhost:5000",
@@ -119,7 +119,7 @@ def _send_email(to_addr, subject, body):
 def generate_otp():
     return ''.join(random.choices(string.digits, k=6))
 
-def verify_otp(user_id, otp):
+def verify_otp(user_id, otp, purpose=None):
     with otp_lock:
         key = f"otp_{user_id}"
         stored = otp_store.get(key, {})
@@ -128,10 +128,12 @@ def verify_otp(user_id, otp):
         if time.time() > stored.get("expires_at", 0):
             del otp_store[key]
             return False
-        if stored.get("otp") == otp:
-            del otp_store[key]
-            return True
-        return False
+        if stored.get("otp") != otp:
+            return False
+        if purpose is not None and stored.get("purpose") != purpose:
+            return False
+        del otp_store[key]
+        return True
 
 def make_reset_token(user_id):
     payload = {
@@ -308,8 +310,11 @@ def send_registration_otp():
             f"Your OTP for ISTE Portal registration is: {otp}\n\n"
             f"This OTP will expire in 10 minutes.\n"
             f"If you did not request this, please ignore this email."
-        )
-        _send_email(email, "ISTE Portal - Registration OTP", body)
+        try:
+            _send_email(email, "ISTE Portal - Registration OTP", body)
+        except Exception as e:
+            app.logger.error(f"Registration OTP email failed: {e}")
+            return jsonify({"error": "Failed to send OTP. Please try again."}), 500
 
         return jsonify({"status": f"OTP sent to {email}"})
     except Exception as e:
@@ -325,17 +330,8 @@ def verify_registration_otp():
     user_id = data.get("user_id", "").strip()
     otp_input = data.get("otp", "").strip()
 
-    with otp_lock:
-        key = f"otp_{user_id}"
-        stored = otp_store.get(key, {})
-        if not stored or stored.get("purpose") != "registration":
-            return jsonify({"error": "No OTP request found. Try again."}), 400
-        if time.time() > stored.get("expires_at", 0):
-            del otp_store[key]
-            return jsonify({"error": "OTP expired. Request a new one."}), 400
-        if stored.get("otp") != otp_input:
-            return jsonify({"error": "Invalid OTP"}), 400
-        del otp_store[key]
+    if not verify_otp(user_id, otp_input, purpose="registration"):
+        return jsonify({"error": "Invalid or expired OTP"}), 401
 
     token = make_registration_token(user_id)
     return jsonify({"status": "OTP verified", "registration_token": token})
@@ -481,9 +477,19 @@ def forgot_password():
     with otp_lock:
         otp_store[f"otp_{user_id}"] = {
             "otp": otp,
-            "expires_at": time.time() + 600
+            "expires_at": time.time() + 600,
+            "purpose": "password_reset"
         }
-    if not send_otp_email(user_id, otp):
+
+    body = (
+            f"Your OTP for ISTE Portal registration is: {otp}\n\n"
+            f"This OTP will expire in 10 minutes.\n"
+            f"If you did not request this, please ignore this email."
+        )
+    try:
+        _send_email(f"{user_id}@sastra.ac.in", "ISTE Portal - Password Reset OTP", body)
+    except Exception as e:
+        app.logger.error(f"Password reset OTP email failed: {e}")
         return jsonify({"error": "Failed to send OTP. Please try again."}), 500
     return jsonify({"status": "OTP sent successfully", "email": f"{user_id}@sastra.ac.in"})
 
@@ -498,7 +504,7 @@ def verify_otp_route():
         user_id = int(user_id)
     except (ValueError, TypeError):
         return jsonify({"error": "Invalid Registration ID"}), 400
-    if not verify_otp(user_id, otp):
+    if not verify_otp(user_id, otp, purpose="password_reset"):
         return jsonify({"error": "Invalid or expired OTP"}), 401
     reset_token = make_reset_token(user_id)
     return jsonify({"status": "OTP verified", "reset_token": reset_token})

@@ -10,7 +10,6 @@
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7405448119334515" crossorigin="anonymous"></script>
     <script async custom-element="amp-auto-ads" src="https://cdn.ampproject.org/v0/amp-auto-ads-0.1.js"></script>
     <link rel="icon" type="image/png" href="/iste.png">
-    <link rel="preconnect" href="https://iste-ws2k.onrender.com">
     <style>
         :root {
             --primary-blue: #1976d2;
@@ -345,7 +344,7 @@
             <h2 style="text-align: center; margin-bottom: 30px; font-size: 24px; color: var(--primary-blue);">Student Login</h2>
             <form id="login-form" method="POST" action="/student/login" onsubmit="event.preventDefault(); startLoginFlow();">
                 <div class="form-group">
-                    <label>Register ID</label>
+                    <label>Register No</label>
                     <input type="text" id="user_id" name="user_id" placeholder="Enter the register no" autocomplete="username">
                 </div>
                 <div class="form-group">
@@ -367,9 +366,9 @@
             <!-- Step 1: Enter Reg ID -->
             <div id="reg-step1">
                 <h2 style="text-align: center; margin-bottom: 10px; font-size: 22px; color: var(--primary-blue);">Student Registration</h2>
-                <p style="text-align: center; font-size: 13px; color: #666; margin-bottom: 25px;">Enter your Register ID. An OTP will be sent to your SASTRA email.</p>
+                <p style="text-align: center; font-size: 13px; color: #666; margin-bottom: 18px;">Enter your Register No.<br>An OTP will be sent to your SASTRA email.</p>
                 <div class="form-group">
-                    <label>Register ID</label>
+                    <label>Register No</label>
                     <input type="text" id="reg-userid" placeholder="Enter registration number">
                 </div>
                 <button class="btn" id="reg-send-btn" onclick="regSendOTP()">Send OTP</button>
@@ -444,12 +443,12 @@
 
         <!-- Forgot Password Views -->
         <div id="forgot-view">
-            <!-- Step 1: Enter Register ID -->
+            <!-- Step 1: Enter Register No -->
             <div id="forgot-step1">
                 <h2 style="text-align: center; margin-bottom: 10px; font-size: 22px; color: var(--primary-blue);">Reset Password</h2>
-                <p style="text-align: center; font-size: 13px; color: #666; margin-bottom: 25px;">Enter your Register ID. An OTP will be sent to your SASTRA email.</p>
+                <p style="text-align: center; font-size: 13px; color: #666; margin-bottom: 25px;">Enter your Register No. An OTP will be sent to your SASTRA email.</p>
                 <div class="form-group">
-                    <label>Register ID</label>
+                    <label>Register No</label>
                     <input type="text" id="fp-userid" placeholder="Enter registration number">
                 </div>
                 <button class="btn" id="fp-send-btn" onclick="sendOTP()">Send OTP</button>
@@ -500,7 +499,7 @@
 
 
     <script>
-        const BASE = "https://iste-ws2k.onrender.com";
+        const BASE = "";
         let blockTimer = null;
         let loginBtn = document.getElementById('login-btn');
         let fpUserId = "";
@@ -525,7 +524,7 @@
             const errDiv = document.getElementById('fp-error1');
             errDiv.style.display = 'none';
             if (!userid) {
-                errDiv.textContent = "Enter your Register ID.";
+                errDiv.textContent = "Enter your Register No.";
                 errDiv.style.display = 'block';
                 return;
             }

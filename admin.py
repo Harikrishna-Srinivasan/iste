@@ -598,7 +598,8 @@ def admin_assessments_list():
         SELECT a.id, a.title, a.type, a.series_no, a.start_at, a.end_at, a.total_duration,
                (SELECT COUNT(*) FROM assessment_questions aq WHERE aq.assessment_id = a.id) AS question_count,
                (SELECT COUNT(*) FROM student_submissions sub WHERE sub.assessment_id = a.id AND sub.submitted_at IS NOT NULL) AS submission_count,
-               (SELECT COUNT(*) FROM student_submissions sub WHERE sub.assessment_id = a.id) AS entry_count
+               (SELECT COUNT(*) FROM student_submissions sub WHERE sub.assessment_id = a.id) AS entry_count,
+               (SELECT ROUND(AVG(sub2.total_score), 2) FROM student_submissions sub2 WHERE sub2.assessment_id = a.id AND sub2.submitted_at IS NOT NULL) AS avg_score
         FROM assessments a
         ORDER BY a.start_at DESC
     """)

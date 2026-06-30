@@ -216,7 +216,7 @@
                 <div>
                     <label for="end_date_hidden">Entry Close Date</label>
                     <div class="date-wrap" onclick="showDatePicker('end_date_hidden')">
-                        <input type="text" id="end_date" placeholder="dd-Month-yyyy" maxlength="15" autocomplete="off" readonly>
+                        <input type="text" id="end_date" placeholder="dd-month-yyyy" maxlength="15" autocomplete="off" readonly>
                         <input type="date" id="end_date_hidden" onchange="syncDateDisplay('end_date', this.value)">
                     </div>
                 </div>
@@ -248,7 +248,7 @@
             <div style="margin-top:12px;"><label for="msg-date-hidden">Schedule Date (optional)</label></div>
             <div class="grid-2" style="gap: 10px;">
                 <div class="date-wrap" onclick="showDatePicker('msg-date-hidden')">
-                    <input type="text" id="msg-date" placeholder="dd-Month-yyyy" readonly>
+                    <input type="text" id="msg-date" placeholder="dd-month-yyyy" readonly>
                     <input type="date" id="msg-date-hidden" onchange="syncDateDisplay('msg-date', this.value)">
                 </div>
                 <input type="time" id="msg-time" step="300">
@@ -284,6 +284,26 @@
         <section class="card full">
             <h3>Published Assessments</h3>
             <div id="assessments-status" class="status-msg"></div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
+                <div>
+                    <label for="report-start-date-hidden">From</label>
+                    <div class="date-wrap" onclick="showDatePicker('report-start-date-hidden')">
+                        <input type="text" id="report-start-date" placeholder="dd-month-yyyy" maxlength="15" readonly>
+                        <input type="date" id="report-start-date-hidden" onchange="syncDateDisplay('report-start-date', this.value); filterAssessmentsList();">
+                        <span class="date-icon">📅</span>
+                    </div>
+                </div>
+                <div>
+                    <label for="report-end-date-hidden">To</label>
+                    <div class="date-wrap" onclick="showDatePicker('report-end-date-hidden')">
+                        <input type="text" id="report-end-date" placeholder="dd-month-yyyy" maxlength="15" readonly>
+                        <input type="date" id="report-end-date-hidden" onchange="syncDateDisplay('report-end-date', this.value); filterAssessmentsList();">
+                        <span class="date-icon">📅</span>
+                    </div>
+                </div>
+                <button class="btn green" onclick="downloadSummaryReport()">Summary Report</button>
+                <button class="btn orange" onclick="downloadDetailedReport()">Detailed Report</button>
+            </div>
             <div id="assessments-container" class="analysis-list">
                 <div class="muted" style="text-align:center; padding: 18px;">Loading assessments...</div>
             </div>
@@ -293,6 +313,7 @@
         let studentsData = [];
         let studentAttemptsCache = new Map();
         let assessmentCache = new Map();
+        let assessmentsListData = [];
 
         function escapeHtml(value) {
             return String(value ?? '')
@@ -345,6 +366,13 @@
             const ampm = h >= 12 ? 'PM' : 'AM';
             const h12 = h % 12 || 12;
             return `${h12}:${m} ${ampm}`;
+        }
+
+        function fmtDateExcel(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            if (isNaN(d.getTime())) return '';
+            return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
         }
 
         function showDatePicker(hiddenId) {
@@ -421,6 +449,11 @@
         function formatAssessmentName(a) {
             const type = a.type || 'Assessment';
             return a.series_no ? `${type} ${a.series_no}: ${a.title}` : `${type}: ${a.title}`;
+        }
+
+        function formatAssignmentOnly(a) {
+            const type = (a.type || 'Assessment').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+            return a.series_no ? `${type} ${a.series_no}` : type;
         }
 
         function prefillStart() {
@@ -728,13 +761,13 @@
                         </div>
                         <div class="grid-2" style="margin-top:12px;">
                             <div><label for="ass-start-date-hidden-${a.id}">Start Date</label><div class="date-wrap" onclick="showDatePicker('ass-start-date-hidden-${a.id}')">
-                                <input type="text" id="ass-start-date-${a.id}" placeholder="dd-Month-yyyy" maxlength="15" readonly value="${fmtDate(s)}">
+                                <input type="text" id="ass-start-date-${a.id}" placeholder="dd-month-yyyy" maxlength="15" readonly value="${fmtDate(s)}">
                                 <input type="date" id="ass-start-date-hidden-${a.id}" onchange="syncDateDisplay('ass-start-date-${a.id}', this.value)">
                                 <span class="date-icon">📅</span>
                             </div></div>
                             <div><label for="ass-start-time-${a.id}">Start Time</label><input type="time" id="ass-start-time-${a.id}" value="${fmtTime24(s)}" step="300" ${editable ? '' : 'disabled'}></div>
                             <div><label for="ass-end-date-hidden-${a.id}">End Date</label><div class="date-wrap" onclick="showDatePicker('ass-end-date-hidden-${a.id}')">
-                                <input type="text" id="ass-end-date-${a.id}" placeholder="dd-Month-yyyy" maxlength="15" readonly value="${fmtDate(e)}">
+                                <input type="text" id="ass-end-date-${a.id}" placeholder="dd-month-yyyy" maxlength="15" readonly value="${fmtDate(e)}">
                                 <input type="date" id="ass-end-date-hidden-${a.id}" onchange="syncDateDisplay('ass-end-date-${a.id}', this.value)">
                                 <span class="date-icon">📅</span>
                             </div></div>
@@ -784,36 +817,30 @@
                 const res = await fetch('/admin/assessments');
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Failed to load assessments');
-                if (!data.length) {
-                    container.innerHTML = '<div class="muted" style="text-align:center; padding: 18px;">No assessments found.</div>';
-                    return;
+                assessmentsListData = data || [];
+                const today = new Date();
+                const tDD = String(today.getDate()).padStart(2, '0');
+                const tMon = MONTHS[today.getMonth()];
+                const tYYYY = today.getFullYear();
+                const todayFmt = tDD + '-' + tMon + '-' + tYYYY;
+                const todayISO = today.toISOString().slice(0, 10);
+                document.getElementById('report-end-date').value = todayFmt;
+                document.getElementById('report-end-date-hidden').value = todayISO;
+                if (data.length) {
+                    const earliest = data.map(a => a.start_at).filter(Boolean).sort()[0];
+                    if (earliest) {
+                        const d = new Date(earliest);
+                        document.getElementById('report-start-date').value = String(d.getDate()).padStart(2, '0') + '-' + MONTHS[d.getMonth()] + '-' + d.getFullYear();
+                        document.getElementById('report-start-date-hidden').value = earliest.slice(0, 10);
+                    } else {
+                        document.getElementById('report-start-date').value = todayFmt;
+                        document.getElementById('report-start-date-hidden').value = todayISO;
+                    }
+                } else {
+                    document.getElementById('report-start-date').value = todayFmt;
+                    document.getElementById('report-start-date-hidden').value = todayISO;
                 }
-                container.innerHTML = data.map(a => {
-                    const now = new Date();
-                    const endPassed = a.end_at && new Date(a.end_at) < now;
-                    const dc = endPassed ? (a.submission_count || 0) : (a.entry_count || 0);
-                    const cl = endPassed ? 'submitted' : 'entered';
-                    return `
-                    <div class="detail-card">
-                        <div class="ass-head">
-                            <div style="flex:1; min-width:0; cursor:pointer;" onclick="event.stopPropagation(); toggleStudentList(${a.id})">
-                                <strong>${escapeHtml(formatAssessmentName(a))}</strong>
-                                <div style="font-size:11px; color:#555; margin-top:2px;">${escapeHtml(fmtDateStr(a.start_at))} – ${escapeHtml(fmtDateStr(a.end_at))}</div>
-                            </div>
-                            <div style="white-space:nowrap; font-size:13px; color:#475467;">${escapeHtml(fmtTimeStr(a.start_at))} – ${escapeHtml(fmtTimeStr(a.end_at))}</div>
-                            <div class="ass-counts" onclick="event.stopPropagation(); toggleStudentList(${a.id})">
-                                <span class="badge ${dc > 0 ? 'blue' : 'gray'}">${dc} ${cl}</span>
-                            </div>
-                            <div class="split" style="flex:0 0 auto;">
-                                <span class="badge ${a.editable ? 'green' : 'orange'}">${a.editable ? 'Editable' : 'Locked'}</span>
-                                ${a.editable ? `<button class="btn small outline" onclick="event.stopPropagation(); toggleEditPanel(${a.id})">Edit</button>` : ''}
-                                <button class="btn small outline" onclick="event.stopPropagation(); exportToExcel(${a.id})">Export</button>
-                            </div>
-                        </div>
-                        <div id="ass-student-list-${a.id}" class="hidden" style="margin-top:12px;"></div>
-                        <div id="ass-edit-panel-${a.id}" class="hidden" style="margin-top:12px;"></div>
-                    </div>
-                `}).join('');
+                renderAssessmentsList(data);
             } catch (err) {
                 container.innerHTML = `<div style="color: var(--red); text-align:center; padding: 18px;">${escapeHtml(err.message || 'Error loading assessments')}</div>`;
             }
@@ -1117,6 +1144,124 @@
             } catch (err) {
                 showStatus(statusEl, err.message || 'Network error.', 'error');
             }
+        }
+
+        function renderAssessmentsList(data) {
+            const container = document.getElementById('assessments-container');
+            if (!data.length) {
+                container.innerHTML = '<div class="muted" style="text-align:center; padding: 18px;">No assessments found in the selected date range.</div>';
+                return;
+            }
+            container.innerHTML = data.map(a => {
+                const now = new Date();
+                const endPassed = a.end_at && new Date(a.end_at) < now;
+                const dc = endPassed ? (a.submission_count || 0) : (a.entry_count || 0);
+                const cl = endPassed ? 'submitted' : 'entered';
+                return `
+                <div class="detail-card">
+                    <div class="ass-head">
+                        <div style="flex:1; min-width:0; cursor:pointer;" onclick="event.stopPropagation(); toggleStudentList(${a.id})">
+                            <strong>${escapeHtml(formatAssessmentName(a))}</strong>
+                            <div style="font-size:11px; color:#555; margin-top:2px;">${escapeHtml(fmtDateStr(a.start_at))} – ${escapeHtml(fmtDateStr(a.end_at))}</div>
+                        </div>
+                        <div style="white-space:nowrap; font-size:13px; color:#475467;">${escapeHtml(fmtTimeStr(a.start_at))} – ${escapeHtml(fmtTimeStr(a.end_at))}</div>
+                        <div class="ass-counts" onclick="event.stopPropagation(); toggleStudentList(${a.id})">
+                            <span class="badge ${dc > 0 ? 'blue' : 'gray'}">${dc} ${cl}</span>
+                        </div>
+                        <div class="split" style="flex:0 0 auto;">
+                            <span class="badge ${a.editable ? 'green' : 'orange'}">${a.editable ? 'Editable' : 'Locked'}</span>
+                            ${a.editable ? `<button class="btn small outline" onclick="event.stopPropagation(); toggleEditPanel(${a.id})">Edit</button>` : ''}
+                            <button class="btn small outline" onclick="event.stopPropagation(); exportToExcel(${a.id})">Export</button>
+                        </div>
+                    </div>
+                    <div id="ass-student-list-${a.id}" class="hidden" style="margin-top:12px;"></div>
+                    <div id="ass-edit-panel-${a.id}" class="hidden" style="margin-top:12px;"></div>
+                </div>
+            `}).join('');
+        }
+
+        function filterAssessmentsList() {
+            renderAssessmentsList(getFilteredAssessments());
+        }
+
+        function getFilteredAssessments() {
+            const startISO = document.getElementById('report-start-date-hidden').value;
+            const endISO = document.getElementById('report-end-date-hidden').value;
+            const start = startISO ? new Date(startISO + 'T00:00:00') : null;
+            const end = endISO ? new Date(endISO + 'T23:59:59') : null;
+            return assessmentsListData.filter(a => {
+                if (!a.start_at) return false;
+                const d = new Date(a.start_at);
+                if (start && d < start) return false;
+                if (end && d > end) return false;
+                return true;
+            });
+        }
+
+        async function downloadSummaryReport() {
+            const statusEl = document.getElementById('assessments-status');
+            const filtered = getFilteredAssessments();
+            if (!filtered.length) {
+                showStatus(statusEl, 'No assessments found in the selected date range.', 'error');
+                return;
+            }
+            const rows = filtered.map(a => ({
+                'Assignment': formatAssignmentOnly(a),
+                'Title': a.title || '',
+                'Questions': a.question_count || 0,
+                'Duration (min)': a.total_duration || 0,
+                'Submitted': a.submission_count || 0,
+                'Avg Score': a.avg_score != null ? Number(a.avg_score).toFixed(2) : '',
+                'Date': a.start_at ? fmtDateExcel(a.start_at) : '',
+                'Time': a.start_at ? fmtTimeStr(a.start_at) : ''
+            }));
+            const ws = XLSX.utils.json_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+            XLSX.writeFile(wb, 'ISTE_Summary_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+            showStatus(statusEl, 'Exported ' + rows.length + ' assessments.', 'success');
+        }
+
+        async function downloadDetailedReport() {
+            const statusEl = document.getElementById('assessments-status');
+            const filtered = getFilteredAssessments();
+            if (!filtered.length) {
+                showStatus(statusEl, 'No assessments found in the selected date range.', 'error');
+                return;
+            }
+            showStatus(statusEl, 'Building detailed report...', 'info');
+            const allRows = [];
+            for (const a of filtered) {
+                try {
+                    const res = await fetch('/admin/export_assessment/' + a.id);
+                    const students = await res.json();
+                    if (!res.ok || !students.length) continue;
+                    for (const s of students) {
+                        allRows.push({
+                            'Assignment': formatAssignmentOnly(a),
+                            'Title': a.title || '',
+                            'Questions': a.question_count || 0,
+                            'Duration (min)': a.total_duration || 0,
+                            'Student': s.name || '',
+                            'Reg No': s.user_id || '',
+                            'Percentage': s.percentage != null ? Number(s.percentage).toFixed(2) : '',
+                            'Marks': s.total_score || 0,
+                            'Negative Marks': 0,
+                            'Attended': s.attended || 0,
+                            'Rank': s.rank || 0
+                        });
+                    }
+                } catch (e) { /* skip failed assessment */ }
+            }
+            if (!allRows.length) {
+                showStatus(statusEl, 'No student data found for the selected assessments.', 'error');
+                return;
+            }
+            const ws = XLSX.utils.json_to_sheet(allRows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Detailed');
+            XLSX.writeFile(wb, 'ISTE_Detailed_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+            showStatus(statusEl, 'Exported ' + allRows.length + ' records.', 'success');
         }
 
         async function logout() {
