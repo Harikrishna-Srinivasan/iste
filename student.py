@@ -280,14 +280,14 @@ def verify_registration_token(token):
 
 @app.route("/student/send-registration-otp", methods=["POST"])
 def send_registration_otp():
-    data = request.json()
+    data = request.json
     user_id = data.get("user_id", "").strip()
     if not user_id:
-        return jsonify({"error": "Enter your Registration ID"}), 400
+        return jsonify({"error": "Enter your Register No"}), 400
     try:
         user_id = int(user_id)
     except (ValueError, TypeError):
-        return jsonify({"error": "Invalid Registration ID"}), 400
+        return jsonify({"error": "Invalid Register No"}), 400
 
     conn, cur = None, None
     try:
@@ -295,7 +295,7 @@ def send_registration_otp():
         cur = conn.cursor(pymysql.cursors.DictCursor)
         cur.execute("SELECT user_id FROM users WHERE user_id=%s", (user_id,))
         if cur.fetchone():
-            return jsonify({"error": "Registration ID already exists"}), 409
+            return jsonify({"error": "Register No already exists"}), 409
 
         otp = generate_otp()
         with otp_lock:
@@ -358,10 +358,10 @@ def student_register():
     try:
         user_id = int(user_id)
     except (ValueError, TypeError):
-        return jsonify({"error": "Invalid Registration ID"}), 400
+        return jsonify({"error": "Invalid Register No"}), 400
 
     if str(user_id) != str(token_user):
-        return jsonify({"error": "Registration ID does not match the verified OTP"}), 400
+        return jsonify({"error": "Register No does not match the verified OTP"}), 400
 
     if len(password) < 6:
         return jsonify({"error": "Password must be at least 6 characters"}), 400
@@ -379,7 +379,7 @@ def student_register():
     try:
         cur.execute("SELECT user_id FROM users WHERE user_id=%s", (user_id,))
         if cur.fetchone():
-            return jsonify({"error": "Registration ID already exists"}), 409
+            return jsonify({"error": "Register No already exists"}), 409
 
         hashed = ph.hash(password)
         details = {"year": year, "degree": degree, "stream": stream}
@@ -460,17 +460,17 @@ def forgot_password():
     body = request.json
     user_id = body.get("user_id")
     if not user_id:
-        return jsonify({"error": "Registration ID is required"}), 400
+        return jsonify({"error": "Register No is required"}), 400
     try:
         user_id = int(user_id)
     except (ValueError, TypeError):
-        return jsonify({"error": "Invalid Registration ID"}), 400
+        return jsonify({"error": "Invalid Register No"}), 400
     conn = get_student_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
         cur.execute("SELECT user_id FROM users WHERE user_id=%s", (user_id,))
         if not cur.fetchone():
-            return jsonify({"error": "Registration ID not found"}), 404
+            return jsonify({"error": "Register No not found"}), 404
     finally:
         cur.close()
         conn.close()
@@ -500,11 +500,11 @@ def verify_otp_route():
     user_id = body.get("user_id")
     otp = body.get("otp")
     if not user_id or not otp:
-        return jsonify({"error": "Registration ID and OTP are required"}), 400
+        return jsonify({"error": "Register No and OTP are required"}), 400
     try:
         user_id = int(user_id)
     except (ValueError, TypeError):
-        return jsonify({"error": "Invalid Registration ID"}), 400
+        return jsonify({"error": "Invalid Register No"}), 400
     if not verify_otp(user_id, otp, purpose="password_reset"):
         return jsonify({"error": "Invalid or expired OTP"}), 401
     reset_token = make_reset_token(user_id)
