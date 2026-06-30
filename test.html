@@ -428,7 +428,10 @@
         }
 
         async function finishTest(auto = false) {
-            if (!auto && !confirm("Finalize and submit your test?")) return;
+            if (!auto) {
+                const answered = Object.keys(state.responses).length;
+                if (!confirm(`You answered ${answered}/${testData.length} questions.\nFinalize and submit your test?`)) return;
+            }
 
             clearInterval(timers.global);
             clearInterval(timers.q);

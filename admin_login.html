@@ -10,6 +10,7 @@
         :root {
             --admin: #5E35B1;
             --bg: #f3e5f5;
+            --muted: #86868b;
         }
 
         body {
@@ -138,6 +139,10 @@
         <div style="display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:8px;">
             <img src="sastra.png" alt="SASTRA Logo" style="display:block; width:50px; height:50px; object-fit:contain;">
             <img src="iste.png" alt="ISTE Logo" style="display:block; width:60px; height:60px;">
+        </div>
+        <div style="text-align:center; margin-bottom:4px;">
+            <div style="font-weight:700; font-size:13px; color:var(--admin); letter-spacing:-0.01em; line-height:1.3;">SASTRA DEEMED TO BE UNIVERSITY</div>
+            <div style="font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; line-height:1.3;">Srinivasa Ramanujan Centre, Kumbakonam</div>
         </div>
         <h2>Admin Portal</h2>
         <form onsubmit="event.preventDefault(); startLoginFlow();">

@@ -21,6 +21,8 @@
             --text-main: #202124;
             --border: #dadce0;
             --overlay: rgba(0, 0, 0, 0.5);
+            --muted: #86868b;
+            --iste-green: #2e7d32;
         }
 
         html,
@@ -44,12 +46,6 @@
             padding: 0;
         }
 
-        .table-responsive {
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
         body {
             background-color: var(--bg-body);
             color: var(--text-main);
@@ -58,6 +54,45 @@
             justify-content: center;
             min-height: 100vh;
             padding-top: 70px;
+        }
+        .app-bar {
+            background: linear-gradient(135deg, #ffffff 0%, #f5f9ff 52%, #fff8ef 100%);
+            color: var(--text-main);
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 100;
+            border-bottom: 4px solid var(--thick-orange);
+            gap: 10px;
+            flex-wrap: wrap;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        }
+        .brand-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .sastra-logo { width: 42px; height: 32px; object-fit: contain; flex: 0 0 auto; }
+        .iste-logo { width: 32px; height: 32px; object-fit: contain; flex: 0 0 auto; }
+        .brand-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+        .brand-title { font-weight: 800; letter-spacing: 0.2px; font-size: 16px; line-height: 1.1; color: #0f4c81; }
+        .brand-subtitle { font-size: 11px; line-height: 1.2; color: #6a4a00; }
+        .portal-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .portal-title { font-weight: 800; font-size: 18px; line-height: 1.1; color: var(--primary-blue); }
+
+        @media screen and (max-width: 768px) {
+            .app-bar { flex-direction: column; gap: 5px; align-items: stretch; padding: 10px 12px; }
+            .brand-row, .portal-row { gap: 5px; }
+            .brand-title { font-size: 15px; }
+            .brand-subtitle { font-size: 13px; }
+            .portal-title { font-size: 16px; }
+        }
+        @media screen and (max-width: 480px) {
+            .app-bar { padding: 8px 10px; }
+            .brand-title { font-size: 14px; }
+            .brand-subtitle { font-size: 12px; }
+            .portal-title { font-size: 14px; }
         }
 
         @media screen and (max-width: 480px) {
@@ -84,20 +119,6 @@
                 padding: 12px;
                 font-size: 14px;
             }
-        }
-
-        .app-bar {
-            background: #e8eaed;
-            color: var(--primary-blue);
-            padding: 12px 16px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: fixed;
-            top: 0;
-            width: 100%;
-            z-index: 100;
-            border-bottom: 5px solid var(--thick-yellow);
         }
 
         .login-card {
@@ -329,12 +350,20 @@
 <body>
     <amp-auto-ads type="adsense" data-ad-client="ca-pub-7405448119334515"></amp-auto-ads>
     <header class="app-bar">
-        <img src="/sastra.png" alt="SASTRA Logo" style="display:block; width:40px; height:40px; object-fit:contain;">
-        <h1 style="font-size: 24px; color: var(--primary-blue);">ISTE Aptitude Portal</h1>
+        <div class="brand-row">
+            <img src="/sastra.png" alt="SASTRA Logo" class="sastra-logo">
+            <div class="brand-text">
+                <div class="brand-title">SASTRA DEEMED TO BE UNIVERSITY</div>
+                <div class="brand-subtitle">Srinivasa Ramanujan Centre, Kumbakonam</div>
+            </div>
+        </div>
+        <div class="portal-row">
+            <img src="/iste.png" alt="ISTE Logo" class="iste-logo">
+            <div class="portal-title" style="margin-left:10px;">ISTE Aptitude Portal</div>
+        </div>
     </header>
 
     <div class="login-card">
-        <img src="/iste.png" alt="ISTE Logo" style="width:40px; height:40px; object-fit:contain;">
         <div class="tab-toggle">
             <button id="tab-login" class="active" onclick="showTab('login')">Login</button>
             <button id="tab-register" onclick="showTab('register')">Register</button>
@@ -498,7 +527,6 @@
             </div>
         </div>
     </div>
-
 
     <script>
         const BASE = "https://iste-ws2k.onrender.com";
