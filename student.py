@@ -280,7 +280,7 @@ def verify_registration_token(token):
 
 @app.route("/student/send-registration-otp", methods=["POST"])
 def send_registration_otp():
-    data = request.json
+    data = request.json()
     user_id = data.get("user_id", "").strip()
     if not user_id:
         return jsonify({"error": "Enter your Registration ID"}), 400
@@ -310,6 +310,7 @@ def send_registration_otp():
             f"Your OTP for ISTE Portal registration is: {otp}\n\n"
             f"This OTP will expire in 10 minutes.\n"
             f"If you did not request this, please ignore this email."
+        )
         try:
             _send_email(email, "ISTE Portal - Registration OTP", body)
         except Exception as e:

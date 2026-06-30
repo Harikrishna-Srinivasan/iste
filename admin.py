@@ -24,6 +24,7 @@ from flask import (
 from flask_compress import Compress
 from flask_cors import CORS
 from flask_minify import Minify
+from waitress import serve
 
 load_dotenv()
 
@@ -1057,4 +1058,4 @@ def export_assessment(aid):
     return jsonify(result)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5002, debug=False, threaded=True)
+    serve(app, host="0.0.0.0", threads=8, port=5002)
