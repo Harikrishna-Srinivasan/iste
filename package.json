@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",
-    "@capacitor/core": "^8.4.0",
+    "@capacitor/core": "^8.4.1",
     "@capacitor/http": "^0.0.2",
     "@capacitor/local-notifications": "^8.0.2",
     "@capacitor/push-notifications": "^8.0.3"
