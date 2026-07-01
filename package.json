@@ -14,7 +14,7 @@
     "@capacitor/push-notifications": "^8.0.3"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.4.0"
+    "@capacitor/cli": "^8.4.1"
   },
   "overrides": {
     "tar": "^7.5.16"
