@@ -260,6 +260,64 @@
         </section>
 
         <section class="card full">
+            <h3>Add Question (with Image Support)</h3>
+            <div class="grid-2" style="margin-bottom:12px;">
+                <div>
+                    <label for="qe-type">Question Type</label>
+                    <select id="qe-type" onchange="toggleQEOptions(); updateQEPreview();">
+                        <option value="MCQ" selected>MCQ (Single Correct)</option>
+                        <option value="MSQ">MSQ (Multiple Correct)</option>
+                        <option value="INT">Integer</option>
+                        <option value="NUM">Numeric</option>
+                    </select>
+                </div>
+                <div class="grid-2" style="gap:8px;">
+                    <div><label for="qe-mark">Mark</label><input type="number" id="qe-mark" value="1" min="1" oninput="updateQEPreview()"></div>
+                    <div><label for="qe-neg">Negative Mark</label><input type="number" id="qe-neg" value="0" min="0" oninput="updateQEPreview()"></div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:12px;">
+                <label for="qe-question">Question Text</label>
+                <textarea id="qe-question" rows="3" placeholder="Type the question here..." style="width:100%;" oninput="updateQEPreview()"></textarea>
+            </div>
+            <div style="margin-bottom:12px;">
+                <label>Question Image (optional)</label>
+                <div id="qe-question-img-wrap" style="border:2px dashed var(--border);border-radius:8px;padding:16px;text-align:center;cursor:pointer;position:relative;" onclick="document.getElementById('qe-question-img-input').click()">
+                    <input type="file" id="qe-question-img-input" accept="image/*" style="display:none;" onchange="previewQEImage('question', this)">
+                    <div id="qe-question-img-placeholder">Click to upload image</div>
+                    <img id="qe-question-img-preview" style="max-width:100%;max-height:180px;border-radius:6px;display:none;">
+                    <button id="qe-question-img-remove" class="btn small orange" style="display:none;position:absolute;top:8px;right:8px;" onclick="event.stopPropagation();removeQEImage('question')">Remove</button>
+                </div>
+            </div>
+
+            <div id="qe-options-section">
+                <div id="qe-options-list"></div>
+                <button class="btn small secondary" onclick="addQEOption()" style="margin-top:8px;">+ Add Option</button>
+            </div>
+
+            <div id="qe-answer-section" style="margin-top:12px;"></div>
+
+            <div style="margin-top:16px;">
+                <label style="font-weight:bold; cursor:pointer; color:var(--primary-blue);" onclick="document.getElementById('qe-preview-box').style.display = document.getElementById('qe-preview-box').style.display === 'none' ? '' : 'none'">👁 Preview (student view)</label>
+                <div id="qe-preview-box" style="display:none; background:#fff; border:1px solid var(--border); border-radius:12px; padding:20px; margin-top:8px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:8px;">
+                        <span style="font-weight:bold; color:var(--primary-blue)">Question 1 / 1 (<span id="qe-preview-type">MCQ</span>)</span>
+                        <span style="font-size:12px; font-weight:bold; background:var(--iste-gray); padding:3px 8px; border-radius:4px;" id="qe-preview-marks">+1 / -0</span>
+                    </div>
+                    <h3 id="qe-preview-q" style="margin-bottom:10px;">—</h3>
+                    <img id="qe-preview-qimg" style="display:none; max-width:100%; max-height:200px; margin:10px 0; border-radius:8px;">
+                    <div id="qe-preview-opts"></div>
+                </div>
+            </div>
+
+            <div class="controls" style="margin-top:16px;">
+                <button class="btn green" onclick="submitNewQuestion()">Save Question</button>
+                <div id="qe-status" class="status-msg"></div>
+            </div>
+        </section>
+
+        <section class="card full">
             <h3>All Registered Students</h3>
             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
                 <input type="text" id="search-reg" placeholder="Search by Reg No." oninput="filterStudents()" style="max-width:200px;">
@@ -467,6 +525,234 @@
             document.getElementById('start_time').value = '20:00';
             document.getElementById('end_date').value = todayStr;
             document.getElementById('end_time').value = '20:05';
+        }
+
+        let qeOptions = [];
+        let qeOptionImages = {};
+        let qeQuestionImageUrl = null;
+
+        function toggleQEOptions() {
+            const t = document.getElementById('qe-type').value;
+            const showOpts = (t === 'MCQ' || t === 'MSQ');
+            document.getElementById('qe-options-section').style.display = showOpts ? '' : 'none';
+            if (showOpts && qeOptions.length === 0) {
+                qeOptions = ['', '', '', ''];
+            }
+            renderQEOptions();
+            renderQEAnswer();
+        }
+
+        function renderQEOptions() {
+            const t = document.getElementById('qe-type').value;
+            const box = document.getElementById('qe-options-list');
+            box.innerHTML = qeOptions.map((o, i) => {
+                const imgPrev = qeOptionImages[i] ? `<img src="${qeOptionImages[i]}" style="max-height:60px;border-radius:4px;margin-left:8px;">` : '';
+                return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+                    <span style="font-weight:bold;min-width:24px;">${String.fromCharCode(65+i)}</span>
+                    <input type="text" value="${escapeHtml(o)}" oninput="qeOptions[${i}]=this.value; updateQEPreview();" style="flex:1;" placeholder="Option ${String.fromCharCode(65+i)}">
+                    <label style="font-size:11px;cursor:pointer;color:var(--primary-blue);white-space:nowrap;" onclick="document.getElementById('qe-opt-img-${i}').click()">📷 Image<input type="file" id="qe-opt-img-${i}" accept="image/*" style="display:none;" onchange="uploadQEOptionImage(${i}, this)"></label>
+                    ${imgPrev}
+                    <button class="btn small orange" onclick="removeQEOption(${i})" style="padding:4px 8px;">✕</button>
+                </div>`;
+            }).join('');
+        }
+
+        function addQEOption() {
+            qeOptions.push('');
+            renderQEOptions();
+            renderQEAnswer();
+            updateQEPreview();
+        }
+
+        function removeQEOption(i) {
+            qeOptions.splice(i, 1);
+            delete qeOptionImages[i];
+            const reindexed = {};
+            Object.keys(qeOptionImages).forEach(k => {
+                const idx = parseInt(k);
+                if (idx > i) reindexed[idx - 1] = qeOptionImages[idx];
+                else if (idx < i) reindexed[idx] = qeOptionImages[idx];
+            });
+            qeOptionImages = reindexed;
+            renderQEOptions();
+            renderQEAnswer();
+            updateQEPreview();
+        }
+
+        function updateQEPreview() {
+            const t = document.getElementById('qe-type').value;
+            const q = document.getElementById('qe-question').value.trim() || '—';
+            const mark = document.getElementById('qe-mark').value || 1;
+            const neg = document.getElementById('qe-neg').value || 0;
+
+            document.getElementById('qe-preview-type').textContent = t;
+            document.getElementById('qe-preview-marks').textContent = `+${mark} / -${neg}`;
+            document.getElementById('qe-preview-q').textContent = q;
+
+            const qImg = document.getElementById('qe-preview-qimg');
+            if (qeQuestionImageUrl) { qImg.src = qeQuestionImageUrl; qImg.style.display = 'block'; }
+            else { qImg.style.display = 'none'; }
+
+            const optsBox = document.getElementById('qe-preview-opts');
+            if (t === 'MCQ' || t === 'MSQ') {
+                const inputType = t === 'MCQ' ? 'radio' : 'checkbox';
+                optsBox.innerHTML = qeOptions.map((o, i) => {
+                    const optImg = qeOptionImages[i] ? `<img src="${qeOptionImages[i]}" style="max-width:100%;max-height:100px;margin-top:4px;border-radius:6px;">` : '';
+                    return `<label style="display:block;padding:10px 14px;margin:6px 0;background:#f8fafc;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:14px;">
+                        <input type="${inputType}" name="qe-preview-opt" disabled style="margin-right:8px;"> ${o || '<i style="color:#999;">Empty option</i>'}${optImg}
+                    </label>`;
+                }).join('');
+            } else if (t === 'INT') {
+                optsBox.innerHTML = `<input type="text" disabled placeholder="Integer answer" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:#f8fafc;font-size:14px;">`;
+            } else if (t === 'NUM') {
+                optsBox.innerHTML = `<input type="text" disabled placeholder="Numeric answer" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;background:#f8fafc;font-size:14px;">`;
+            }
+        }
+
+        function renderQEAnswer() {
+            const t = document.getElementById('qe-type').value;
+            const box = document.getElementById('qe-answer-section');
+            if (t === 'MCQ') {
+                box.innerHTML = `<label>Correct Answer</label><div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">${qeOptions.map((_, i) => `<label style="font-size:13px;"><input type="radio" name="qe-correct" value="${i}" ${i===0?'checked':''}> ${String.fromCharCode(65+i)}</label>`).join('')}</div>`;
+            } else if (t === 'MSQ') {
+                box.innerHTML = `<label>Correct Answers (select all)</label><div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap;">${qeOptions.map((_, i) => `<label style="font-size:13px;"><input type="checkbox" name="qe-correct" value="${i}"> ${String.fromCharCode(65+i)}</label>`).join('')}</div>`;
+            } else if (t === 'INT') {
+                box.innerHTML = `<label>Correct Answer (Integer)</label><input type="number" id="qe-int-answer" step="1" style="margin-top:4px;width:200px;">`;
+            } else if (t === 'NUM') {
+                box.innerHTML = `<label>Correct Answer</label>
+                <div style="margin-top:6px;">
+                    <label style="font-size:12px;font-weight:normal;"><input type="radio" name="qe-num-mode" value="exact" checked onchange="toggleNUMMode()"> Exact Value</label>
+                    <label style="font-size:12px;font-weight:normal;margin-left:12px;"><input type="radio" name="qe-num-mode" value="range" onchange="toggleNUMMode()"> Range</label>
+                </div>
+                <div id="qe-num-exact" style="margin-top:6px;">
+                    <div class="grid-2" style="gap:8px;">
+                        <input type="number" id="qe-num-answer" step="any" placeholder="Value">
+                        <input type="number" id="qe-num-tolerance" step="any" placeholder="Tolerance (±)">
+                    </div>
+                </div>
+                <div id="qe-num-range" style="margin-top:6px;display:none;">
+                    <div class="grid-2" style="gap:8px;">
+                        <input type="number" id="qe-num-from" step="any" placeholder="From">
+                        <input type="number" id="qe-num-to" step="any" placeholder="To">
+                    </div>
+                </div>`;
+            }
+        }
+
+        function toggleNUMMode() {
+            const mode = document.querySelector('input[name="qe-num-mode"]:checked')?.value;
+            document.getElementById('qe-num-exact').style.display = mode === 'exact' ? '' : 'none';
+            document.getElementById('qe-num-range').style.display = mode === 'range' ? '' : 'none';
+        }
+
+        async function previewQEImage(which, input) {
+            const file = input.files[0];
+            if (!file) return;
+            const fd = new FormData();
+            fd.append('file', file);
+            try {
+                const res = await fetch('/admin/upload_image', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Upload failed');
+                if (which === 'question') {
+                    qeQuestionImageUrl = data.url;
+                    document.getElementById('qe-question-img-preview').src = data.url;
+                    document.getElementById('qe-question-img-preview').style.display = 'block';
+                    document.getElementById('qe-question-img-placeholder').style.display = 'none';
+                    document.getElementById('qe-question-img-remove').style.display = 'block';
+                    updateQEPreview();
+                }
+            } catch (e) { alert('Image upload failed: ' + e.message); }
+        }
+
+        function removeQEImage(which) {
+            if (which === 'question') {
+                qeQuestionImageUrl = null;
+                document.getElementById('qe-question-img-preview').style.display = 'none';
+                document.getElementById('qe-question-img-placeholder').style.display = '';
+                document.getElementById('qe-question-img-remove').style.display = 'none';
+                document.getElementById('qe-question-img-input').value = '';
+                updateQEPreview();
+            }
+        }
+
+        async function uploadQEOptionImage(idx, input) {
+            const file = input.files[0];
+            if (!file) return;
+            const fd = new FormData();
+            fd.append('file', file);
+            try {
+                const res = await fetch('/admin/upload_image', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Upload failed');
+                qeOptionImages[idx] = data.url;
+                renderQEOptions();
+                updateQEPreview();
+            } catch (e) { alert('Image upload failed: ' + e.message); }
+        }
+
+        async function submitNewQuestion() {
+            const statusEl = document.getElementById('qe-status');
+            const t = document.getElementById('qe-type').value;
+            const question = document.getElementById('qe-question').value.trim();
+            const mark = parseInt(document.getElementById('qe-mark').value) || 1;
+            const neg = parseInt(document.getElementById('qe-neg').value) || 0;
+            if (!question) return showStatus(statusEl, 'Question text is required.', 'error');
+
+            const payload = { type: t, question, mark, negative_mark: neg, question_image: qeQuestionImageUrl };
+
+            if (t === 'MCQ' || t === 'MSQ') {
+                const filtered = qeOptions.map((o, i) => ({ text: o, idx: i })).filter(o => o.text.trim());
+                if (filtered.length < 2) return showStatus(statusEl, 'At least 2 options required.', 'error');
+                payload.options = filtered.map(o => o.text);
+                const optImgs = {};
+                filtered.forEach((o, newIdx) => {
+                    if (qeOptionImages[o.idx]) optImgs[newIdx] = qeOptionImages[o.idx];
+                });
+                if (Object.keys(optImgs).length) payload.option_images = optImgs;
+                if (t === 'MCQ') {
+                    const checkedVal = document.querySelector('input[name="qe-correct"]:checked')?.value;
+                    const oldIdx = parseInt(checkedVal);
+                    const newIdx = filtered.findIndex(o => o.idx === oldIdx);
+                    payload.correct_id = newIdx >= 0 ? newIdx : 0;
+                } else {
+                    const checked = Array.from(document.querySelectorAll('input[name="qe-correct"]:checked')).map(c => parseInt(c.value));
+                    payload.correct_ids = checked.map(oldIdx => filtered.findIndex(o => o.idx === oldIdx)).filter(i => i >= 0);
+                    if (!payload.correct_ids.length) return showStatus(statusEl, 'Select at least one correct answer.', 'error');
+                }
+            } else if (t === 'INT') {
+                const v = document.getElementById('qe-int-answer')?.value;
+                if (v === '' || v === undefined) return showStatus(statusEl, 'Enter the integer answer.', 'error');
+                payload.value = parseInt(v);
+            } else if (t === 'NUM') {
+                const v = document.getElementById('qe-num-answer')?.value;
+                const tol = document.getElementById('qe-num-tolerance')?.value;
+                const from = document.getElementById('qe-num-from')?.value;
+                const to = document.getElementById('qe-num-to')?.value;
+                if (from !== '' && to !== '' && from !== undefined && to !== undefined) {
+                    payload.range = [parseFloat(from), parseFloat(to)];
+                } else if (v !== '' && v !== undefined) {
+                    payload.value = parseFloat(v);
+                    if (tol) payload.tolerance = parseFloat(tol);
+                } else {
+                    return showStatus(statusEl, 'Enter the numeric answer.', 'error');
+                }
+            }
+
+            showStatus(statusEl, 'Saving question...', 'info');
+            try {
+                const res = await fetch('/admin/create_question', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed');
+                showStatus(statusEl, `Question saved (ID: ${data.id})`, 'success');
+                document.getElementById('qe-question').value = '';
+                qeQuestionImageUrl = null;
+                qeOptions = [];
+                qeOptionImages = {};
+                removeQEImage('question');
+                renderQEOptions();
+                renderQEAnswer();
+            } catch (e) { showStatus(statusEl, e.message, 'error'); }
         }
 
         async function uploadQuestions() {
@@ -729,9 +1015,11 @@
                         answerInput = `<input type="number" class="q-num-val" value="${escapeHtml(val ?? '')}" step="any" ${editable ? '' : 'disabled'}>`;
                     }
                 }
+                const qImg = q.question_image ? `<img src="${q.question_image}" style="max-width:100%;max-height:120px;border-radius:6px;margin:6px 0;">` : '';
                 return `<div class="question-card">
                     <div class="q-head"><strong>Q${idx+1}</strong><span class="badge gray">${escapeHtml(q.type)}</span></div>
                     <textarea class="q-text" data-qid="${q.id}" ${editable ? '' : 'disabled'}>${escapeHtml(q.question)}</textarea>
+                    ${qImg}
                     ${opts.length ? `<div class="q-opts-wrap"><label class="q-opts-label">Options</label>${answerInput}</div>` : `<div class="q-opts-wrap">${answerInput}</div>`}
                     <div class="q-marks">
                         <label>Mark <input type="number" class="q-mark" value="${escapeHtml(q.mark ?? 1)}" step="any" ${editable ? '' : 'disabled'}></label>
@@ -959,7 +1247,7 @@
                             <strong>Q${idx+1} (${escapeHtml(q.type)})</strong>
                             <div class="badge ${good ? 'green' : bad ? 'orange' : 'gray'}">${score > 0 ? '+' : ''}${escapeHtml(score)}</div>
                         </div>
-                        <div class="analysis-q">${escapeHtml(q.question)}</div>
+                        <div class="analysis-q">${escapeHtml(q.question)}${q.question_image ? `<br><img src="${q.question_image}" style="max-width:100%;max-height:140px;margin-top:6px;border-radius:6px;">` : ''}</div>
                         <div class="answers">
                             <div><span class="small muted">Response</span><div>${escapeHtml(studentAns)}</div></div>
                             <div><span class="small muted">Correct</span><div>${escapeHtml(correctAns)}</div></div>
@@ -1274,7 +1562,7 @@
             fetchAssessmentsList();
         }
 
-        window.addEventListener('DOMContentLoaded', normalizePage);
+        window.addEventListener('DOMContentLoaded', () => { normalizePage(); toggleQEOptions(); updateQEPreview(); });
     </script>
 </body>
 </html>

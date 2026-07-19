@@ -130,6 +130,14 @@ CREATE TABLE push_queue (
     FOREIGN KEY (assessment_id) REFERENCES assessments(id) ON DELETE CASCADE
 );
 
+CREATE TABLE student_messages (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    body TEXT NOT NULL,
+    is_read TINYINT(1) DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 SET GLOBAL event_scheduler = ON;
 
 CREATE EVENT IF NOT EXISTS cleanup_old_notifications

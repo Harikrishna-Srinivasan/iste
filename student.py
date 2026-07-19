@@ -423,7 +423,7 @@ def student_login():
                 return render_template("index.html", error="Invalid credentials")
             return jsonify({"error": "Invalid credentials"}), 401
 
-        token = make_token(user["user_id"], is_admin=False, expiry_days=1)
+        token = make_token(user["user_id"], is_admin=False, expiry_days=31)
         session["user_id"] = user["user_id"]
         session["is_admin"] = False
 
@@ -439,7 +439,7 @@ def student_login():
                 app.logger.error(f"FCM registration failed: {str(e)}")
 
         resp = make_response(redirect("/dashboard") if is_form else jsonify({"status": "Success"}))
-        resp.set_cookie("token", token, httponly=True, secure=True, samesite="Lax", max_age=timedelta(days=1))
+        resp.set_cookie("token", token, httponly=True, secure=True, samesite="Lax", max_age=timedelta(days=31))
         return resp
     except Exception as e:
         app.logger.error(f"Login failed: {str(e)}")
@@ -702,6 +702,36 @@ def ack_notification():
         cur.close()
         conn.close()
 
+@app.route("/student/messages", methods=["GET"])
+@token_required
+def get_student_messages():
+    conn = get_student_conn()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cur.execute("SELECT id, title, body, is_read, created_at FROM student_messages ORDER BY created_at DESC LIMIT 50")
+        messages = cur.fetchall()
+        return jsonify(messages)
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route("/student/messages/read", methods=["POST"])
+@token_required
+def mark_message_read():
+    data = request.json
+    msg_id = data.get("id")
+    if not msg_id:
+        return jsonify({"error": "Missing id"}), 400
+    conn = get_student_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE student_messages SET is_read = 1 WHERE id = %s", (msg_id,))
+        conn.commit()
+        return jsonify({"success": True})
+    finally:
+        cur.close()
+        conn.close()
+
 @app.route("/student/questions/<int:aid>", methods=["GET"])
 @token_required
 def get_questions(aid):
@@ -714,7 +744,7 @@ def get_questions(aid):
 
         cur.execute("INSERT IGNORE INTO student_submissions (user_id, assessment_id, total_score, total_time_sec, detailed_log, submitted_at) VALUES (%s, %s, 0, 0, '{}', NULL)", (uid, aid))
 
-        cur.execute("SELECT q.id, q.type, q.question, q.answer, q.mark, q.negative_mark FROM assessment_questions aq JOIN questions q ON aq.question_id = q.id WHERE aq.assessment_id = %s", (aid,))
+        cur.execute("SELECT q.id, q.type, q.question, q.answer, q.mark, q.negative_mark, q.question_image, q.option_images FROM assessment_questions aq JOIN questions q ON aq.question_id = q.id WHERE aq.assessment_id = %s", (aid,))
         rows = cur.fetchall()
         if not rows: return jsonify({"error": "No questions found"}), 404
 
@@ -722,6 +752,13 @@ def get_questions(aid):
         for r in rows:
             ans = json.loads(r["answer"]) if isinstance(r["answer"], str) else (r["answer"].decode("utf-8") if isinstance(r["answer"], bytes) else r["answer"])
             q_dict = {"id": r["id"], "type": r["type"], "question": r["question"], "mark": float(r.get("mark", 1)), "negative_mark": float(r.get("negative_mark", 0))}
+            if r.get("question_image"):
+                q_dict["question_image"] = r["question_image"]
+            if r.get("option_images"):
+                opt_imgs = r["option_images"]
+                if isinstance(opt_imgs, str):
+                    opt_imgs = json.loads(opt_imgs)
+                q_dict["option_images"] = opt_imgs
             if r["type"] in ("MCQ", "MSQ"): q_dict["options"] = ans.get("options", [])
             formatted.append(q_dict)
         return jsonify(formatted)
@@ -834,12 +871,20 @@ def student_attempt_details(aid):
         sub = cur.fetchone()
         log_data = json.loads(sub["detailed_log"]) if sub else {}
 
-        cur.execute("SELECT q.id, q.question, q.type, q.answer as correct_answer, q.mark, q.negative_mark FROM assessment_questions aq JOIN questions q ON aq.question_id = q.id WHERE aq.assessment_id = %s", (aid,))
+        cur.execute("SELECT q.id, q.question, q.type, q.answer as correct_answer, q.mark, q.negative_mark, q.question_image, q.option_images FROM assessment_questions aq JOIN questions q ON aq.question_id = q.id WHERE aq.assessment_id = %s", (aid,))
         result = []
         for q in cur.fetchall():
             qid = str(q["id"])
             q_log = log_data.get(qid, {})
-            result.append({"question": q["question"], "type": q["type"], "mark": q["mark"], "negative_mark": q["negative_mark"], "correct_answer": json.loads(q["correct_answer"]) if isinstance(q["correct_answer"], str) else q["correct_answer"], "student_response": q_log.get("resp", {}), "score": q_log.get("score", 0), "time_taken_sec": q_log.get("time", 0)})
+            entry = {"question": q["question"], "type": q["type"], "mark": q["mark"], "negative_mark": q["negative_mark"], "correct_answer": json.loads(q["correct_answer"]) if isinstance(q["correct_answer"], str) else q["correct_answer"], "student_response": q_log.get("resp", {}), "score": q_log.get("score", 0), "time_taken_sec": q_log.get("time", 0)}
+            if q.get("question_image"):
+                entry["question_image"] = q["question_image"]
+            if q.get("option_images"):
+                opt_imgs = q["option_images"]
+                if isinstance(opt_imgs, str):
+                    opt_imgs = json.loads(opt_imgs)
+                entry["option_images"] = opt_imgs
+            result.append(entry)
         return jsonify(result)
     finally:
         cur.close()

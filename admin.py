@@ -7,7 +7,7 @@ import pymysql
 import pytz
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from threading import Thread
+from threading import Thread, Lock
 from argon2 import PasswordHasher
 from apscheduler.schedulers.background import BackgroundScheduler
 from dbutils.pooled_db import PooledDB
@@ -19,6 +19,7 @@ from flask import (
     make_response,
     render_template,
     request,
+    send_from_directory,
     session
 )
 from flask_compress import Compress
@@ -37,7 +38,7 @@ Minify(app=app, html=True, js=True, cssless=True)
 
 CORS(app, supports_credentials=True)
 app.config["SECRET_KEY"] = os.environ["admin_secret_key"]
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=7)
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=16)
 
 IST = pytz.timezone("Asia/Kolkata")
 
@@ -70,7 +71,7 @@ def make_token(uid, is_admin=False):
     payload = {
         "user_id": uid,
         "is_admin": is_admin,
-        "exp": datetime.now(timezone.utc) + timedelta(hours=7)
+        "exp": datetime.now(timezone.utc) + timedelta(days=16)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
 
@@ -371,7 +372,130 @@ def upload_excel():
     return jsonify({"status": "success", "count": count, "ids": all_ids})
 
 
-# ---------- Page routes ----------
+# ---------- Image Upload ----------
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+ALLOWED_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+
+@app.route("/admin/upload_image", methods=["POST"])
+@admin_required
+def upload_image():
+    if "file" not in request.files:
+        return jsonify({"error": "No file"}), 400
+    f = request.files["file"]
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in ALLOWED_EXT:
+        return jsonify({"error": "Unsupported image type"}), 400
+    import uuid
+    filename = f"{uuid.uuid4().hex}{ext}"
+    f.save(os.path.join(UPLOAD_DIR, filename))
+    return jsonify({"url": f"/uploads/{filename}"})
+
+
+@app.route("/uploads/<path:filename>")
+def serve_upload(filename):
+    return send_from_directory(UPLOAD_DIR, filename)
+
+
+# ---------- Question Create / Update ----------
+@app.route("/admin/create_question", methods=["POST"])
+@admin_required
+def create_question():
+    data = request.json
+    q_type = data.get("type", "MCQ")
+    question_text = data.get("question", "").strip()
+    question_image = data.get("question_image") or None
+    if not question_text and not question_image:
+        return jsonify({"error": "Question text or image required"}), 400
+
+    mark = int(data.get("mark", 1) or 1)
+    neg_mark = int(data.get("negative_mark", 0) or 0)
+    option_images = data.get("option_images") or None
+
+    ans_dict = {}
+    if q_type == "MCQ":
+        options = data.get("options", [])
+        correct_id = data.get("correct_id", 0)
+        if len(options) < 2:
+            return jsonify({"error": "MCQ needs at least 2 options"}), 400
+        ans_dict = {"options": options, "correct_id": int(correct_id)}
+    elif q_type == "MSQ":
+        options = data.get("options", [])
+        correct_ids = data.get("correct_ids", [])
+        if len(options) < 2:
+            return jsonify({"error": "MSQ needs at least 2 options"}), 400
+        ans_dict = {"options": options, "correct_ids": [int(i) for i in correct_ids]}
+    elif q_type == "INT":
+        value = data.get("value")
+        if value is None:
+            return jsonify({"error": "Integer answer required"}), 400
+        ans_dict = {"value": int(value)}
+    elif q_type == "NUM":
+        value = data.get("value")
+        tolerance = data.get("tolerance")
+        rng = data.get("range")
+        if rng and len(rng) == 2:
+            ans_dict = {"range": [float(rng[0]), float(rng[1])]}
+        elif value is not None:
+            ans_dict = {"value": float(value)}
+            if tolerance is not None:
+                ans_dict["tolerance"] = float(tolerance)
+        else:
+            return jsonify({"error": "Numeric answer required"}), 400
+    else:
+        return jsonify({"error": "Invalid question type"}), 400
+
+    conn = get_admin_conn()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cur.execute(
+            "INSERT INTO questions (type, question, answer, mark, negative_mark, question_image, option_images) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (q_type, question_text, json.dumps(ans_dict), mark, neg_mark, question_image, json.dumps(option_images) if option_images else None)
+        )
+        conn.commit()
+        qid = cur.lastrowid
+    finally:
+        cur.close()
+        conn.close()
+    return jsonify({"status": "success", "id": qid})
+
+
+@app.route("/admin/update_question/<int:qid>", methods=["PUT"])
+@admin_required
+def update_question(qid):
+    data = request.json
+    conn = get_admin_conn()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cur.execute("SELECT id FROM questions WHERE id=%s", (qid,))
+        if not cur.fetchone():
+            return jsonify({"error": "Question not found"}), 404
+
+        fields = []
+        vals = []
+        if "question" in data:
+            fields.append("question=%s"); vals.append(data["question"])
+        if "mark" in data:
+            fields.append("mark=%s"); vals.append(int(data["mark"]))
+        if "negative_mark" in data:
+            fields.append("negative_mark=%s"); vals.append(int(data["negative_mark"]))
+        if "question_image" in data:
+            fields.append("question_image=%s"); vals.append(data["question_image"] or None)
+        if "option_images" in data:
+            fields.append("option_images=%s"); vals.append(json.dumps(data["option_images"]) if data["option_images"] else None)
+        if "answer" in data:
+            fields.append("answer=%s"); vals.append(json.dumps(data["answer"]))
+
+        if not fields:
+            return jsonify({"error": "No fields to update"}), 400
+
+        vals.append(qid)
+        cur.execute(f"UPDATE questions SET {', '.join(fields)} WHERE id=%s", vals)
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+    return jsonify({"status": "updated"})
 @app.route("/")
 def serve_admin():
     token = request.cookies.get("token")
@@ -402,7 +526,7 @@ def admin_login():
     session["user_id"] = "admin"
     session["is_admin"] = True
     resp = make_response(jsonify({"status": "Success"}))
-    resp.set_cookie("token", token, httponly=True, secure=False, samesite="Lax", max_age=timedelta(hours=6))
+    resp.set_cookie("token", token, httponly=True, secure=False, samesite="Lax", max_age=timedelta(days=16))
     return resp
 
 @app.route("/admin/gen_captcha")
@@ -433,7 +557,7 @@ def send_scheduled_push(aid, title, body, milestone):
 
         conn.commit()
         trigger_push_processing()
-    except Exception as e: print(f"Scheduled Push Error: {e}")
+    except Exception as e: print("Scheduled Push Error")
     finally:
         cur.close(); conn.close()
 
@@ -483,21 +607,28 @@ def sync_all_future_alerts():
         cur.execute("SELECT id, title, start_at, reminders FROM assessments WHERE start_at > NOW()")
         for a in cur.fetchall():
             schedule_assessment_alerts(a['id'], a['title'], a['start_at'], a['reminders'])
-    except Exception as e: print(f"Sync Error: {e}")
+    except Exception as e: print("Sync Error")
     finally:
         cur.close(); conn.close()
 
 sync_all_future_alerts()
 
 
+_push_lock = Lock()
+
 def trigger_push_processing():
     """Immediately start processing the push queue in a separate thread to avoid blocking the request."""
+    if _push_lock.locked():
+        return
     Thread(target=process_push_queue).start()
 
 def process_push_queue():
-    conn = get_admin_conn()
-    cur = conn.cursor(pymysql.cursors.DictCursor)
+    if not _push_lock.acquire(blocking=False):
+        return
     try:
+        conn = get_admin_conn()
+        cur = conn.cursor(pymysql.cursors.DictCursor)
+
         cur.execute("SELECT id, assessment_id, title, body FROM push_queue WHERE status = 'PENDING' AND (scheduled_at IS NULL OR scheduled_at <= NOW())")
         pending_pushes = cur.fetchall()
         if not pending_pushes: return
@@ -506,6 +637,7 @@ def process_push_queue():
         tokens = [row['fcm_token'] for row in cur.fetchall()]
         if not tokens: return
 
+        invalid_tokens = []
         for push in pending_pushes:
             for i in range(0, len(tokens), 500):
                 chunk = tokens[i:i+500]
@@ -535,13 +667,39 @@ def process_push_queue():
                     )
                 )
                 response = messaging.send_each_for_multicast(message)
+                for idx, resp in enumerate(response.responses):
+                    if not resp.success and resp.exception and hasattr(resp.exception, 'code') and resp.exception.code in ('messaging/registration-token-not-registered', 'messaging/invalid-registration-token'):
+                        invalid_tokens.append(chunk[idx])
+
+        if invalid_tokens:
+            for t in invalid_tokens:
+                cur.execute("DELETE FROM user_devices WHERE fcm_token = %s", (t,))
+            conn.commit()
 
         if pending_pushes:
             cur.executemany("UPDATE push_queue SET status = 'SENT' WHERE id = %s", [(p['id'],) for p in pending_pushes])
             conn.commit()
-    except Exception as e: print(f"Push Processing Error: {e}")
+    except Exception as e: print("Push Processing Error")
     finally:
         cur.close(); conn.close()
+        _push_lock.release()
+
+
+def _periodic_queue_processor():
+    """Periodic job: process due push_queue items (scheduled messages + assessment alerts)."""
+    try:
+        process_push_queue()
+    except Exception as e:
+        print("Periodic push processor error")
+
+scheduler.add_job(
+    func=_periodic_queue_processor,
+    trigger='interval',
+    seconds=30,
+    id='periodic_push_processor',
+    replace_existing=True,
+    max_instances=1
+)
 
 
 # ---------- Assessments ----------
@@ -630,7 +788,7 @@ def admin_assessment_detail(aid):
     question_ids = _fetch_question_ids(cur, aid)
 
     cur.execute("""
-        SELECT q.id, q.type, q.question, q.answer, q.mark, q.negative_mark
+        SELECT q.id, q.type, q.question, q.answer, q.mark, q.negative_mark, q.question_image, q.option_images
         FROM assessment_questions aq
         JOIN questions q ON aq.question_id = q.id
         WHERE aq.assessment_id = %s
@@ -641,6 +799,11 @@ def admin_assessment_detail(aid):
         if isinstance(q.get("answer"), str):
             try:
                 q["answer"] = json.loads(q["answer"])
+            except Exception:
+                pass
+        if q.get("option_images") and isinstance(q["option_images"], str):
+            try:
+                q["option_images"] = json.loads(q["option_images"])
             except Exception:
                 pass
 
@@ -912,7 +1075,7 @@ def admin_attempt_details(uid, aid):
     sub = cur.fetchone()
     log = json.loads(sub["detailed_log"]) if sub else {}
     cur.execute("""
-        SELECT q.id, q.question, q.type, q.answer as correct_answer, q.mark, q.negative_mark
+        SELECT q.id, q.question, q.type, q.answer as correct_answer, q.mark, q.negative_mark, q.question_image, q.option_images
         FROM assessment_questions aq
         JOIN questions q ON aq.question_id=q.id
         WHERE aq.assessment_id=%s
@@ -927,7 +1090,7 @@ def admin_attempt_details(uid, aid):
         correct = q["correct_answer"]
         if isinstance(correct, str):
             correct = json.loads(correct)
-        result.append({
+        entry = {
             "question": q["question"],
             "type": q["type"],
             "mark": q["mark"],
@@ -936,7 +1099,15 @@ def admin_attempt_details(uid, aid):
             "student_response": q_log.get("resp", {}),
             "score": q_log.get("score", 0),
             "time_taken_sec": q_log.get("time", 0)
-        })
+        }
+        if q.get("question_image"):
+            entry["question_image"] = q["question_image"]
+        if q.get("option_images"):
+            opt_imgs = q["option_images"]
+            if isinstance(opt_imgs, str):
+                opt_imgs = json.loads(opt_imgs)
+            entry["option_images"] = opt_imgs
+        result.append(entry)
     return jsonify(result)
 
 @app.route("/admin/send_message", methods=["POST"])
@@ -958,9 +1129,17 @@ def send_message():
                 "INSERT INTO push_queue (assessment_id, title, body, status, scheduled_at) VALUES (NULL, %s, %s, 'PENDING', %s)",
                 (title, body, schedule_at)
             )
+            cur.execute(
+                "INSERT INTO student_messages (title, body, created_at) VALUES (%s, %s, %s)",
+                (title, body, schedule_at)
+            )
         else:
             cur.execute(
                 "INSERT INTO push_queue (assessment_id, title, body, status) VALUES (NULL, %s, %s, 'PENDING')",
+                (title, body)
+            )
+            cur.execute(
+                "INSERT INTO student_messages (title, body) VALUES (%s, %s)",
                 (title, body)
             )
         conn.commit()
@@ -968,7 +1147,7 @@ def send_message():
             trigger_push_processing()
         return jsonify({"status": "Message queued successfully"})
     except Exception as e:
-        app.logger.error(f"Send message failed: {str(e)}")
+        app.logger.error("Send message failed")
         return jsonify({"error": "Server error"}), 500
     finally:
         cur.close()

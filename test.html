@@ -254,7 +254,9 @@
                     q: q.question,
                     opts: q.options || [],
                     marks: q.mark,
-                    negative: q.negative_mark || 0
+                    negative: q.negative_mark || 0,
+                    question_image: q.question_image || null,
+                    option_images: q.option_images || null
                 }));
 
                 const saved = localStorage.getItem('iste_test_state_' + assessmentId);
@@ -354,16 +356,19 @@
                     let checked = "";
                     if (q.type === 'MCQ' && savedResp.selected_id === i) checked = 'checked';
                     if (q.type === 'MSQ' && savedResp.selected_ids?.includes(i)) checked = 'checked';
+                    const optImg = q.option_images && q.option_images[i] ? `<img src="${q.option_images[i]}" style="max-width:100%;max-height:120px;margin-top:6px;border-radius:6px;">` : '';
 
                     return `
                         <label class="option-label">
-                            <input type="${type}" name="q-opt" value="${i}" ${checked}> ${o}
+                            <input type="${type}" name="q-opt" value="${i}" ${checked}> ${o}${optImg}
                         </label>
                     `;
                 }).join('');
             } else {
                 optionsHtml = `<input type="text" id="ans-text" autofocus class="option-label" style="width:100%;" value="${savedResp.value || ''}" placeholder="Type Answer Here...">`;
             }
+
+            const qImg = q.question_image ? `<img src="${q.question_image}" style="max-width:100%;max-height:200px;margin:10px 0;border-radius:8px;">` : '';
 
             document.getElementById('q-display').innerHTML = `
                 <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:8px;">
@@ -372,8 +377,9 @@
                         +${q.marks} / -${q.negative}
                     </span>
                 </div>
-                <h3 style="margin-bottom:20px;">${q.q}</h3>
-                <div id="options-box">${optionsHtml}</div>
+                <h3 style="margin-bottom:10px;">${q.q}</h3>
+                ${qImg}
+                <div id="options-box" style="margin-top:10px;">${optionsHtml}</div>
             `;
 
             setTimeout(() => document.getElementById('ans-text')?.focus(), 10);

@@ -372,7 +372,7 @@
         <!-- Login Form -->
         <div id="login-view">
             <h2 style="text-align: center; margin-bottom: 30px; font-size: 24px; color: var(--primary-blue);">Student Login</h2>
-            <form id="login-form" method="POST" action="/student/login" onsubmit="event.preventDefault(); startLoginFlow();">
+            <form id="login-form" method="POST" action="/student/login" onsubmit="return startLoginFlow();">
                 <div class="form-group">
                     <label>Register No</label>
                     <input type="text" id="user_id" name="user_id" placeholder="Enter the register no" autocomplete="username">
@@ -963,11 +963,11 @@
         function startLoginFlow() {
             const user_id = document.getElementById('user_id').value.trim();
             const password = document.getElementById('password').value.trim();
-            if (!user_id || !password) return alert("Fill all fields.");
+            if (!user_id || !password) { alert("Fill all fields."); return false; }
             const btn = document.getElementById('login-btn');
             btn.disabled = true;
             btn.textContent = "Authenticating...";
-            document.getElementById('login-form').submit();
+            return true;
         }
 
 
