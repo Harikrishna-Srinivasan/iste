@@ -7,7 +7,7 @@ import pymysql
 import pytz
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from threading import Thread
+from threading import Thread, Lock
 from argon2 import PasswordHasher
 from apscheduler.schedulers.background import BackgroundScheduler
 from dbutils.pooled_db import PooledDB
@@ -37,7 +37,7 @@ Minify(app=app, html=True, js=True, cssless=True)
 
 CORS(app, supports_credentials=True)
 app.config["SECRET_KEY"] = os.environ["admin_secret_key"]
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=7)
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=16)
 
 IST = pytz.timezone("Asia/Kolkata")
 
@@ -70,7 +70,7 @@ def make_token(uid, is_admin=False):
     payload = {
         "user_id": uid,
         "is_admin": is_admin,
-        "exp": datetime.now(timezone.utc) + timedelta(hours=7)
+        "exp": datetime.now(timezone.utc) + timedelta(days=16)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
 
@@ -402,7 +402,7 @@ def admin_login():
     session["user_id"] = "admin"
     session["is_admin"] = True
     resp = make_response(jsonify({"status": "Success"}))
-    resp.set_cookie("token", token, httponly=True, secure=False, samesite="Lax", max_age=timedelta(hours=6))
+    resp.set_cookie("token", token, httponly=True, secure=False, samesite="Lax", max_age=timedelta(days=16))
     return resp
 
 @app.route("/admin/gen_captcha")
@@ -433,7 +433,7 @@ def send_scheduled_push(aid, title, body, milestone):
 
         conn.commit()
         trigger_push_processing()
-    except Exception as e: print(f"Scheduled Push Error: {e}")
+    except Exception as e: print("Scheduled Push Error")
     finally:
         cur.close(); conn.close()
 
@@ -483,21 +483,28 @@ def sync_all_future_alerts():
         cur.execute("SELECT id, title, start_at, reminders FROM assessments WHERE start_at > NOW()")
         for a in cur.fetchall():
             schedule_assessment_alerts(a['id'], a['title'], a['start_at'], a['reminders'])
-    except Exception as e: print(f"Sync Error: {e}")
+    except Exception as e: print("Sync Error")
     finally:
         cur.close(); conn.close()
 
 sync_all_future_alerts()
 
 
+_push_lock = Lock()
+
 def trigger_push_processing():
     """Immediately start processing the push queue in a separate thread to avoid blocking the request."""
+    if _push_lock.locked():
+        return
     Thread(target=process_push_queue).start()
 
 def process_push_queue():
-    conn = get_admin_conn()
-    cur = conn.cursor(pymysql.cursors.DictCursor)
+    if not _push_lock.acquire(blocking=False):
+        return
     try:
+        conn = get_admin_conn()
+        cur = conn.cursor(pymysql.cursors.DictCursor)
+
         cur.execute("SELECT id, assessment_id, title, body FROM push_queue WHERE status = 'PENDING' AND (scheduled_at IS NULL OR scheduled_at <= NOW())")
         pending_pushes = cur.fetchall()
         if not pending_pushes: return
@@ -506,6 +513,7 @@ def process_push_queue():
         tokens = [row['fcm_token'] for row in cur.fetchall()]
         if not tokens: return
 
+        invalid_tokens = []
         for push in pending_pushes:
             for i in range(0, len(tokens), 500):
                 chunk = tokens[i:i+500]
@@ -535,13 +543,39 @@ def process_push_queue():
                     )
                 )
                 response = messaging.send_each_for_multicast(message)
+                for idx, resp in enumerate(response.responses):
+                    if not resp.success and resp.exception and hasattr(resp.exception, 'code') and resp.exception.code in ('messaging/registration-token-not-registered', 'messaging/invalid-registration-token'):
+                        invalid_tokens.append(chunk[idx])
+
+        if invalid_tokens:
+            for t in invalid_tokens:
+                cur.execute("DELETE FROM user_devices WHERE fcm_token = %s", (t,))
+            conn.commit()
 
         if pending_pushes:
             cur.executemany("UPDATE push_queue SET status = 'SENT' WHERE id = %s", [(p['id'],) for p in pending_pushes])
             conn.commit()
-    except Exception as e: print(f"Push Processing Error: {e}")
+    except Exception as e: print("Push Processing Error")
     finally:
         cur.close(); conn.close()
+        _push_lock.release()
+
+
+def _periodic_queue_processor():
+    """Periodic job: process due push_queue items (scheduled messages + assessment alerts)."""
+    try:
+        process_push_queue()
+    except Exception as e:
+        print("Periodic push processor error")
+
+scheduler.add_job(
+    func=_periodic_queue_processor,
+    trigger='interval',
+    seconds=30,
+    id='periodic_push_processor',
+    replace_existing=True,
+    max_instances=1
+)
 
 
 # ---------- Assessments ----------
@@ -958,9 +992,17 @@ def send_message():
                 "INSERT INTO push_queue (assessment_id, title, body, status, scheduled_at) VALUES (NULL, %s, %s, 'PENDING', %s)",
                 (title, body, schedule_at)
             )
+            cur.execute(
+                "INSERT INTO student_messages (title, body, created_at) VALUES (%s, %s, %s)",
+                (title, body, schedule_at)
+            )
         else:
             cur.execute(
                 "INSERT INTO push_queue (assessment_id, title, body, status) VALUES (NULL, %s, %s, 'PENDING')",
+                (title, body)
+            )
+            cur.execute(
+                "INSERT INTO student_messages (title, body) VALUES (%s, %s)",
                 (title, body)
             )
         conn.commit()
@@ -968,7 +1010,7 @@ def send_message():
             trigger_push_processing()
         return jsonify({"status": "Message queued successfully"})
     except Exception as e:
-        app.logger.error(f"Send message failed: {str(e)}")
+        app.logger.error("Send message failed")
         return jsonify({"error": "Server error"}), 500
     finally:
         cur.close()

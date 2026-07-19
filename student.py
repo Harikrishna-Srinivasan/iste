@@ -423,7 +423,7 @@ def student_login():
                 return render_template("index.html", error="Invalid credentials")
             return jsonify({"error": "Invalid credentials"}), 401
 
-        token = make_token(user["user_id"], is_admin=False, expiry_days=1)
+        token = make_token(user["user_id"], is_admin=False, expiry_days=31)
         session["user_id"] = user["user_id"]
         session["is_admin"] = False
 
@@ -439,7 +439,7 @@ def student_login():
                 app.logger.error(f"FCM registration failed: {str(e)}")
 
         resp = make_response(redirect("/dashboard") if is_form else jsonify({"status": "Success"}))
-        resp.set_cookie("token", token, httponly=True, secure=True, samesite="Lax", max_age=timedelta(days=1))
+        resp.set_cookie("token", token, httponly=True, secure=True, samesite="Lax", max_age=timedelta(days=31))
         return resp
     except Exception as e:
         app.logger.error(f"Login failed: {str(e)}")
@@ -696,6 +696,36 @@ def ack_notification():
     cur = conn.cursor()
     try:
         cur.execute("INSERT INTO sent_notifications (user_id, assessment_id, reminder_str, sent_at) VALUES (%s, %s, %s, NOW()) ON DUPLICATE KEY UPDATE reminder_str = VALUES(reminder_str), sent_at = NOW()", (uid, data.get("assessment_id"), data.get("milestone")))
+        conn.commit()
+        return jsonify({"success": True})
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route("/student/messages", methods=["GET"])
+@token_required
+def get_student_messages():
+    conn = get_student_conn()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cur.execute("SELECT id, title, body, is_read, created_at FROM student_messages ORDER BY created_at DESC LIMIT 50")
+        messages = cur.fetchall()
+        return jsonify(messages)
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route("/student/messages/read", methods=["POST"])
+@token_required
+def mark_message_read():
+    data = request.json
+    msg_id = data.get("id")
+    if not msg_id:
+        return jsonify({"error": "Missing id"}), 400
+    conn = get_student_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE student_messages SET is_read = 1 WHERE id = %s", (msg_id,))
         conn.commit()
         return jsonify({"success": True})
     finally:
