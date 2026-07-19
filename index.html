@@ -382,6 +382,12 @@
                     <input type="password" id="password" name="password" placeholder="Enter the password" autocomplete="current-password">
                     <span class="pwd-toggle" onclick="togglePwd('password', this)">SHOW</span>
                 </div>
+                <div style="margin-bottom:16px;">
+                    <label style="font-size:13px;font-weight:normal;display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
+                        <input type="checkbox" id="tc-check" style="margin-top:3px;">
+                        <span>I agree to the <a href="#" onclick="event.preventDefault();document.getElementById('tc-modal').style.display='flex';">Terms & Conditions</a></span>
+                    </label>
+                </div>
                 <button type="submit" class="btn" id="login-btn">Login</button>
                 <div class="forgot-link">
                     <a onclick="showTab('forgot')">Forgot Password?</a>
@@ -525,6 +531,27 @@
                 <button class="btn" id="fp-reset-btn" onclick="resetPassword()">Reset Password</button>
                 <div id="fp-error3" class="error"></div>
             </div>
+        </div>
+    </div>
+
+    <div id="tc-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+        <div style="background:#fff; border-radius:12px; padding:24px; max-width:500px; width:90%; max-height:70vh; overflow-y:auto; position:relative;">
+            <button onclick="document.getElementById('tc-modal').style.display='none'" style="position:absolute;top:10px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;">✕</button>
+            <h3 style="margin-bottom:12px; color:var(--primary-blue);">Terms & Conditions</h3>
+            <div style="font-size:13px; line-height:1.6; color:#444;">
+                <p><strong>ISTE Performance Portal — Student Agreement</strong></p>
+                <p>By using this portal, you agree to:</p>
+                <ul style="padding-left:18px; margin:8px 0;">
+                    <li>Use the portal only for its intended academic purpose — taking assessments and tracking your performance.</li>
+                    <li>Not share your login credentials with anyone. You are responsible for all activity on your account.</li>
+                    <li>Not attempt to cheat, exploit, or tamper with the assessment system in any way.</li>
+                    <li>Understand that your assessment scores, response times, and attempt history are visible to administrators.</li>
+                    <li>Accept that administrators may review and moderate your submissions.</li>
+                </ul>
+                <p><strong>Data:</strong> Your registration details, assessment responses, and device token (for notifications) are stored securely. You may request account deletion at any time from your dashboard.</p>
+                <p style="margin-top:10px; color:#888;">For queries, contact your ISTE student chapter coordinator.</p>
+            </div>
+            <button onclick="document.getElementById('tc-modal').style.display='none'" class="btn" style="margin-top:14px;width:100%;">Close</button>
         </div>
     </div>
 
@@ -964,6 +991,7 @@
             const user_id = document.getElementById('user_id').value.trim();
             const password = document.getElementById('password').value.trim();
             if (!user_id || !password) { alert("Fill all fields."); return false; }
+            if (!document.getElementById('tc-check').checked) { alert("Please agree to the Terms & Conditions."); return false; }
             const btn = document.getElementById('login-btn');
             btn.disabled = true;
             btn.textContent = "Authenticating...";

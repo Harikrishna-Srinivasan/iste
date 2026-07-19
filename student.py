@@ -455,6 +455,34 @@ def logout():
     resp.delete_cookie("token")
     return resp
 
+@app.route("/student/delete_account", methods=["POST"])
+@token_required
+def delete_account():
+    uid = request.user["user_id"]
+    if request.user.get("is_admin"):
+        return jsonify({"error": "Admins cannot delete their account from here"}), 403
+    body = request.json or {}
+    confirm_id = body.get("confirm_user_id")
+    if confirm_id != uid:
+        return jsonify({"error": "Confirmation mismatch"}), 400
+
+    conn = get_student_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM user_devices WHERE user_id=%s", (uid,))
+        cur.execute("DELETE FROM student_submissions WHERE user_id=%s", (uid,))
+        cur.execute("DELETE FROM sent_notifications WHERE user_id=%s", (uid,))
+        cur.execute("DELETE FROM users WHERE user_id=%s", (uid,))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+    session.clear()
+    resp = make_response(jsonify({"status": "Account deleted"}))
+    resp.delete_cookie("token")
+    return resp
+
 @app.route("/student/forgot-password", methods=["POST"])
 def forgot_password():
     body = request.json

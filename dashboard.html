@@ -199,6 +199,7 @@
             </div>
             {% endif %}
             <button onclick="logout()" class="logout-btn">Logout</button>
+            <button onclick="confirmDeleteAccount()" class="logout-btn" style="background:var(--iste-red);margin-left:6px;">Delete Account</button>
         </div>
     </header>
 
@@ -623,6 +624,34 @@
         }
 
         async function logout() { await fetch(`${BASE}/logout`, { credentials: "include" }); window.location.href = `${BASE}/`; }
+
+        function confirmDeleteAccount() {
+            const regNo = prompt("Type your Register No. to confirm account deletion:\n\nThis will permanently delete your account, submission history, and device registration. This cannot be undone.");
+            if (regNo === null) return;
+            if (String(regNo).trim() !== String({{ user.reg_no }}).trim()) {
+                alert("Register No. does not match. Account not deleted.");
+                return;
+            }
+            if (!confirm("Are you absolutely sure? This cannot be undone.")) return;
+            deleteAccount(regNo);
+        }
+
+        async function deleteAccount(confirmId) {
+            try {
+                const res = await fetch(`${BASE}/student/delete_account`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ confirm_user_id: parseInt(confirmId) })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed');
+                alert("Account deleted. Redirecting...");
+                window.location.href = `${BASE}/`;
+            } catch (e) {
+                alert("Error: " + e.message);
+            }
+        }
         window.manualRefreshDashboard = async function () {
             await loadActiveAssessments();
             await loadHistory();

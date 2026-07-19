@@ -553,11 +553,17 @@ def send_scheduled_push(aid, title, body, milestone):
 
         cur.execute("INSERT INTO push_queue (assessment_id, title, body) VALUES (%s, %s, %s)", (aid, title, body))
 
-        cur.execute("INSERT INTO sent_notifications (user_id, assessment_id, reminder_str, sent_at) VALUES (0, %s, %s, NOW())", (aid, milestone))
+        try:
+            cur.execute("INSERT INTO sent_notifications (user_id, assessment_id, reminder_str, sent_at) VALUES (0, %s, %s, NOW())", (aid, milestone))
+        except Exception:
+            conn.rollback()
+            cur.execute("SELECT id FROM sent_notifications WHERE assessment_id=%s AND reminder_str=%s", (aid, milestone))
+            if cur.fetchone(): return
 
         conn.commit()
         trigger_push_processing()
-    except Exception as e: print("Scheduled Push Error")
+    except Exception as e:
+        app.logger.error(f"Scheduled Push Error for assessment {aid}, milestone {milestone}: {e}")
     finally:
         cur.close(); conn.close()
 
@@ -895,6 +901,24 @@ def update_assessment(aid):
 
     conn.commit()
     cur.close(); conn.close()
+
+    if start_at or data.get("reminders") is not None:
+        new_start = None
+        if start_at:
+            try:
+                new_start = datetime.fromisoformat(start_at)
+                if new_start.tzinfo is None:
+                    new_start = IST.localize(new_start)
+            except Exception:
+                pass
+        if not new_start:
+            new_start = existing["start_at"]
+            if hasattr(new_start, 'replace') and new_start.tzinfo is None:
+                new_start = IST.localize(new_start)
+
+        new_reminders = data.get("reminders") if data.get("reminders") is not None else existing.get("reminders")
+        schedule_assessment_alerts(aid, title, new_start, new_reminders)
+
     return jsonify({"status": "updated"})
 
 
