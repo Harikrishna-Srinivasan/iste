@@ -249,7 +249,7 @@
     </div>
 
     <script>
-        const BASE = "";
+        const BASE = "https://iste-ws2k.onrender.com";
         let selectedAssessmentId = null;
         let lastActiveData = "";
         let lastHistoryData = "";
@@ -589,6 +589,8 @@
                             correctAns = q.correct_answer.value !== undefined ? q.correct_answer.value : (q.correct_answer.range ? `${q.correct_answer.range[0]} to ${q.correct_answer.range[1]}` : "N/A");
                         }
 
+                        const qImg = q.question_image ? `<img src="${q.question_image}" style="max-width:100%;max-height:160px;margin:6px 0;border-radius:6px;">` : '';
+
                         return `
                         <div class="q-detail-row">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
@@ -597,6 +599,7 @@
                                 <span class="badge-mark ${markClass}">${score > 0 ? '+' : ''}${score} Points</span></div>
                             </div>
                             <div style="color: #444; margin-bottom:8px; font-size:14px;">${q.question}</div>
+                            ${qImg}
                             <div class="q-ans-box">
                                 <div style="font-size: 14px;">📌 Your Response:<br><span style="color:${score > 0 ? '#35b33b' : (score < 0 ? '#c62828' : '#757575')}">${studentAns}</span></div>
                                 <div style="font-size: 14px; margin-top:5px;">✅ Correct Answer:<br><span style="color:#35b33b">${correctAns}</span></div>
