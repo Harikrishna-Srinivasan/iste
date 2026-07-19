@@ -12,6 +12,10 @@ iste*.json
 # Logs
 *.log
 
+# Uploaded images
+uploads/*
+!uploads/.gitkeep
+
 # Temporary files
 *.tmp
 *.swp
