@@ -567,23 +567,48 @@ def send_scheduled_push(aid, title, body, milestone):
     finally:
         cur.close(); conn.close()
 
-def schedule_assessment_alerts(aid, title, start_at, reminders_raw):
+def schedule_assessment_alerts(aid, title, start_at, reminders_raw, end_at=None):
     """Calculates milestones and adds specific 'date' jobs to the scheduler."""
     if start_at.tzinfo is None: start_at = IST.localize(start_at)
+    if end_at is None: start_at + timedelta(minutes=15)
+    if end_at and end_at.tzinfo is None: end_at = IST.localize(end_at)
 
     try:
         reminders = json.loads(reminders_raw) if isinstance(reminders_raw, str) else (reminders_raw or [])
     except: reminders = []
-    trigger_30s = start_at - timedelta(seconds=30)
-    if trigger_30s > datetime.now(IST):
+
+    trigger_15s = start_at - timedelta(seconds=15)
+    if trigger_15s > datetime.now(IST):
         scheduler.add_job(
             func=send_scheduled_push,
             trigger='date',
-            run_date=trigger_30s,
-            args=[aid, f"Starting in 30s: {title}", "Assessment begins in 30 seconds! Get ready.", "START_30S"],
+            run_date=trigger_15s,
+            args=[aid, f"Starting in 15s: {title}", "Assessment begins in 15 seconds! Get ready.", "START_15S"],
             id=f"start_{aid}",
             replace_existing=True
         )
+
+    if start_at > datetime.now(IST):
+        scheduler.add_job(
+            func=send_scheduled_push,
+            trigger='date',
+            run_date=start_at,
+            args=[aid, f"Exam Live: {title}", "The assessment is now live! You can start attempting.", "START_LIVE"],
+            id=f"start_live_{aid}",
+            replace_existing=True
+        )
+
+    if end_at:
+        trigger_close = end_at - timedelta(minutes=1)
+        if trigger_close > datetime.now(IST):
+            scheduler.add_job(
+                func=send_scheduled_push,
+                trigger='date',
+                run_date=trigger_close,
+                args=[aid, f"Closing Soon: {title}", "Assessment window closes in 1 minute! Submit now.", "END_1MIN"],
+                id=f"end_1min_{aid}",
+                replace_existing=True
+            )
 
     for r in reminders:
         r_sec = 0
@@ -610,9 +635,9 @@ def sync_all_future_alerts():
     conn = get_admin_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
-        cur.execute("SELECT id, title, start_at, reminders FROM assessments WHERE start_at > NOW()")
+        cur.execute("SELECT id, title, start_at, end_at, reminders FROM assessments WHERE start_at > NOW()")
         for a in cur.fetchall():
-            schedule_assessment_alerts(a['id'], a['title'], a['start_at'], a['reminders'])
+            schedule_assessment_alerts(a['id'], a['title'], a['start_at'], a['reminders'], a.get('end_at'))
     except Exception as e: print("Sync Error")
     finally:
         cur.close(); conn.close()
@@ -704,7 +729,7 @@ scheduler.add_job(
     seconds=30,
     id='periodic_push_processor',
     replace_existing=True,
-    max_instances=1
+    max_instances=2
 )
 
 
@@ -727,7 +752,7 @@ def create_assessment():
 
     end_at = _parse_dt(data.get("end_at"))
     if not end_at:
-        end_at = start_at + timedelta(minutes=max(int(data.get("duration", 30) or 30), 1))
+        end_at = start_at + timedelta(minutes=15)
 
     duration = max(int(data.get("duration", 30) or 30), 1)
 
@@ -741,7 +766,7 @@ def create_assessment():
     for qid in q_ids:
         cur.execute("INSERT INTO assessment_questions (assessment_id, question_id) VALUES (%s, %s)", (aid, qid))
 
-    schedule_assessment_alerts(aid, title, start_at, data.get("reminders", []))
+    schedule_assessment_alerts(aid, title, start_at, data.get("reminders", []), end_at)
 
     cur.execute("INSERT INTO push_queue (assessment_id, title, body) VALUES (%s, %s, %s)",
                 (aid, f"New Assessment: {title}", "A new assessment has been scheduled. Open the app to view details."))
@@ -902,7 +927,7 @@ def update_assessment(aid):
     conn.commit()
     cur.close(); conn.close()
 
-    if start_at or data.get("reminders") is not None:
+    if start_at or data.get("reminders") is not None or end_at:
         new_start = None
         if start_at:
             try:
@@ -916,8 +941,21 @@ def update_assessment(aid):
             if hasattr(new_start, 'replace') and new_start.tzinfo is None:
                 new_start = IST.localize(new_start)
 
+        new_end = None
+        if end_at:
+            try:
+                new_end = datetime.fromisoformat(end_at)
+                if new_end.tzinfo is None:
+                    new_end = IST.localize(new_end)
+            except Exception:
+                pass
+        if not new_end:
+            new_end = existing.get("end_at")
+            if new_end and hasattr(new_end, 'replace') and new_end.tzinfo is None:
+                new_end = IST.localize(new_end)
+
         new_reminders = data.get("reminders") if data.get("reminders") is not None else existing.get("reminders")
-        schedule_assessment_alerts(aid, title, new_start, new_reminders)
+        schedule_assessment_alerts(aid, title, new_start, new_reminders, new_end)
 
     return jsonify({"status": "updated"})
 
