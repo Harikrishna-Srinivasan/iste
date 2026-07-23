@@ -45,7 +45,7 @@ IST = pytz.timezone("Asia/Kolkata")
 # ---------- Database pool ----------
 admin_pool = PooledDB(
     creator=pymysql,
-    maxconnections=2,
+    maxconnections=10,
     blocking=True,
     host=os.environ["host"],
     port=int(os.environ["port"]),
@@ -398,6 +398,29 @@ def serve_upload(filename):
 
 
 # ---------- Question Create / Update ----------
+@app.route("/admin/questions_by_ids", methods=["POST"])
+@admin_required
+def questions_by_ids():
+    data = request.json
+    ids = data.get("ids", [])
+    if not ids:
+        return jsonify([])
+    conn = get_admin_conn()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    placeholders = ','.join(['%s'] * len(ids))
+    cur.execute(f"SELECT id, type, question, answer, mark, negative_mark, question_image, option_images FROM questions WHERE id IN ({placeholders})", ids)
+    rows = cur.fetchall()
+    cur.close(); conn.close()
+    for q in rows:
+        if isinstance(q.get("answer"), str):
+            try: q["answer"] = json.loads(q["answer"])
+            except: pass
+        if q.get("option_images") and isinstance(q["option_images"], str):
+            try: q["option_images"] = json.loads(q["option_images"])
+            except: pass
+    return jsonify(rows)
+
+
 @app.route("/admin/create_question", methods=["POST"])
 @admin_required
 def create_question():

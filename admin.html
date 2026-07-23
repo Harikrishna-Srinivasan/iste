@@ -20,6 +20,7 @@
             --red: #ff453a;
             --blue: #0071e3;
             --orange: #ff9f0a;
+            --primary-blue: #0071e3;
             --shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
             --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.08);
         }
@@ -138,10 +139,18 @@
         .q-list-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
         .q-list-2col .question-card { margin: 0; }
         .qa-grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .preview-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; margin-bottom: 14px; background:#fafbfc; }
+        .preview-card:hover { border-color: #cbd5e1; }
+        .preview-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .preview-q { font-size: 15px; margin-bottom: 10px; white-space: pre-wrap; color:#1e293b; }
+        .preview-img { max-width: 100%; max-height: 200px; margin: 8px 0; border-radius: 8px; }
+        .preview-opt { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; margin: 4px 0; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; }
+        .preview-opt-correct { border-color: #35b33b; background: #f0fdf4; }
+        .preview-opt-img { max-width: 100%; max-height: 100px; margin-top: 4px; border-radius: 6px; }
+        .preview-answer { padding: 12px 16px; margin: 4px 0; border-radius: 8px; border: 1px solid #35b33b; background: #f0fdf4; color: #166534; font-size: 14px; }
         .date-wrap { position: relative; display: flex; align-items: center; cursor: pointer; }
-        .date-wrap input[type="text"] { width: 100%; padding-right: 40px; cursor: pointer; pointer-events: none; }
-        .date-wrap input[type="date"] { position: absolute; right: 0; top: 0; width: 36px; height: 100%; opacity: 0.01; cursor: pointer; border: none; background: transparent; }
-        .date-wrap input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0; position: absolute; right: 0; width: 100%; height: 100%; cursor: pointer; }
+        .date-wrap input[type="text"] { width: 100%; padding-right: 40px; pointer-events: none; }
+        .date-wrap input[type="date"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; z-index: 3; pointer-events: none; }
         .date-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; font-size: 16px; line-height: 1; }
         .rank-emoji { font-size: 18px; line-height: 1; display: inline-block; }
         .rank-cell { display: flex; align-items: center; gap: 6px; }
@@ -177,6 +186,7 @@
             <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-bottom: 12px;">
                 <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" style="flex: 1;">
                 <button class="btn orange" onclick="uploadQuestions()">Import Questions</button>
+                <button id="preview-imported-btn" class="btn small" onclick="previewImportedQuestions()" style="background:var(--primary-blue);color:#fff;display:none;">👁 Preview Imported</button>
                 <div id="upload-status" class="status-msg"></div>
             </div>
 
@@ -203,7 +213,7 @@
             <div class="grid-2" style="margin-top:12px;">
                 <div>
                     <label for="start_date_hidden">Start Date</label>
-                    <div class="date-wrap" onclick="showDatePicker('start_date_hidden')">
+                    <div class="date-wrap">
                         <input type="text" id="start_date" placeholder="dd-month-yyyy" maxlength="15" autocomplete="off" readonly>
                         <input type="date" id="start_date_hidden" onchange="syncDateDisplay('start_date', this.value)">
                     </div>
@@ -216,7 +226,7 @@
             <div class="grid-2">
                 <div>
                     <label for="end_date_hidden">Entry Close Date</label>
-                    <div class="date-wrap" onclick="showDatePicker('end_date_hidden')">
+                    <div class="date-wrap">
                         <input type="text" id="end_date" placeholder="dd-month-yyyy" maxlength="15" autocomplete="off" readonly>
                         <input type="date" id="end_date_hidden" onchange="syncDateDisplay('end_date', this.value)">
                     </div>
@@ -248,7 +258,7 @@
             <textarea id="msg-body" placeholder="Type the message here"></textarea>
             <div style="margin-top:12px;"><label for="msg-date-hidden">Schedule Date (optional)</label></div>
             <div class="grid-2" style="gap: 10px;">
-                <div class="date-wrap" onclick="showDatePicker('msg-date-hidden')">
+                <div class="date-wrap">
                     <input type="text" id="msg-date" placeholder="dd-month-yyyy" readonly>
                     <input type="date" id="msg-date-hidden" onchange="syncDateDisplay('msg-date', this.value)">
                 </div>
@@ -346,7 +356,7 @@
             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
                 <div>
                     <label for="report-start-date-hidden">From</label>
-                    <div class="date-wrap" onclick="showDatePicker('report-start-date-hidden')">
+                    <div class="date-wrap">
                         <input type="text" id="report-start-date" placeholder="dd-month-yyyy" maxlength="15" readonly>
                         <input type="date" id="report-start-date-hidden" onchange="syncDateDisplay('report-start-date', this.value); filterAssessmentsList();">
                         <span class="date-icon">📅</span>
@@ -354,7 +364,7 @@
                 </div>
                 <div>
                     <label for="report-end-date-hidden">To</label>
-                    <div class="date-wrap" onclick="showDatePicker('report-end-date-hidden')">
+                    <div class="date-wrap">
                         <input type="text" id="report-end-date" placeholder="dd-month-yyyy" maxlength="15" readonly>
                         <input type="date" id="report-end-date-hidden" onchange="syncDateDisplay('report-end-date', this.value); filterAssessmentsList();">
                         <span class="date-icon">📅</span>
@@ -369,12 +379,12 @@
         </section>
     </main>
 
-    <div id="preview-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:flex-start; padding:20px; overflow-y:auto;">
-        <div style="background:#fff; border-radius:12px; padding:24px; max-width:700px; width:100%; position:relative; margin:40px auto;">
-            <button onclick="closePreview()" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;z-index:1;">✕</button>
-            <h3 id="preview-title" style="margin-bottom:4px; color:var(--primary-blue);"></h3>
-            <div id="preview-meta" style="font-size:12px; color:#888; margin-bottom:16px;"></div>
-            <div id="preview-body"></div>
+            <div id="preview-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center; padding:20px; overflow-y:auto;">
+        <div style="background:#fff; border-radius:14px; padding:28px; max-width:720px; width:90%; max-height:90vh; overflow-y:auto; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.18); color:#1d1d1f;">
+            <button onclick="closePreview()" style="position:absolute;top:14px;right:18px;background:none;border:none;font-size:24px;cursor:pointer;z-index:2;color:#888;">✕</button>
+            <h3 id="preview-title" style="margin:0 0 4px 0; color:#5e35b1; padding-right:30px; font-size:20px;"></h3>
+            <div id="preview-meta" style="font-size:13px; color:#666; margin-bottom:18px; line-height:1.5;"></div>
+            <div id="preview-body" style="max-height:65vh; overflow-y:auto; color:#1d1d1f;"></div>
         </div>
     </div>
 
@@ -443,13 +453,6 @@
             if (isNaN(d.getTime())) return '';
             return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
         }
-
-        function showDatePicker(hiddenId) {
-            const el = document.getElementById(hiddenId);
-            if (!el) return;
-            el.click();
-        }
-
         function syncDateDisplay(textId, isoValue) {
             if (!isoValue) return;
             const parts = isoValue.split('-');
@@ -782,8 +785,52 @@
                 uploadedQuestionIds = data.ids || [];
                 document.getElementById('total_duration').value = uploadedQuestionIds.length || 30;
                 showStatus(statusEl, `Imported ${uploadedQuestionIds.length} questions. Duration set to ${uploadedQuestionIds.length} min.`, 'success');
+                document.getElementById('preview-imported-btn').style.display = uploadedQuestionIds.length ? '' : 'none';
             } catch (err) {
                 showStatus(statusEl, err.message || 'Network error.', 'error');
+            }
+        }
+
+        async function previewImportedQuestions() {
+            if (!uploadedQuestionIds.length) return alert('No imported questions to preview.');
+            try {
+                const res = await fetch('/admin/questions_by_ids', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: uploadedQuestionIds })
+                });
+                const questions = await res.json();
+                if (!res.ok) throw new Error(questions.error || 'Failed');
+
+                document.getElementById('preview-title').textContent = 'Imported Questions Preview';
+                document.getElementById('preview-meta').textContent = `${questions.length} questions imported`;
+
+                const body = document.getElementById('preview-body');
+                body.innerHTML = questions.map((q, idx) => {
+                    const ans = q.answer || {};
+                    const opts = ans.options || [];
+                    const qImg = q.question_image ? `<img src="${q.question_image}" class="preview-img">` : '';
+
+                    let optionsHtml = '';
+                    if (q.type === 'MCQ' || q.type === 'MSQ') {
+                        optionsHtml = opts.map((o, i) => {
+                            const isCorrect = q.type === 'MCQ' ? (ans.correct_id === i) : (ans.correct_ids || []).includes(i);
+                            const optImg = q.option_images && q.option_images[i] ? `<img src="${q.option_images[i]}" class="preview-opt-img">` : '';
+                            return `<div class="preview-opt${isCorrect ? ' preview-opt-correct' : ''}"><span style="font-weight:bold;min-width:20px;color:${isCorrect ? '#35b33b' : '#444'};">${String.fromCharCode(65+i)}</span><span style="flex:1;">${o}${optImg}</span>${isCorrect ? '<span style="color:#35b33b;font-size:12px;font-weight:bold;">✓ Correct</span>' : ''}</div>`;
+                        }).join('');
+                    } else if (q.type === 'INT') {
+                        optionsHtml = `<div class="preview-answer"><strong>Answer:</strong> ${ans.value ?? '—'}</div>`;
+                    } else if (q.type === 'NUM') {
+                        const ansText = ans.range ? `${ans.range[0]} — ${ans.range[1]}` : `${ans.value ?? '—'}${ans.tolerance ? ' ± ' + ans.tolerance : ''}`;
+                        optionsHtml = `<div class="preview-answer"><strong>Answer:</strong> ${ansText}</div>`;
+                    }
+
+                    return `<div class="preview-card"><div class="preview-head"><strong style="color:var(--primary-blue);">Q${idx+1} <span style="font-size:11px;background:#eef2ff;padding:2px 8px;border-radius:4px;color:#4f46e5;font-weight:600;">${q.type}</span></strong><span style="font-size:12px;color:#888;font-weight:600;">+${q.mark ?? 1} / -${q.negative_mark ?? 0}</span></div><div class="preview-q">${q.question}</div>${qImg}${optionsHtml}</div>`;
+                }).join('');
+
+                document.getElementById('preview-modal').style.display = 'flex';
+            } catch (e) {
+                alert('Failed to load questions: ' + e.message);
             }
         }
 
@@ -1010,7 +1057,7 @@
                 } else if (q.type === 'MSQ') {
                     answerInput = opts.map((opt, oi) => `
                         <div class="opt-row">
-                            <input type="checkbox" value="${oi}" ${correctIds.includes(oi) ? 'checked' : ''} ${editable ? '' : 'disabled'}>
+                            <input type="checkbox" name="q-correct-msq-${a.id}-${q.id}" value="${oi}" ${correctIds.includes(oi) ? 'checked' : ''} ${editable ? '' : 'disabled'}>
                             <input type="text" class="q-opt" value="${escapeHtml(opt)}" data-qid="${q.id}" data-oidx="${oi}" ${editable ? '' : 'disabled'}>
                         </div>
                     `).join('');
@@ -1059,13 +1106,13 @@
                             <div><label>Duration (mins) <input id="ass-duration-${a.id}" type="number" value="${escapeHtml(a.total_duration || 0)}" ${editable ? '' : 'disabled'}></label></div>
                         </div>
                         <div class="grid-2" style="margin-top:12px;">
-                            <div><label for="ass-start-date-hidden-${a.id}">Start Date</label><div class="date-wrap" onclick="showDatePicker('ass-start-date-hidden-${a.id}')">
+                            <div><label for="ass-start-date-hidden-${a.id}">Start Date</label><div class="date-wrap">
                                 <input type="text" id="ass-start-date-${a.id}" placeholder="dd-month-yyyy" maxlength="15" readonly value="${fmtDate(s)}">
                                 <input type="date" id="ass-start-date-hidden-${a.id}" onchange="syncDateDisplay('ass-start-date-${a.id}', this.value)">
                                 <span class="date-icon">📅</span>
                             </div></div>
                             <div><label for="ass-start-time-${a.id}">Start Time</label><input type="time" id="ass-start-time-${a.id}" value="${fmtTime24(s)}" step="300" ${editable ? '' : 'disabled'}></div>
-                            <div><label for="ass-end-date-hidden-${a.id}">End Date</label><div class="date-wrap" onclick="showDatePicker('ass-end-date-hidden-${a.id}')">
+                            <div><label for="ass-end-date-hidden-${a.id}">End Date</label><div class="date-wrap">
                                 <input type="text" id="ass-end-date-${a.id}" placeholder="dd-month-yyyy" maxlength="15" readonly value="${fmtDate(e)}">
                                 <input type="date" id="ass-end-date-hidden-${a.id}" onchange="syncDateDisplay('ass-end-date-${a.id}', this.value)">
                                 <span class="date-icon">📅</span>
@@ -1567,52 +1614,31 @@
         function previewAssessment(aid) {
             const data = assessmentCache.get(aid);
             if (!data || !data.questions || !data.questions.length) return alert('No questions to preview.');
-
             document.getElementById('preview-title').textContent = data.title || 'Assessment Preview';
             const s = data.start_at ? new Date(data.start_at) : null;
             const e = data.end_at ? new Date(data.end_at) : null;
             const fmt = d => d ? d.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '';
             document.getElementById('preview-meta').textContent = `Duration: ${data.total_duration || '?'} min | Questions: ${data.questions.length} | ${fmt(s)} — ${fmt(e)}`;
-
             const body = document.getElementById('preview-body');
             body.innerHTML = data.questions.map((q, idx) => {
                 const ans = q.answer || {};
                 const opts = ans.options || [];
-                const qImg = q.question_image ? `<img src="${q.question_image}" style="max-width:100%;max-height:200px;margin:8px 0;border-radius:8px;">` : '';
-
+                const qImg = q.question_image ? `<img src="${q.question_image}" class="preview-img">` : '';
                 let optionsHtml = '';
                 if (q.type === 'MCQ' || q.type === 'MSQ') {
                     optionsHtml = opts.map((o, i) => {
                         const isCorrect = q.type === 'MCQ' ? (ans.correct_id === i) : (ans.correct_ids || []).includes(i);
-                        const optImg = q.option_images && q.option_images[i] ? `<img src="${q.option_images[i]}" style="max-width:100%;max-height:100px;margin-top:4px;border-radius:6px;">` : '';
-                        return `<div style="display:flex;align-items:flex-start;gap:8px;padding:10px 14px;margin:4px 0;border-radius:8px;border:1px solid ${isCorrect ? '#35b33b' : 'var(--border)'};${isCorrect ? 'background:#f0fdf4;' : ''}">
-                            <span style="font-weight:bold;min-width:20px;">${String.fromCharCode(65+i)}</span>
-                            <span style="flex:1;">${o}${optImg}</span>
-                            ${isCorrect ? '<span style="color:#35b33b;font-size:12px;font-weight:bold;">✓ Correct</span>' : ''}
-                        </div>`;
+                        const optImg = q.option_images && q.option_images[i] ? `<img src="${q.option_images[i]}" class="preview-opt-img">` : '';
+                        return `<div class="preview-opt${isCorrect ? ' preview-opt-correct' : ''}"><span style="font-weight:bold;min-width:20px;color:${isCorrect ? '#35b33b' : '#444'};">${String.fromCharCode(65+i)}</span><span style="flex:1;">${o}${optImg}</span>${isCorrect ? '<span style="color:#35b33b;font-size:12px;font-weight:bold;">✓ Correct</span>' : ''}</div>`;
                     }).join('');
                 } else if (q.type === 'INT') {
-                    optionsHtml = `<div style="padding:10px 14px;margin:4px 0;border-radius:8px;border:1px solid #35b33b;background:#f0fdf4;">
-                        <strong>Answer:</strong> ${ans.value ?? '—'}
-                    </div>`;
+                    optionsHtml = `<div class="preview-answer"><strong>Answer:</strong> ${ans.value ?? '—'}</div>`;
                 } else if (q.type === 'NUM') {
                     const ansText = ans.range ? `${ans.range[0]} — ${ans.range[1]}` : `${ans.value ?? '—'}${ans.tolerance ? ' ± ' + ans.tolerance : ''}`;
-                    optionsHtml = `<div style="padding:10px 14px;margin:4px 0;border-radius:8px;border:1px solid #35b33b;background:#f0fdf4;">
-                        <strong>Answer:</strong> ${ansText}
-                    </div>`;
+                    optionsHtml = `<div class="preview-answer"><strong>Answer:</strong> ${ansText}</div>`;
                 }
-
-                return `<div style="border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                        <strong style="color:var(--primary-blue);">Q${idx+1} <span style="font-size:12px;background:#f1f5f9;padding:2px 8px;border-radius:4px;color:#666;">${q.type}</span></strong>
-                        <span style="font-size:12px;color:#888;">+${q.mark ?? 1} / -${q.negative_mark ?? 0}</span>
-                    </div>
-                    <div style="font-size:14px;margin-bottom:8px;white-space:pre-wrap;">${q.question}</div>
-                    ${qImg}
-                    ${optionsHtml}
-                </div>`;
+                return `<div class="preview-card"><div class="preview-head"><strong style="color:var(--primary-blue);">Q${idx+1} <span style="font-size:11px;background:#eef2ff;padding:2px 8px;border-radius:4px;color:#4f46e5;font-weight:600;">${q.type}</span></strong><span style="font-size:12px;color:#888;font-weight:600;">+${q.mark ?? 1} / -${q.negative_mark ?? 0}</span></div><div class="preview-q">${q.question}</div>${qImg}${optionsHtml}</div>`;
             }).join('');
-
             document.getElementById('preview-modal').style.display = 'flex';
         }
 
@@ -1629,6 +1655,14 @@
             prefillStart();
             fetchAssessmentsList();
         }
+
+        document.addEventListener('click', function(e) {
+            var wrap = e.target.closest('.date-wrap');
+            if (!wrap) return;
+            var dateInput = wrap.querySelector('input[type="date"]');
+            if (!dateInput) return;
+            try { dateInput.showPicker(); } catch (err) { dateInput.click(); }
+        });
 
         window.addEventListener('DOMContentLoaded', () => { normalizePage(); toggleQEOptions(); updateQEPreview(); });
     </script>
