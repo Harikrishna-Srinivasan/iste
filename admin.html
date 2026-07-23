@@ -139,8 +139,9 @@
         .q-list-2col .question-card { margin: 0; }
         .qa-grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .date-wrap { position: relative; display: flex; align-items: center; cursor: pointer; }
-        .date-wrap input[type="text"] { width: 100%; padding-right: 40px; cursor: pointer; }
-        .date-wrap input[type="date"] { position: fixed; left: -9999px; top: 0; opacity: 0; width: 1px; height: 1px; pointer-events: none; color-scheme: dark; }
+        .date-wrap input[type="text"] { width: 100%; padding-right: 40px; cursor: pointer; pointer-events: none; }
+        .date-wrap input[type="date"] { position: absolute; right: 0; top: 0; width: 36px; height: 100%; opacity: 0.01; cursor: pointer; border: none; background: transparent; }
+        .date-wrap input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0; position: absolute; right: 0; width: 100%; height: 100%; cursor: pointer; }
         .date-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; font-size: 16px; line-height: 1; }
         .rank-emoji { font-size: 18px; line-height: 1; display: inline-block; }
         .rank-cell { display: flex; align-items: center; gap: 6px; }
@@ -367,6 +368,16 @@
             </div>
         </section>
     </main>
+
+    <div id="preview-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:flex-start; padding:20px; overflow-y:auto;">
+        <div style="background:#fff; border-radius:12px; padding:24px; max-width:700px; width:100%; position:relative; margin:40px auto;">
+            <button onclick="closePreview()" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;z-index:1;">✕</button>
+            <h3 id="preview-title" style="margin-bottom:4px; color:var(--primary-blue);"></h3>
+            <div id="preview-meta" style="font-size:12px; color:#888; margin-bottom:16px;"></div>
+            <div id="preview-body"></div>
+        </div>
+    </div>
+
     <script>
         let studentsData = [];
         let studentAttemptsCache = new Map();
@@ -435,8 +446,8 @@
 
         function showDatePicker(hiddenId) {
             const el = document.getElementById(hiddenId);
-            if (el?.showPicker) el.showPicker();
-            else if (el) { el.style.position = 'fixed'; el.style.left = '0'; el.style.top = '0'; el.style.width = '100%'; el.style.height = '100%'; el.style.opacity = '0.01'; el.style.pointerEvents = 'auto'; el.focus(); setTimeout(() => { el.style.position = 'fixed'; el.style.left = '-9999px'; el.style.width = '1px'; el.style.height = '1px'; el.style.opacity = '0'; el.style.pointerEvents = 'none'; }, 200); }
+            if (!el) return;
+            el.click();
         }
 
         function syncDateDisplay(textId, isoValue) {
@@ -1071,6 +1082,7 @@
                         ${questions.length ? `<div class="q-list-2col">${qHtml}</div>
                             <div class="controls" style="margin-top:12px;">
                                 <button class="btn green small" ${editable ? '' : 'disabled'} onclick="saveAssessmentQuestions(${a.id})">Save Questions</button>
+                                <button class="btn small" onclick="previewAssessment(${a.id})" style="background:var(--primary-blue);color:#fff;">👁 Preview Assessment</button>
                             </div>` : '<div class="muted" style="margin-top:10px;">No questions.</div>'}
                     </div>
                 </div>`;
@@ -1550,6 +1562,62 @@
             XLSX.utils.book_append_sheet(wb, ws, 'Detailed');
             XLSX.writeFile(wb, 'ISTE_Detailed_' + new Date().toISOString().slice(0, 10) + '.xlsx');
             showStatus(statusEl, 'Exported ' + allRows.length + ' records.', 'success');
+        }
+
+        function previewAssessment(aid) {
+            const data = assessmentCache.get(aid);
+            if (!data || !data.questions || !data.questions.length) return alert('No questions to preview.');
+
+            document.getElementById('preview-title').textContent = data.title || 'Assessment Preview';
+            const s = data.start_at ? new Date(data.start_at) : null;
+            const e = data.end_at ? new Date(data.end_at) : null;
+            const fmt = d => d ? d.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+            document.getElementById('preview-meta').textContent = `Duration: ${data.total_duration || '?'} min | Questions: ${data.questions.length} | ${fmt(s)} — ${fmt(e)}`;
+
+            const body = document.getElementById('preview-body');
+            body.innerHTML = data.questions.map((q, idx) => {
+                const ans = q.answer || {};
+                const opts = ans.options || [];
+                const qImg = q.question_image ? `<img src="${q.question_image}" style="max-width:100%;max-height:200px;margin:8px 0;border-radius:8px;">` : '';
+
+                let optionsHtml = '';
+                if (q.type === 'MCQ' || q.type === 'MSQ') {
+                    optionsHtml = opts.map((o, i) => {
+                        const isCorrect = q.type === 'MCQ' ? (ans.correct_id === i) : (ans.correct_ids || []).includes(i);
+                        const optImg = q.option_images && q.option_images[i] ? `<img src="${q.option_images[i]}" style="max-width:100%;max-height:100px;margin-top:4px;border-radius:6px;">` : '';
+                        return `<div style="display:flex;align-items:flex-start;gap:8px;padding:10px 14px;margin:4px 0;border-radius:8px;border:1px solid ${isCorrect ? '#35b33b' : 'var(--border)'};${isCorrect ? 'background:#f0fdf4;' : ''}">
+                            <span style="font-weight:bold;min-width:20px;">${String.fromCharCode(65+i)}</span>
+                            <span style="flex:1;">${o}${optImg}</span>
+                            ${isCorrect ? '<span style="color:#35b33b;font-size:12px;font-weight:bold;">✓ Correct</span>' : ''}
+                        </div>`;
+                    }).join('');
+                } else if (q.type === 'INT') {
+                    optionsHtml = `<div style="padding:10px 14px;margin:4px 0;border-radius:8px;border:1px solid #35b33b;background:#f0fdf4;">
+                        <strong>Answer:</strong> ${ans.value ?? '—'}
+                    </div>`;
+                } else if (q.type === 'NUM') {
+                    const ansText = ans.range ? `${ans.range[0]} — ${ans.range[1]}` : `${ans.value ?? '—'}${ans.tolerance ? ' ± ' + ans.tolerance : ''}`;
+                    optionsHtml = `<div style="padding:10px 14px;margin:4px 0;border-radius:8px;border:1px solid #35b33b;background:#f0fdf4;">
+                        <strong>Answer:</strong> ${ansText}
+                    </div>`;
+                }
+
+                return `<div style="border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <strong style="color:var(--primary-blue);">Q${idx+1} <span style="font-size:12px;background:#f1f5f9;padding:2px 8px;border-radius:4px;color:#666;">${q.type}</span></strong>
+                        <span style="font-size:12px;color:#888;">+${q.mark ?? 1} / -${q.negative_mark ?? 0}</span>
+                    </div>
+                    <div style="font-size:14px;margin-bottom:8px;white-space:pre-wrap;">${q.question}</div>
+                    ${qImg}
+                    ${optionsHtml}
+                </div>`;
+            }).join('');
+
+            document.getElementById('preview-modal').style.display = 'flex';
+        }
+
+        function closePreview() {
+            document.getElementById('preview-modal').style.display = 'none';
         }
 
         async function logout() {
