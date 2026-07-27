@@ -571,7 +571,7 @@ def send_scheduled_push(aid, title, body, milestone):
     conn = get_admin_conn()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT id FROM sent_notifications WHERE assessment_id=%s AND reminder_str=%s", (aid, milestone))
+        cur.execute("SELECT assessment_id FROM sent_notifications WHERE assessment_id=%s AND reminder_str=%s", (aid, milestone))
         if cur.fetchone(): return
 
         cur.execute("INSERT INTO push_queue (assessment_id, title, body) VALUES (%s, %s, %s)", (aid, title, body))
@@ -580,7 +580,7 @@ def send_scheduled_push(aid, title, body, milestone):
             cur.execute("INSERT INTO sent_notifications (user_id, assessment_id, reminder_str, sent_at) VALUES (0, %s, %s, NOW())", (aid, milestone))
         except Exception:
             conn.rollback()
-            cur.execute("SELECT id FROM sent_notifications WHERE assessment_id=%s AND reminder_str=%s", (aid, milestone))
+            cur.execute("SELECT assessment_id FROM sent_notifications WHERE assessment_id=%s AND reminder_str=%s", (aid, milestone))
             if cur.fetchone(): return
 
         conn.commit()
@@ -593,7 +593,7 @@ def send_scheduled_push(aid, title, body, milestone):
 def schedule_assessment_alerts(aid, title, start_at, reminders_raw, end_at=None):
     """Calculates milestones and adds specific 'date' jobs to the scheduler."""
     if start_at.tzinfo is None: start_at = IST.localize(start_at)
-    if end_at is None: start_at + timedelta(minutes=15)
+    if end_at is None: end_at = start_at + timedelta(minutes=15)
     if end_at and end_at.tzinfo is None: end_at = IST.localize(end_at)
 
     try:
@@ -661,7 +661,7 @@ def sync_all_future_alerts():
         cur.execute("SELECT id, title, start_at, end_at, reminders FROM assessments WHERE start_at > NOW()")
         for a in cur.fetchall():
             schedule_assessment_alerts(a['id'], a['title'], a['start_at'], a['reminders'], a.get('end_at'))
-    except Exception as e: print("Sync Error")
+    except Exception as e: print(f"Sync Error: {e}")
     finally:
         cur.close(); conn.close()
 
@@ -1230,6 +1230,21 @@ def send_message():
         conn.commit()
         if not schedule_at:
             trigger_push_processing()
+        else:
+            try:
+                sched_dt = datetime.fromisoformat(schedule_at)
+                if sched_dt.tzinfo is None: sched_dt = IST.localize(sched_dt)
+                if sched_dt > datetime.now(IST):
+                    scheduler.add_job(
+                        func=trigger_push_processing,
+                        trigger='date',
+                        run_date=sched_dt,
+                        id=f"scheduled_msg_{int(sched_dt.timestamp())}",
+                        replace_existing=True
+                    )
+            except Exception as e:
+                app.logger.error(f"Schedule push processing failed: {e}")
+                trigger_push_processing()
         return jsonify({"status": "Message queued successfully"})
     except Exception as e:
         app.logger.error("Send message failed")

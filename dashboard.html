@@ -22,8 +22,9 @@
             --bg-card: #FFFFFF;
             --text-main: #202124;
             --border: #DADCE0;
-            --iste-green: #1B5E20;
+            --iste-green: #2E7D32;
             --iste-red: #C62828;
+            --iste-gray: #E0E0E0;
             --overlay: rgba(0, 0, 0, 0.5);
         }
         html, body { max-width: 100vw; overflow-x: hidden; box-sizing: border-box; touch-action: manipulation; }
@@ -54,7 +55,9 @@
         .brand-subtitle { font-size: 11px; line-height: 1.2; color: #6a4a00; }
         .portal-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
         .portal-title { font-weight: 800; font-size: 18px; line-height: 1.1; color: var(--primary-blue); }
-        .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: 0 0 auto; }
+        .mobile-actions { display: none; }
+        .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: 0 0 auto; }
+        .user-actions { display: flex; gap: 6px; }
         .user-nav-info {
             text-align: right;
             display: flex;
@@ -148,6 +151,8 @@
             .brand-title { font-size: 16px; }
             .brand-subtitle { font-size: 14px; }
             .portal-title { font-size: 16px; }
+            .portal-actions { display: none; }
+            .mobile-actions { display: flex; gap: 6px; }
             .header-right { width: 100%; flex-direction: row; justify-content: space-between; align-items: center; }
             .user-nav-info { text-align: left; }
             .user-nav-name { font-size: 12px; }
@@ -198,8 +203,10 @@
                 <div class="user-nav-course">{{ user.course }}</div>
             </div>
             {% endif %}
-            <button onclick="logout()" class="logout-btn">Logout</button>
-            <button onclick="confirmDeleteAccount()" class="logout-btn" style="background:var(--iste-red);margin-left:6px;">Delete Account</button>
+            <div class="user-actions">
+                <button onclick="confirmDeleteAccount()" class="logout-btn" style="background:var(--iste-red);">Delete Account</button>
+                <button onclick="logout()" class="logout-btn" style="margin-left:6px;">Logout</button>
+            </div>
         </div>
     </header>
 
@@ -211,13 +218,11 @@
                 <div id="countdown" class="timer-badge">Syncing Schedule...</div>
                 <button id="start-btn" class="btn" disabled>Awaiting Window</button>
             </div>
-            <div id="no-test-msg" style="text-align: center; color: #999; margin: 40px 0; display: none;">No assessments currently scheduled. Check back soon!</div>
         </div>
 
         <div class="section-header">
             <span>Past Attempts & Results</span>
             <div style="display: flex; gap: 10px;">
-                <button id="enableNotificationsBtn" class="refresh-btn" onclick="requestNotificationPermission()" style="display: none;">🔔 Enable Alerts</button>
                 <button id="manualRefreshBtn" class="refresh-btn" onclick="manualRefreshDashboard()">
                     <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
                         <path d="M23 4v6h-6" />
@@ -234,7 +239,7 @@
     </div>
 
     <div id="notification-toast">
-        <span class="toast-close" onclick="closeToast()">✕</span>
+        <span class="toast-close" onclick="closeToast()" role="button" aria-label="Close notification">✕</span>
         <div class="toast-content">
             <h4 id="toast-title">Update</h4>
             <p id="toast-body"></p>
@@ -243,7 +248,7 @@
     </div>
 
     <div id="notif-permission-banner">
-        <button class="banner-close" onclick="dismissNotifBanner()">✕</button>
+                <button class="banner-close" onclick="dismissNotifBanner()" aria-label="Dismiss notification banner">✕</button>
         <h4>🔔 Stay Updated</h4>
         <p>Enable notifications to get instant alerts about upcoming assessments, reminders, and results.</p>
         <button class="banner-btn" id="notif-enable-btn" onclick="enableNotifications()">Enable Notifications</button>
@@ -284,10 +289,6 @@
                     const btn = document.getElementById(`start-btn-${ass.id}`);
                     const countdownEl = document.getElementById(`countdown-${ass.id}`);
                     if (!banner) return;
-                    if (now > ass.hidden_at) {
-                        banner.remove();
-                        return;
-                    }
                     if (!btn || !countdownEl) return;
 
                     const startTime = ass.start_at;
@@ -334,11 +335,11 @@
             const container = document.getElementById('active-assessment-container');
             if (!container) return;
 
-            assessmentsToTrack = assessments.filter(a => !a.is_attempted).map(a => ({
+            assessmentsToTrack = assessments.map(a => ({
                 id: a.id,
                 start_at: new Date(a.start_at).getTime(),
                 end_at: new Date(a.end_at).getTime(),
-                hidden_at: new Date(a.end_at).getTime() + ((a.total_duration || 60) * 60000)
+                is_attempted: a.is_attempted
             }));
 
             if (assessments.length === 0) {
@@ -347,10 +348,15 @@
             }
 
             container.innerHTML = assessments.map((a) => {
+                const sTime = a.start_at ? new Date(a.start_at) : null;
+                const eTime = a.end_at ? new Date(a.end_at) : null;
+                const sStr = sTime ? sTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--';
+                const eStr = eTime ? eTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--';
                 if (a.is_attempted) {
                     return `
-                    <div class="banner completed">
+                    <div class="banner completed" id="active-banner-${a.id}">
                         <h3>${a.type} ${a.series_no || ''}: ${a.title}</h3>
+                        <p>Entry Window: ${sStr} to ${eStr}</p>
                         <div class="timer-badge" style="background:#e8f5e9; color:#2e7d32; border:1px solid #c8e6c9;">SUBMITTED & RECORDED</div>
                         <button class="btn" disabled style="background:#9e9e9e; cursor:not-allowed;">Attempt Finished</button>
                     </div>`;
@@ -358,7 +364,7 @@
                 return `
                 <div class="banner" id="active-banner-${a.id}">
                     <h3>${a.type} ${a.series_no || ''}: ${a.title}</h3>
-                    <p>Entry Window: <span id="test-time-${a.id}">--:--</span> to <span id="until-time-${a.id}">--:--</span></p>
+                    <p>Entry Window: <span id="test-time-${a.id}">${sStr}</span> to <span id="until-time-${a.id}">${eStr}</span></p>
                     <div id="countdown-${a.id}" class="timer-badge">Syncing...</div>
                     <button id="start-btn-${a.id}" class="btn" onclick="startTest(${a.id})">Awaiting Window</button>
                 </div>`;
@@ -466,7 +472,7 @@
                 const res = await fetch(`${BASE}/student/active?t=${Date.now()}`, { credentials: "include", cache: "no-store", signal: controller.signal });
                 clearTimeout(timer);
                 if (res.ok) {
-                    const assessments = (await res.json()).filter(a => !a.is_attempted);
+                    const assessments = await res.json();
                     const activeStr = JSON.stringify(assessments);
                     if (activeStr !== lastActiveData) {
                         lastActiveData = activeStr;
@@ -582,12 +588,14 @@
 
                         if (q.type === 'MCQ' || q.type === 'MSQ') {
                             const sIds = sResp.selected_ids || (sResp.selected_id !== undefined ? [sResp.selected_id] : []);
-                            const cIds = q.correct_answer.correct_ids || [q.correct_answer.correct_id];
-                            if (sIds.length > 0) studentAns = sIds.map(id => q.correct_answer.options[id] || '').join(', ');
-                            correctAns = cIds.map(id => q.correct_answer.options[id] || '').join(', ');
+                            const ca = q.correct_answer || {};
+                            const cIds = ca.correct_ids || [ca.correct_id];
+                            if (sIds.length > 0) studentAns = sIds.map(id => (ca.options || [])[id] || '').join(', ');
+                            correctAns = cIds.map(id => (ca.options || [])[id] || '').join(', ');
                         } else {
+                            const ca = q.correct_answer || {};
                             if (sResp.value !== undefined && sResp.value !== "") studentAns = sResp.value;
-                            correctAns = q.correct_answer.value !== undefined ? q.correct_answer.value : (q.correct_answer.range ? `${q.correct_answer.range[0]} to ${q.correct_answer.range[1]}` : "N/A");
+                            correctAns = ca.value !== undefined ? ca.value : (ca.range ? `${ca.range[0]} to ${ca.range[1]}` : "N/A");
                         }
 
                         const qImg = q.question_image ? `<img src="${q.question_image}" style="max-width:100%;max-height:160px;margin:6px 0;border-radius:6px;">` : '';
@@ -619,6 +627,14 @@
         }
 
         function startTest(id) {
+            const tracked = assessmentsToTrack.find(a => a.id === id);
+            if (tracked) {
+                const now = Date.now();
+                if (now < tracked.start_at || now > tracked.end_at) {
+                    alert("This assessment is not available yet or the window has closed.");
+                    return;
+                }
+            }
             sessionStorage.setItem('joining_assessment_id', id);
             window.location.href = `${BASE}/test`;
         }
@@ -626,9 +642,9 @@
         async function logout() { await fetch(`${BASE}/logout`, { credentials: "include" }); window.location.href = `${BASE}/`; }
 
         function confirmDeleteAccount() {
-            const regNo = prompt("Type your Register No. to confirm account deletion:\n\nThis will permanently delete your account, submission history, and device registration. This cannot be undone.");
+            const regNo = prompt("Type your Register Number to confirm account deletion:\n\nThis will permanently delete your account, submission history, and device registration.\n\nThis cannot be undone.");
             if (regNo === null) return;
-            if (String(regNo).trim() !== String({{ user.reg_no }}).trim()) {
+            if (String(regNo).trim() !== String('{{ user.reg_no }}').trim()) {
                 alert("Register No. does not match. Account not deleted.");
                 return;
             }
@@ -642,7 +658,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ confirm_user_id: parseInt(confirmId) })
+                    body: JSON.stringify({ confirm_user_id: confirmId })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Failed');
@@ -782,6 +798,25 @@
             }
         }
 
+        async function checkStudentMessages() {
+            try {
+                const res = await fetch(`${BASE}/student/messages?t=${Date.now()}`, { credentials: "include", cache: "no-store" });
+                if (!res.ok) return;
+                const messages = await res.json();
+                const unread = messages.filter(m => !m.is_read);
+                if (unread.length > 0) {
+                    const latest = unread[0];
+                    showInAppToast(latest.title || "New Message", latest.body || "", null);
+                    for (const m of unread) {
+                        await fetch(`${BASE}/student/messages/read`, {
+                            method: "POST", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ id: m.id }), credentials: "include"
+                        });
+                    }
+                }
+            } catch (e) {}
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             loadActiveAssessments();
             loadHistory();
@@ -793,16 +828,16 @@
             if (typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission();
             setInterval(() => {
                 loadActiveAssessments();
-            }, 10000);
+            }, 16000);
             setInterval(() => {
                 loadHistory();
-            }, 30000);
+            }, 16000);
             setInterval(() => {
                 checkPendingNotifications();
-            }, 30000);
+            }, 16000);
             setInterval(() => {
                 checkStudentMessages();
-            }, 30000);
+            }, 16000);
         });
 
         window.addEventListener('pageshow', e => { if (e.persisted) loadDashboardData(); });

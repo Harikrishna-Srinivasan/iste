@@ -119,6 +119,12 @@ def _send_email(to_addr, subject, body):
 def generate_otp():
     return ''.join(random.choices(string.digits, k=6))
 
+def clean_user_id(val):
+    if not val: return val
+    val = str(val).strip().lower()
+    if "@" in val: val = val.split("@")[0]
+    return val
+
 def verify_otp(user_id, otp, purpose=None):
     with otp_lock:
         key = f"otp_{user_id}"
@@ -281,7 +287,7 @@ def verify_registration_token(token):
 @app.route("/student/send-registration-otp", methods=["POST"])
 def send_registration_otp():
     data = request.json
-    user_id = data.get("user_id", "").strip()
+    user_id = clean_user_id(data.get("user_id", ""))
     if not user_id:
         return jsonify({"error": "Enter your Register No"}), 400
     try:
@@ -328,8 +334,11 @@ def send_registration_otp():
 @app.route("/student/verify-registration-otp", methods=["POST"])
 def verify_registration_otp():
     data = request.json
-    user_id = data.get("user_id", "").strip()
+    user_id = clean_user_id(data.get("user_id", ""))
     otp_input = data.get("otp", "").strip()
+
+    try: user_id = int(user_id)
+    except: return jsonify({"error": "Invalid Register No"}), 400
 
     if not verify_otp(user_id, otp_input, purpose="registration"):
         return jsonify({"error": "Invalid or expired OTP"}), 401
@@ -345,7 +354,7 @@ def student_register():
     if not token_user:
         return jsonify({"error": "OTP verification required. Please verify OTP first."}), 403
 
-    user_id = body.get("user_id")
+    user_id = clean_user_id(body.get("user_id"))
     password = body.get("password")
     name = body.get("name", "").strip()
     year = body.get("year")
@@ -400,7 +409,7 @@ def student_register():
 def student_login():
     is_form = request.content_type and "application/x-www-form-urlencoded" in request.content_type
     body = request.json if not is_form else request.form
-    user_id = body.get("user_id")
+    user_id = clean_user_id(body.get("user_id"))
     password = body.get("password")
     if not user_id or not password: return jsonify({"error": "Missing credentials"}), 400
 
@@ -463,6 +472,10 @@ def delete_account():
         return jsonify({"error": "Admins cannot delete their account from here"}), 403
     body = request.json or {}
     confirm_id = body.get("confirm_user_id")
+    try:
+        confirm_id = int(confirm_id)
+    except (ValueError, TypeError):
+        pass
     if confirm_id != uid:
         return jsonify({"error": "Confirmation mismatch"}), 400
 
@@ -486,7 +499,7 @@ def delete_account():
 @app.route("/student/forgot-password", methods=["POST"])
 def forgot_password():
     body = request.json
-    user_id = body.get("user_id")
+    user_id = clean_user_id(body.get("user_id"))
     if not user_id:
         return jsonify({"error": "Register No is required"}), 400
     try:
@@ -525,7 +538,7 @@ def forgot_password():
 @app.route("/student/verify-otp", methods=["POST"])
 def verify_otp_route():
     body = request.json
-    user_id = body.get("user_id")
+    user_id = clean_user_id(body.get("user_id"))
     otp = body.get("otp")
     if not user_id or not otp:
         return jsonify({"error": "Register No and OTP are required"}), 400
@@ -574,7 +587,7 @@ def register_device():
     conn = get_student_conn()
     cur = conn.cursor()
     try:
-        cur.execute("INSERT INTO user_devices (user_id, fcm_token) VALUES (%s, %s) ON DUPLICATE KEY UPDATE user_id = VALUES(user_id)", (uid, token))
+        cur.execute("INSERT INTO user_devices (user_id, fcm_token) VALUES (%s, %s) ON DUPLICATE KEY UPDATE fcm_token = VALUES(fcm_token)", (uid, token))
         conn.commit()
     finally:
         cur.close()
@@ -607,14 +620,16 @@ def get_active_assessments():
         cur.execute("""
             SELECT id, title, type, series_no, start_at, end_at, total_duration
             FROM assessments
-            WHERE end_at >= NOW() ORDER BY start_at ASC
+            WHERE end_at IS NOT NULL
+              AND DATE_ADD(end_at, INTERVAL COALESCE(total_duration, 60) MINUTE) >= NOW()
+            ORDER BY start_at ASC
         """)
         rows = cur.fetchall()
         for r in rows:
             if r["start_at"]: r["start_at"] = r["start_at"].isoformat()
             if r["end_at"]: r["end_at"] = r["end_at"].isoformat()
 
-        cur.execute("SELECT assessment_id FROM student_submissions WHERE user_id=%s", (uid,))
+        cur.execute("SELECT assessment_id FROM student_submissions WHERE user_id=%s AND submitted_at IS NOT NULL", (uid,))
         submitted = {r["assessment_id"] for r in cur.fetchall()}
 
         result = []
@@ -687,7 +702,9 @@ def get_pending_notifications():
         cur.execute("SELECT id, title, start_at, total_duration, reminders FROM assessments WHERE start_at > NOW() - INTERVAL 1 DAY")
         assessments = cur.fetchall()
         cur.execute("SELECT assessment_id, reminder_str FROM sent_notifications WHERE user_id = %s", (uid,))
-        sent_data = {row["assessment_id"]: row["reminder_str"] for row in cur.fetchall()}
+        acked = {}
+        for row in cur.fetchall():
+            acked.setdefault(row["assessment_id"], set()).add(row["reminder_str"])
 
         pending = []
         now = datetime.now(IST)
@@ -695,7 +712,8 @@ def get_pending_notifications():
             aid, start_at = a["id"], a["start_at"]
             if start_at.tzinfo is None: start_at = IST.localize(start_at)
             reminders = json.loads(a.get("reminders") or "[]") if isinstance(a.get("reminders"), str) else (a.get("reminders") or [])
-            latest_milestone = "CREATED"
+
+            milestones = ["CREATED"]
             for r in reminders:
                 r_sec = 0
                 if "d" in r: r_sec = int(r[:-1]) * 86400
@@ -703,12 +721,15 @@ def get_pending_notifications():
                 elif "m" in r: r_sec = int(r[:-1]) * 60
 
                 if now >= (start_at - timedelta(seconds=r_sec)):
-                    latest_milestone = f"REMINDER_{r}"
+                    milestones.append(f"REMINDER_{r}")
 
-            if now >= (start_at - timedelta(seconds=15)): latest_milestone = "STARTED"
+            if now >= (start_at - timedelta(seconds=15)): milestones.append("STARTED")
 
-            if sent_data.get(aid) != latest_milestone and (now < start_at + timedelta(minutes=a["total_duration"] or 60)):
-                pending.append({"assessment_id": aid, "title": a["title"], "milestone": latest_milestone})
+            user_acked = acked.get(aid, set())
+            for m in milestones:
+                if m not in user_acked and (now < start_at + timedelta(minutes=a["total_duration"] or 60)):
+                    pending.append({"assessment_id": aid, "title": a["title"], "milestone": m})
+                    break
         return jsonify(pending)
     finally:
         cur.close()
@@ -736,7 +757,7 @@ def get_student_messages():
     conn = get_student_conn()
     cur = conn.cursor(pymysql.cursors.DictCursor)
     try:
-        cur.execute("SELECT id, title, body, is_read, created_at FROM student_messages ORDER BY created_at DESC LIMIT 50")
+        cur.execute("SELECT id, title, body, is_read, created_at FROM student_messages WHERE created_at <= NOW() ORDER BY created_at DESC LIMIT 50")
         messages = cur.fetchall()
         return jsonify(messages)
     finally:
@@ -770,7 +791,51 @@ def get_questions(aid):
         cur.execute("SELECT user_id FROM student_submissions WHERE user_id=%s AND assessment_id=%s AND submitted_at IS NOT NULL", (uid, aid))
         if cur.fetchone(): return jsonify({"error": "Already submitted"}), 403
 
-        cur.execute("INSERT IGNORE INTO student_submissions (user_id, assessment_id, total_score, total_time_sec, detailed_log, submitted_at) VALUES (%s, %s, 0, 0, '{}', NULL)", (uid, aid))
+        cur.execute("SELECT start_at, end_at, total_duration FROM assessments WHERE id=%s", (aid,))
+        a_row = cur.fetchone()
+        if not a_row: return jsonify({"error": "Assessment not found"}), 404
+        s_at = a_row["start_at"]
+        e_at = a_row["end_at"]
+        dur_min = a_row.get("total_duration") or 60
+        GRACE_SEC = 15
+
+        cur.execute("SELECT user_id, started_at, detailed_log FROM student_submissions WHERE user_id=%s AND assessment_id=%s", (uid, aid))
+        existing = cur.fetchone()
+
+        now = datetime.now(IST)
+        if s_at and s_at.tzinfo is None: s_at = IST.localize(s_at)
+        if e_at and e_at.tzinfo is None: e_at = IST.localize(e_at)
+
+        if existing and existing.get("started_at"):
+            started_at = existing["started_at"]
+            if started_at.tzinfo is None: started_at = IST.localize(started_at)
+            abs_end = started_at + timedelta(minutes=dur_min, seconds=GRACE_SEC)
+            if now > abs_end:
+                return jsonify({"error": "Time is up for this assessment."}), 403
+            if e_at and now > e_at:
+                pass
+            saved_log = existing["detailed_log"]
+            if isinstance(saved_log, str) and saved_log:
+                try: saved_log = json.loads(saved_log)
+                except: saved_log = {}
+            elif not isinstance(saved_log, dict):
+                saved_log = {}
+            remaining_sec = max(0, int((abs_end - now).total_seconds()))
+            server_state = {"started_at": started_at.isoformat(), "remaining_sec": remaining_sec, "responses": {}}
+            for qid_str, log_entry in saved_log.items():
+                resp = log_entry.get("resp", {})
+                if resp:
+                    server_state["responses"][str(qid_str)] = resp
+        else:
+            if s_at and now < s_at:
+                return jsonify({"error": "Assessment has not started yet"}), 403
+            if e_at and now > e_at:
+                return jsonify({"error": "Assessment window has closed"}), 403
+            cur.execute("INSERT IGNORE INTO student_submissions (user_id, assessment_id, total_score, total_time_sec, detailed_log, submitted_at) VALUES (%s, %s, 0, 0, '{}', NULL)", (uid, aid))
+            conn.commit()
+            cur.execute("UPDATE student_submissions SET started_at=NOW() WHERE user_id=%s AND assessment_id=%s AND started_at IS NULL", (uid, aid))
+            conn.commit()
+            server_state = None
 
         cur.execute("SELECT q.id, q.type, q.question, q.answer, q.mark, q.negative_mark, q.question_image, q.option_images FROM assessment_questions aq JOIN questions q ON aq.question_id = q.id WHERE aq.assessment_id = %s", (aid,))
         rows = cur.fetchall()
@@ -789,7 +854,10 @@ def get_questions(aid):
                 q_dict["option_images"] = opt_imgs
             if r["type"] in ("MCQ", "MSQ"): q_dict["options"] = ans.get("options", [])
             formatted.append(q_dict)
-        return jsonify(formatted)
+        resp = {"questions": formatted}
+        if server_state:
+            resp["server_state"] = server_state
+        return jsonify(resp)
     finally:
         cur.close()
         conn.close()
@@ -918,5 +986,71 @@ def student_attempt_details(aid):
         cur.close()
         conn.close()
 
+@app.route("/student/heartbeat", methods=["POST"])
+@token_required
+def student_heartbeat():
+    uid = request.user["user_id"]
+    body = request.json
+    aid = body.get("assessment_id")
+    responses = body.get("responses", {})
+    q_times = body.get("q_times", {})
+    if not aid: return jsonify({"error": "Missing assessment_id"}), 400
+    conn = get_student_conn()
+    cur = conn.cursor(pymysql.cursors.DictCursor)
+    try:
+        cur.execute("SELECT user_id FROM student_submissions WHERE user_id=%s AND assessment_id=%s AND submitted_at IS NOT NULL", (uid, aid))
+        if cur.fetchone(): return jsonify({"error": "Already submitted"}), 403
+
+        cur.execute("SELECT start_at, total_duration FROM assessments WHERE id=%s", (aid,))
+        a_row = cur.fetchone()
+        if not a_row: return jsonify({"error": "Assessment not found"}), 404
+
+        cur.execute("SELECT started_at FROM student_submissions WHERE user_id=%s AND assessment_id=%s", (uid, aid))
+        sub = cur.fetchone()
+        if not sub: return jsonify({"error": "No active session"}), 404
+
+        started_at = sub["started_at"]
+        if started_at:
+            if started_at.tzinfo is None: started_at = IST.localize(started_at)
+            dur_min = a_row.get("total_duration") or 60
+            abs_end = started_at + timedelta(minutes=dur_min, seconds=15)
+            now = datetime.now(IST)
+            if now > abs_end:
+                return jsonify({"error": "Time is up"}), 403
+            remaining_sec = max(0, int((abs_end - now).total_seconds()))
+        else:
+            remaining_sec = (a_row.get("total_duration") or 60) * 60
+
+        detailed_log = {}
+        cur.execute("SELECT detailed_log FROM student_submissions WHERE user_id=%s AND assessment_id=%s", (uid, aid))
+        existing = cur.fetchone()
+        if existing and existing.get("detailed_log"):
+            try:
+                detailed_log = json.loads(existing["detailed_log"]) if isinstance(existing["detailed_log"], str) else existing["detailed_log"]
+            except: detailed_log = {}
+
+        for qid_str, resp in responses.items():
+            if qid_str not in detailed_log:
+                detailed_log[qid_str] = {"score": 0, "time": 0, "resp": {}}
+            detailed_log[qid_str]["resp"] = resp
+            if qid_str in q_times:
+                detailed_log[qid_str]["time"] = int(q_times[qid_str])
+
+        cur.execute("UPDATE student_submissions SET detailed_log=%s WHERE user_id=%s AND assessment_id=%s", (json.dumps(detailed_log), uid, aid))
+        conn.commit()
+        return jsonify({"status": "ok", "remaining_sec": remaining_sec})
+    finally:
+        cur.close()
+        conn.close()
+
 if __name__ == "__main__":
+    try:
+        c = get_student_conn()
+        cur = c.cursor()
+        cur.execute("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema=%s AND table_name='student_submissions' AND column_name='started_at'", (os.environ["db"],))
+        if cur.fetchone()[0] == 0:
+            cur.execute("ALTER TABLE student_submissions ADD COLUMN started_at DATETIME DEFAULT NULL")
+            c.commit()
+        cur.close(); c.close()
+    except: pass
     serve(app, host="0.0.0.0", threads=64, port=5000)

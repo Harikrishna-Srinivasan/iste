@@ -21,6 +21,8 @@
             --blue: #0071e3;
             --orange: #ff9f0a;
             --primary-blue: #0071e3;
+            --iste-gray: #E0E0E0;
+            --iste-red: #D32F2F;
             --shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
             --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.08);
         }
@@ -182,7 +184,7 @@
     <main>
         <section class="card">
             <h3>Post Assessment</h3>
-            <label>Import Questions (Excel)</label>
+            <label for="excel-file">Import Questions (Excel)</label>
             <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-bottom: 12px;">
                 <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" style="flex: 1;">
                 <button class="btn orange" onclick="uploadQuestions()">Import Questions</button>
@@ -236,13 +238,13 @@
                     <input type="time" id="end_time" step="300">
                 </div>
             </div>
-            <label>Reminder Intervals</label>
+            <label for="rem-1d">Reminder Intervals</label>
             <div class="controls" style="margin-bottom: 12px;">
-                <label style="font-weight: normal;"><input type="checkbox" name="rem" value="1d"> 1 Day</label>
-                <label style="font-weight: normal;"><input type="checkbox" name="rem" value="2h"> 2 Hrs</label>
-                <label style="font-weight: normal;"><input type="checkbox" name="rem" value="1h"> 1 Hr</label>
-                <label style="font-weight: normal;"><input type="checkbox" name="rem" value="15m"> 15 Min</label>
-                <label style="font-weight: normal;"><input type="checkbox" name="rem" value="5m"> 5 Min</label>
+                <label for="rem-1d" style="font-weight: normal;"><input type="checkbox" id="rem-1d" name="rem" value="1d"> 1 Day</label>
+                <label for="rem-2h" style="font-weight: normal;"><input type="checkbox" id="rem-2h" name="rem" value="2h"> 2 Hrs</label>
+                <label for="rem-1h" style="font-weight: normal;"><input type="checkbox" id="rem-1h" name="rem" value="1h"> 1 Hr</label>
+                <label for="rem-15m" style="font-weight: normal;"><input type="checkbox" id="rem-15m" name="rem" value="15m"> 15 Min</label>
+                <label for="rem-5m" style="font-weight: normal;"><input type="checkbox" id="rem-5m" name="rem" value="5m"> 5 Min</label>
             </div>
             <div class="controls">
                 <button class="btn green" onclick="scheduleEvent()">Publish Assessment</button>
@@ -293,7 +295,7 @@
                 <textarea id="qe-question" rows="3" placeholder="Type the question here..." style="width:100%;" oninput="updateQEPreview()"></textarea>
             </div>
             <div style="margin-bottom:12px;">
-                <label>Question Image (optional)</label>
+                <label for="qe-question-img-input">Question Image (optional)</label>
                 <div id="qe-question-img-wrap" style="border:2px dashed var(--border);border-radius:8px;padding:16px;text-align:center;cursor:pointer;position:relative;" onclick="document.getElementById('qe-question-img-input').click()">
                     <input type="file" id="qe-question-img-input" accept="image/*" style="display:none;" onchange="previewQEImage('question', this)">
                     <div id="qe-question-img-placeholder">Click to upload image</div>
@@ -310,7 +312,7 @@
             <div id="qe-answer-section" style="margin-top:12px;"></div>
 
             <div style="margin-top:16px;">
-                <label style="font-weight:bold; cursor:pointer; color:var(--primary-blue);" onclick="document.getElementById('qe-preview-box').style.display = document.getElementById('qe-preview-box').style.display === 'none' ? '' : 'none'">👁 Preview (student view)</label>
+                <span style="font-weight:bold; cursor:pointer; color:var(--primary-blue);" onclick="document.getElementById('qe-preview-box').style.display = document.getElementById('qe-preview-box').style.display === 'none' ? '' : 'none'">👁 Preview (student view)</span>
                 <div id="qe-preview-box" style="display:none; background:#fff; border:1px solid var(--border); border-radius:12px; padding:20px; margin-top:8px;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:8px;">
                         <span style="font-weight:bold; color:var(--primary-blue)">Question 1 / 1 (<span id="qe-preview-type">MCQ</span>)</span>
@@ -535,10 +537,16 @@
             const yyyy = today.getFullYear();
             const todayStr = `${dd}-${monthName}-${yyyy}`;
 
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const nextMM = String((now.getMinutes() + 10) % 60).padStart(2, '0');
+            const nextHH = String((now.getMinutes() + 10 >= 60 ? now.getHours() + 1 : now.getHours()) % 24).padStart(2, '0');
+
             document.getElementById('start_date').value = todayStr;
-            document.getElementById('start_time').value = '20:00';
+            document.getElementById('start_time').value = `${hh}:${mm}`;
             document.getElementById('end_date').value = todayStr;
-            document.getElementById('end_time').value = '20:05';
+            document.getElementById('end_time').value = `${nextHH}:${nextMM}`;
         }
 
         let qeOptions = [];
@@ -1080,8 +1088,8 @@
                     ${qImg}
                     ${opts.length ? `<div class="q-opts-wrap"><label class="q-opts-label">Options</label>${answerInput}</div>` : `<div class="q-opts-wrap">${answerInput}</div>`}
                     <div class="q-marks">
-                        <label>Mark <input type="number" class="q-mark" value="${escapeHtml(q.mark ?? 1)}" step="any" ${editable ? '' : 'disabled'}></label>
-                        <label>Neg Mark <input type="number" class="q-neg" value="${escapeHtml(q.negative_mark ?? 0)}" step="any" ${editable ? '' : 'disabled'}></label>
+                        <label for="q-mark-${q.id}">Mark <input type="number" id="q-mark-${q.id}" class="q-mark" value="${escapeHtml(q.mark ?? 1)}" step="any" ${editable ? '' : 'disabled'}></label>
+                        <label for="q-neg-${q.id}">Neg Mark <input type="number" id="q-neg-${q.id}" class="q-neg" value="${escapeHtml(q.negative_mark ?? 0)}" step="any" ${editable ? '' : 'disabled'}></label>
                     </div>
                 </div>`;
             }).join('');

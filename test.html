@@ -237,7 +237,7 @@
                 assessmentId = active.id;
 
                 const typeStr = active.type ? (active.type.charAt(0).toUpperCase() + active.type.slice(1).toLowerCase()) : 'Assessment';
-                const displayTitle = active.seq_num ? `${typeStr} ${active.seq_num}: ${active.title}` : `${typeStr}: ${active.title}`;
+                const displayTitle = active.series_no ? `${typeStr} ${active.series_no}: ${active.title}` : `${typeStr}: ${active.title}`;
                 document.getElementById('test-header-title').innerText = displayTitle;
                 const qRes = await fetch(`${BASE}/student/questions/${assessmentId}`, { credentials: "include" });
                 const rawData = await qRes.json();
@@ -248,7 +248,10 @@
                     return;
                 }
 
-                testData = rawData.map(q => ({
+                const questions = rawData.questions || rawData;
+                const serverState = rawData.server_state || null;
+
+                testData = questions.map(q => ({
                     id: q.id,
                     type: q.type,
                     q: q.question,
@@ -260,7 +263,14 @@
                 }));
 
                 const saved = localStorage.getItem('iste_test_state_' + assessmentId);
-                if (saved) {
+                if (serverState) {
+                    state.idx = 0;
+                    state.responses = serverState.responses || {};
+                    state.visited = [];
+                    state.qTimeSpent = new Array(testData.length).fill(0);
+                    state.timeLeft = serverState.remaining_sec;
+                    state.absoluteEndTime = Date.now() + (serverState.remaining_sec * 1000);
+                } else if (saved) {
                     state = JSON.parse(saved);
                     if (!state.visited) state.visited = [];
 
@@ -277,13 +287,14 @@
                     state.responses = {};
                     state.visited = [];
                     state.qTimeSpent = new Array(testData.length).fill(0);
-                    state.timeLeft = (active.total_duration || 60) * 60 + 10;
+                    state.timeLeft = (active.total_duration || 60) * 60 + 15;
                     state.absoluteEndTime = Date.now() + (state.timeLeft * 1000);
                 }
 
                 initPalette();
                 renderQuestion();
                 startGlobalTimer();
+                startServerHeartbeat();
             } catch (err) {
                 console.error(err);
                 document.getElementById('q-display').innerHTML = `<h2 style="color:var(--iste-red); text-align:center;">Error Loading Assessment: ${err.message}</h2>`;
@@ -311,6 +322,37 @@
 
         function saveLocal() {
             localStorage.setItem('iste_test_state_' + assessmentId, JSON.stringify(state));
+        }
+
+        let heartbeatInterval = null;
+        function startServerHeartbeat() {
+            sendHeartbeat();
+            heartbeatInterval = setInterval(sendHeartbeat, 30000);
+        }
+        async function sendHeartbeat() {
+            if (!assessmentId) return;
+            const responses = {};
+            const q_times = {};
+            testData.forEach((q, i) => {
+                const resp = state.responses[q.id];
+                if (resp) responses[q.id] = resp;
+                q_times[q.id] = state.qTimeSpent[i] || 0;
+            });
+            try {
+                const res = await fetch(`${BASE}/student/heartbeat`, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ assessment_id: assessmentId, responses, q_times })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.remaining_sec !== undefined) {
+                        state.absoluteEndTime = Date.now() + (data.remaining_sec * 1000);
+                        state.timeLeft = data.remaining_sec;
+                    }
+                }
+            } catch (e) {}
         }
 
         function initPalette() {
@@ -441,6 +483,7 @@
 
             clearInterval(timers.global);
             clearInterval(timers.q);
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
 
             const timeMap = {};
             testData.forEach((q, i) => {

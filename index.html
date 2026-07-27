@@ -23,6 +23,8 @@
             --overlay: rgba(0, 0, 0, 0.5);
             --muted: #86868b;
             --iste-green: #2e7d32;
+            --iste-red: #C62828;
+            --iste-gray: #E0E0E0;
         }
 
         html,
@@ -374,16 +376,16 @@
             <h2 style="text-align: center; margin-bottom: 30px; font-size: 24px; color: var(--primary-blue);">Student Login</h2>
             <form id="login-form" method="POST" action="/student/login" onsubmit="return startLoginFlow();">
                 <div class="form-group">
-                    <label>Register No</label>
+                    <label for="user_id">Register No</label>
                     <input type="text" id="user_id" name="user_id" placeholder="Enter the register no" autocomplete="username">
                 </div>
                 <div class="form-group">
-                    <label>Password</label>
+                    <label for="password">Password</label>
                     <input type="password" id="password" name="password" placeholder="Enter the password" autocomplete="current-password">
                     <span class="pwd-toggle" onclick="togglePwd('password', this)">SHOW</span>
                 </div>
                 <div style="margin-bottom:16px;">
-                    <label style="font-size:13px;font-weight:normal;display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
+                    <label for="tc-check" style="font-size:13px;font-weight:normal;display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
                         <input type="checkbox" id="tc-check" style="margin-top:3px;">
                         <span>I agree to the <a href="#" onclick="event.preventDefault();document.getElementById('tc-modal').style.display='flex';">Terms & Conditions</a></span>
                     </label>
@@ -404,7 +406,7 @@
                 <h2 style="text-align: center; margin-bottom: 10px; font-size: 22px; color: var(--primary-blue);">Student Registration</h2>
                 <p style="text-align: center; font-size: 13px; color: #666; margin-bottom: 18px;">Enter your Register No.<br>An OTP will be sent to your SASTRA email.</p>
                 <div class="form-group">
-                    <label>Register No</label>
+                    <label for="reg-userid">Register No</label>
                     <input type="text" id="reg-userid" placeholder="Enter registration number">
                 </div>
                 <button class="btn" id="reg-send-btn" onclick="regSendOTP()">Send OTP</button>
@@ -419,12 +421,12 @@
                 <h2 style="text-align: center; margin-bottom: 10px; font-size: 22px; color: var(--primary-blue);">Enter OTP</h2>
                 <p class="otp-info">A 6-digit code was sent to <strong id="reg-email-display"></strong></p>
                 <div class="otp-inputs">
-                    <input type="text" maxlength="1" class="reg-otp-digit" data-index="0" inputmode="numeric">
-                    <input type="text" maxlength="1" class="reg-otp-digit" data-index="1" inputmode="numeric">
-                    <input type="text" maxlength="1" class="reg-otp-digit" data-index="2" inputmode="numeric">
-                    <input type="text" maxlength="1" class="reg-otp-digit" data-index="3" inputmode="numeric">
-                    <input type="text" maxlength="1" class="reg-otp-digit" data-index="4" inputmode="numeric">
-                    <input type="text" maxlength="1" class="reg-otp-digit" data-index="5" inputmode="numeric">
+                    <input type="text" maxlength="1" class="reg-otp-digit" id="reg-otp-0" name="reg-otp" data-index="0" inputmode="numeric">
+                    <input type="text" maxlength="1" class="reg-otp-digit" id="reg-otp-1" name="reg-otp" data-index="1" inputmode="numeric">
+                    <input type="text" maxlength="1" class="reg-otp-digit" id="reg-otp-2" name="reg-otp" data-index="2" inputmode="numeric">
+                    <input type="text" maxlength="1" class="reg-otp-digit" id="reg-otp-3" name="reg-otp" data-index="3" inputmode="numeric">
+                    <input type="text" maxlength="1" class="reg-otp-digit" id="reg-otp-4" name="reg-otp" data-index="4" inputmode="numeric">
+                    <input type="text" maxlength="1" class="reg-otp-digit" id="reg-otp-5" name="reg-otp" data-index="5" inputmode="numeric">
                 </div>
                 <button class="btn" id="reg-verify-btn" onclick="regVerifyOTP()">Verify OTP</button>
                 <div id="reg-error2" class="error"></div>
@@ -436,13 +438,14 @@
 
             <!-- Step 3: Complete Registration -->
             <div id="reg-step3" style="display:none;">
+                <form id="reg-form" onsubmit="event.preventDefault(); doRegister();">
                 <h2 style="text-align: center; margin-bottom: 25px; font-size: 22px; color: var(--primary-blue);">Complete Registration</h2>
                 <div class="form-group">
-                    <label>Full Name</label>
+                    <label for="reg-name">Full Name</label>
                     <input type="text" id="reg-name" placeholder="Enter your full name">
                 </div>
                 <div class="form-group select-group">
-                    <label>Year</label>
+                    <label for="reg-year">Year</label>
                     <select id="reg-year">
                         <option value="">Select Year</option>
                         <option value="1">1st Year</option>
@@ -453,28 +456,29 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Degree</label>
+                    <label for="reg-degree">Degree</label>
                     <input type="text" id="reg-degree" placeholder="e.g. B.Tech">
                 </div>
                 <div class="form-group">
-                    <label>Stream</label>
+                    <label for="reg-stream">Stream</label>
                     <input type="text" id="reg-stream" placeholder="e.g. CSE">
                 </div>
                 <div class="form-group">
-                    <label>Password</label>
+                    <label for="reg-password">Password</label>
                     <input type="password" id="reg-password" placeholder="Min 6 characters">
                     <span class="pwd-toggle" onclick="togglePwd('reg-password', this)">SHOW</span>
                 </div>
                 <div class="form-group">
-                    <label>Confirm Password</label>
+                    <label for="reg-confirm">Confirm Password</label>
                     <input type="password" id="reg-confirm" placeholder="Re-enter password">
                     <span class="pwd-toggle" onclick="togglePwd('reg-confirm', this)">SHOW</span>
                 </div>
-                <button class="btn" id="register-btn" onclick="doRegister()">Create Account</button>
+                <button class="btn" id="register-btn" type="submit">Create Account</button>
                 <div id="reg-error3" class="error"></div>
                 <div class="back-link">
                     <a onclick="regGoStep(2)">Back</a>
                 </div>
+                </form>
             </div>
         </div>
 
@@ -485,7 +489,7 @@
                 <h2 style="text-align: center; margin-bottom: 10px; font-size: 22px; color: var(--primary-blue);">Reset Password</h2>
                 <p style="text-align: center; font-size: 13px; color: #666; margin-bottom: 25px;">Enter your Register No. An OTP will be sent to your SASTRA email.</p>
                 <div class="form-group">
-                    <label>Register No</label>
+                    <label for="fp-userid">Register No</label>
                     <input type="text" id="fp-userid" placeholder="Enter registration number">
                 </div>
                 <button class="btn" id="fp-send-btn" onclick="sendOTP()">Send OTP</button>
@@ -500,12 +504,12 @@
                 <h2 style="text-align: center; margin-bottom: 10px; font-size: 22px; color: var(--primary-blue);">Enter OTP</h2>
                 <p class="otp-info">A 6-digit code was sent to <strong id="fp-email-display"></strong></p>
                 <div class="otp-inputs">
-                    <input type="text" maxlength="1" class="otp-digit" data-index="0" inputmode="numeric">
-                    <input type="text" maxlength="1" class="otp-digit" data-index="1" inputmode="numeric">
-                    <input type="text" maxlength="1" class="otp-digit" data-index="2" inputmode="numeric">
-                    <input type="text" maxlength="1" class="otp-digit" data-index="3" inputmode="numeric">
-                    <input type="text" maxlength="1" class="otp-digit" data-index="4" inputmode="numeric">
-                    <input type="text" maxlength="1" class="otp-digit" data-index="5" inputmode="numeric">
+                    <input type="text" maxlength="1" class="otp-digit" id="fp-otp-0" name="fp-otp" data-index="0" inputmode="numeric">
+                    <input type="text" maxlength="1" class="otp-digit" id="fp-otp-1" name="fp-otp" data-index="1" inputmode="numeric">
+                    <input type="text" maxlength="1" class="otp-digit" id="fp-otp-2" name="fp-otp" data-index="2" inputmode="numeric">
+                    <input type="text" maxlength="1" class="otp-digit" id="fp-otp-3" name="fp-otp" data-index="3" inputmode="numeric">
+                    <input type="text" maxlength="1" class="otp-digit" id="fp-otp-4" name="fp-otp" data-index="4" inputmode="numeric">
+                    <input type="text" maxlength="1" class="otp-digit" id="fp-otp-5" name="fp-otp" data-index="5" inputmode="numeric">
                 </div>
                 <button class="btn" id="fp-verify-btn" onclick="verifyOTP()">Verify OTP</button>
                 <div id="fp-error2" class="error"></div>
@@ -517,19 +521,21 @@
 
             <!-- Step 3: Set New Password -->
             <div id="forgot-step3" style="display:none;">
+                <form id="fp-reset-form" onsubmit="event.preventDefault(); resetPassword();">
                 <h2 style="text-align: center; margin-bottom: 25px; font-size: 22px; color: var(--primary-blue);">Set New Password</h2>
                 <div class="form-group">
-                    <label>New Password</label>
+                    <label for="fp-new-password">New Password</label>
                     <input type="password" id="fp-new-password" placeholder="Min 6 characters">
                     <span class="pwd-toggle" onclick="togglePwd('fp-new-password', this)">SHOW</span>
                 </div>
                 <div class="form-group">
-                    <label>Confirm Password</label>
+                    <label for="fp-confirm-password">Confirm Password</label>
                     <input type="password" id="fp-confirm-password" placeholder="Re-enter password">
                     <span class="pwd-toggle" onclick="togglePwd('fp-confirm-password', this)">SHOW</span>
                 </div>
-                <button class="btn" id="fp-reset-btn" onclick="resetPassword()">Reset Password</button>
+                <button class="btn" id="fp-reset-btn" type="submit">Reset Password</button>
                 <div id="fp-error3" class="error"></div>
+                </form>
             </div>
         </div>
     </div>
@@ -549,6 +555,7 @@
                     <li>Accept that administrators may review and moderate your submissions.</li>
                 </ul>
                 <p><strong>Data:</strong> Your registration details, assessment responses, and device token (for notifications) are stored securely. You may request account deletion at any time from your dashboard.</p>
+                <p><strong>All the date and time mentioned here are in IST (UTC+05:30) only.</strong></p>
                 <p style="margin-top:10px; color:#888;">For queries, contact your ISTE student chapter coordinator.</p>
             </div>
             <button onclick="document.getElementById('tc-modal').style.display='none'" class="btn" style="margin-top:14px;width:100%;">Close</button>
