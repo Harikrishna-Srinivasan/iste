@@ -10,11 +10,11 @@
     "@capacitor/android": "^8.4.1",
     "@capacitor/core": "^8.4.1",
     "@capacitor/http": "^0.0.2",
-    "@capacitor/local-notifications": "^8.0.2",
+    "@capacitor/local-notifications": "^8.2.1",
     "@capacitor/push-notifications": "^8.1.2"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.4.1"
+    "@capacitor/cli": "^8.4.2"
   },
   "overrides": {
     "tar": "^7.5.16"
