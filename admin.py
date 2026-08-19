@@ -23,6 +23,7 @@ from flask import (
     session
 )
 from flask_compress import Compress
+from werkzeug.utils import secure_filename
 from flask_cors import CORS
 from flask_minify import Minify
 from waitress import serve
@@ -383,12 +384,17 @@ def upload_image():
     if "file" not in request.files:
         return jsonify({"error": "No file"}), 400
     f = request.files["file"]
-    ext = os.path.splitext(f.filename)[1].lower()
+    safe_name = secure_filename(f.filename or "")
+    ext = os.path.splitext(safe_name)[1].lower()
     if ext not in ALLOWED_EXT:
         return jsonify({"error": "Unsupported image type"}), 400
     import uuid
     filename = f"{uuid.uuid4().hex}{ext}"
-    f.save(os.path.join(UPLOAD_DIR, filename))
+    file_path = os.path.realpath(os.path.join(UPLOAD_DIR, filename))
+    upload_root = os.path.realpath(UPLOAD_DIR)
+    if os.path.commonpath([upload_root, file_path]) != upload_root:
+        return jsonify({"error": "Invalid file path"}), 400
+    f.save(file_path)
     return jsonify({"url": f"/uploads/{filename}"})
 
 
